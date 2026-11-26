@@ -433,6 +433,8 @@ const handleDelete = () => {
   align-items: center;
   justify-content: space-between;
   background: var(--surface-primary);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
   border-bottom: 1px solid var(--border-subtle);
   flex-shrink: 0;
 }
@@ -535,7 +537,9 @@ const handleDelete = () => {
 }
 
 .meta-card {
-  background: var(--surface-primary);
+  background: var(--surface-elevated);
+  backdrop-filter: blur(18px) saturate(165%);
+  -webkit-backdrop-filter: blur(18px) saturate(165%);
   border: 1px solid var(--border-subtle);
   border-radius: 14px;
   padding: 16px 18px;
@@ -648,7 +652,9 @@ const handleDelete = () => {
 }
 
 .body-card {
-  background: var(--surface-primary);
+  background: var(--surface-elevated);
+  backdrop-filter: blur(18px) saturate(165%);
+  -webkit-backdrop-filter: blur(18px) saturate(165%);
   border: 1px solid var(--border-subtle);
   border-radius: 14px;
   padding: 20px;
@@ -692,7 +698,9 @@ const handleDelete = () => {
 }
 
 .att {
-  background: var(--surface-primary);
+  background: var(--surface-elevated);
+  backdrop-filter: blur(18px) saturate(165%);
+  -webkit-backdrop-filter: blur(18px) saturate(165%);
   border: 1px solid var(--border-subtle);
   padding: 16px 18px;
   border-radius: 14px;

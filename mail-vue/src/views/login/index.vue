@@ -2,7 +2,7 @@
   <div
     ref="loginPageRef"
     class="login-page"
-    :class="{ 'has-custom-bg': !!settingStore.settings.background, 'is-dark': uiStore.dark }"
+    :class="{ 'is-dark': uiStore.dark }"
     :style="pointerCssVars"
     @pointermove="handlePointerMove"
     @pointerleave="handlePointerLeave"
@@ -11,8 +11,8 @@
       <loading/>
     </div>
 
-    <!-- Cinematic Aurora Backdrop vs Custom Wallpaper -->
-    <div v-if="!settingStore.settings.background" class="ambient-bg" aria-hidden="true">
+    <!-- Cinematic Aurora Backdrop -->
+    <div class="ambient-bg" aria-hidden="true">
       <div class="ambient-orb orb-1"></div>
       <div class="ambient-orb orb-2"></div>
       <div class="ambient-orb orb-3"></div>
@@ -20,9 +20,6 @@
       <div class="ambient-beam"></div>
       <div class="ambient-grid"></div>
       <div class="cursor-spotlight"></div>
-    </div>
-    <div v-else class="custom-bg-layer" :style="background">
-      <div class="custom-bg-scrim"></div>
     </div>
 
     <!-- Top Floating Controls -->
@@ -36,9 +33,9 @@
       </button>
     </div>
 
-    <div class="login-shell" :class="{ 'single-column': !!settingStore.settings.background }">
+    <div class="login-shell">
       <!-- Flagship Showcase Column -->
-      <div v-if="!settingStore.settings.background" class="hero-pane">
+      <div class="hero-pane">
         <div class="hero-inner">
           <h1 class="hero-headline">
             <template v-if="settingStore.lang === 'zh'">
@@ -152,8 +149,8 @@
 
       <!-- Luminous Prism Auth Card Column -->
       <div class="auth-pane">
-        <div class="auth-card-frame" :class="{ 'has-wallpaper': !!settingStore.settings.background }">
-          <div class="auth-card" :class="{ 'glass-card': !!settingStore.settings.background }">
+        <div class="auth-card-frame">
+          <div class="auth-card">
             <div class="card-brand">
               <div class="card-logo-box">
                 <img :src="logoUrl" alt="Logo" class="card-logo"/>
@@ -499,7 +496,7 @@ const previewTiltStyle = computed(() => ({
 
 function handlePointerMove(e) {
   const el = loginPageRef.value
-  if (!el || settingStore.settings.background) return
+  if (!el) return
   const rect = el.getBoundingClientRect()
   if (!rect.width || !rect.height) return
   const rx = (e.clientX - rect.left) / rect.width
@@ -861,7 +858,6 @@ async function saveToken(token) {
     router.addRoute('layout', routerData);
   });
   await router.replace({name: 'layout'})
-  uiStore.showNotice()
   oauthLoading.value = false;
   bindLoading.value = false;
 }

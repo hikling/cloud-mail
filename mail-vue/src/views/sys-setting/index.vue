@@ -84,22 +84,47 @@
             </section>
 
             <section class="setting-group">
-              <h2 class="group-heading">{{ $t('sysSectionAppearance') }}</h2>
+              <h2 class="group-heading">{{ $t('sysSectionWorkspace') }}</h2>
               <div class="group-card">
-                <div class="setting-row setting-row--fixed">
-                  <div class="row-info">
-                    <div class="row-label">{{ $t('loginBoxOpacity') }}</div>
+                <div class="setting-row setting-row--stack setting-row--fixed">
+                  <div class="bg-row-head">
+                    <div class="row-info">
+                      <div class="row-label-inline">
+                        <span class="row-label">{{ $t('workspaceOpacity') }}</span>
+                        <span class="opacity-readout">{{ Math.round((loginOpacity ?? 0.88) * 100) }}%</span>
+                      </div>
+                      <div class="row-desc">{{ $t('workspaceOpacityDesc') }}</div>
+                    </div>
+                    <div class="opacity-presets">
+                      <button
+                        v-for="preset in opacityPresets"
+                        :key="preset.value"
+                        type="button"
+                        class="preset-chip"
+                        :class="{ active: Math.abs((loginOpacity ?? 0.88) - preset.value) < 0.015 }"
+                        @click="applyOpacityPreset(preset.value)"
+                      >
+                        {{ $t(preset.labelKey) }}
+                      </button>
+                    </div>
                   </div>
-                  <div class="row-control">
-                    <el-input-number size="small" v-model="loginOpacity" @change="opacityChange" :precision="2"
-                                     :step="0.01" :max="1" :min="0"/>
+                  <div class="opacity-slider-wrap">
+                    <el-slider
+                      v-model="loginOpacity"
+                      :min="0.3"
+                      :max="1"
+                      :step="0.01"
+                      :show-tooltip="false"
+                      @input="onOpacityInput"
+                      @change="opacityChange"
+                    />
                   </div>
                 </div>
                 <div class="setting-row setting-row--stack setting-row--grow">
                   <div class="bg-row-head">
                     <div class="row-info">
-                      <div class="row-label">{{ $t('loginBackground') }}</div>
-                      <div class="row-desc">{{ $t('backgroundWarning') }}</div>
+                      <div class="row-label">{{ $t('workspaceBackground') }}</div>
+                      <div class="row-desc">{{ $t('workspaceBackgroundDesc') }}</div>
                     </div>
                     <div class="btn-group">
                       <button type="button" class="action-btn" @click="openSetBackground">
@@ -125,32 +150,9 @@
                     </template>
                   </el-image>
                   <button v-else type="button" class="background-empty" @click="openSetBackground">
-                    <Icon icon="lucide:image" width="18" height="18"/>
-                    <span>{{ $t('sysSetBackgroundHint') }}</span>
+                    <Icon icon="lucide:sparkles" width="18" height="18"/>
+                    <span>{{ $t('sysSetWorkspaceBgHint') }}</span>
                   </button>
-                </div>
-              </div>
-            </section>
-
-            <section class="setting-group setting-group--full">
-              <h2 class="group-heading">{{ $t('noticeTitle') }}</h2>
-              <div class="group-card">
-                <div class="setting-row">
-                  <div class="row-info">
-                    <div class="row-label">{{ $t('noticePopup') }}</div>
-                    <div class="row-desc" v-if="setting.noticeTitle">{{ setting.noticeTitle }}</div>
-                  </div>
-                  <div class="row-control inline-controls">
-                    <span class="status-dot-label" :class="{ 'is-on': setting.notice === 0 }">
-                      <i></i>{{ setting.notice === 0 ? $t('enabled') : $t('disabled') }}
-                    </span>
-                    <button type="button" class="action-btn" @click="openNoticePopupSetting">
-                      {{ $t('sysConfigure') }}
-                    </button>
-                    <button type="button" class="action-btn" @click="openNoticePopup">
-                      {{ $t('preview') }}
-                    </button>
-                  </div>
                 </div>
               </div>
             </section>
@@ -733,79 +735,6 @@ Authorization: &lt;secret&gt;</pre>
           <el-button type="primary" :loading="settingLoading" @click="saveAddVerifyCount">{{ $t('save') }}</el-button>
         </form>
       </el-dialog>
-      <el-dialog top="5vh" v-model="noticePopupShow" :title="$t('noticePopup')" class="notice-popup"
-                 @closed="resetNoticeForm">
-        <form @submit.prevent>
-          <el-input v-model="noticeForm.noticeTitle" :placeholder="t('titleDesc')" @keyup.enter="saveNoticePopup"/>
-          <div class="notice-line-item">
-            <el-select v-model="noticeForm.noticeType">
-              <template #prefix>
-                <span style="margin-right: 10px">{{ $t('icon') }}</span>
-              </template>
-              <el-option key="none" label="None" value="none"/>
-              <el-option key="primary" label="Primary" value="primary"/>
-              <el-option key="success" label="Success" value="success"/>
-              <el-option key="warning" label="Warning" value="warning"/>
-              <el-option key="info" label="Info" value="info"/>
-            </el-select>
-            <el-select v-model="noticeForm.noticePosition">
-              <template #prefix>
-                <span style="margin-right: 10px">{{ $t('position') }}</span>
-              </template>
-              <el-option key="top-left" :label="t('topLeft')" value="top-left"/>
-              <el-option key="top-right" :label="t('topRight')" value="top-right"/>
-              <el-option key="bottom-left" :label="t('bottomLeft')" value="bottom-left"/>
-              <el-option key="bottom-right" :label="t('bottomRight')" value="bottom-right"/>
-            </el-select>
-            <el-input-number v-model="noticeForm.noticeWidth">
-              <template #prefix>
-                {{ $t('width') }}
-              </template>
-              <template #suffix>
-                px
-              </template>
-            </el-input-number>
-            <el-input-number v-model="noticeForm.noticeOffset">
-              <template #prefix>
-                {{ $t('offset') }}
-              </template>
-              <template #suffix>
-                px
-              </template>
-            </el-input-number>
-            <el-input-number v-model="noticeForm.noticeDuration">
-              <template #prefix>
-                {{ $t('duration') }}
-              </template>
-              <template #suffix>
-                ms
-              </template>
-            </el-input-number>
-          </div>
-          <div class="notice-popup-item">
-            <el-input
-                v-model="noticeForm.noticeContent"
-                :autosize="{ minRows: 15, maxRows: 25 }"
-                type="textarea"
-                :placeholder="t('noticeContentDesc')"
-            />
-          </div>
-        </form>
-        <template #footer>
-          <div class="dialog-footer">
-            <el-switch v-model="noticeForm.notice" :active-value="0" :inactive-value="1" :active-text="$t('enable')"
-                       :inactive-text="$t('disable')"/>
-            <div class="notice-footer-btns">
-              <el-button @click="previewNoticePopup">
-                {{ $t('preview') }}
-              </el-button>
-              <el-button :loading="settingLoading" type="primary" @click="saveNoticePopup">
-                {{ $t('save') }}
-              </el-button>
-            </div>
-          </div>
-        </template>
-      </el-dialog>
       <el-dialog v-model="addS3Show" :title="t('s3Configuration')" width="360" @closed="resetAddS3Form">
         <form @submit.prevent>
           <el-input class="dialog-input" type="text" placeholder="Bucket" v-model="s3.bucket" @keyup.enter="saveS3"/>
@@ -962,7 +891,6 @@ const autoCleanShow = ref(false)
 const aiCodeFilterShow = ref(false)
 const turnstileShow = ref(false)
 const tgSettingShow = ref(false)
-const noticePopupShow = ref(false)
 const thirdEmailShow = ref(false)
 const webhookShow = ref(false)
 const forwardRulesShow = ref(false)
@@ -974,7 +902,12 @@ const {settings: setting} = storeToRefs(settingStore);
 const editTitle = ref('')
 const settingLoading = ref(false)
 const clearS3Loading = ref(false)
-const loginOpacity = ref(0)
+const loginOpacity = ref(0.88)
+const opacityPresets = [
+  { labelKey: 'opacityPresetGlass', value: 0.72 },
+  { labelKey: 'opacityPresetBalanced', value: 0.88 },
+  { labelKey: 'opacityPresetSolid', value: 1.0 },
+]
 const minEmailPrefix = ref(0)
 const emailPrefixFilter = ref([])
 const autoCleanDays = ref(0)
@@ -1020,17 +953,6 @@ const s3 = reactive({
   s3AccessKey: '',
   s3SecretKey: '',
   forcePathStyle: 1
-})
-
-const noticeForm = reactive({
-  noticeTitle: '',
-  noticeContent: '',
-  noticeType: '',
-  noticeDuration: '',
-  noticePosition: '',
-  noticeOffset: 0,
-  notice: 0,
-  noticeWidth: 0
 })
 
 const regKeyOptions = computed(() => [
@@ -1103,7 +1025,6 @@ function getSettings() {
     addVerifyCount.value = setting.value.addVerifyCount
     regVerifyCount.value = setting.value.regVerifyCount
     loginVerifyCount.value = setting.value.loginVerifyCount
-    resetNoticeForm()
     resetAddS3Form()
     resetEmailPrefix()
     resetBlackList()
@@ -1112,11 +1033,6 @@ function getSettings() {
       settingReady.value = true
     })
   })
-}
-
-
-function openNoticePopup() {
-  uiStore.showNotice()
 }
 
 function openAddVerifyCount() {
@@ -1257,34 +1173,8 @@ function openTgSetting() {
   tgSettingShow.value = true
 }
 
-function openNoticePopupSetting() {
-  noticePopupShow.value = true
-}
-
 function openResendList() {
   showResendList.value = true
-}
-
-function resetNoticeForm() {
-  noticeForm.notice = setting.value.notice
-  noticeForm.noticeContent = setting.value.noticeContent
-  noticeForm.noticeDuration = setting.value.noticeDuration
-  noticeForm.noticeTitle = setting.value.noticeTitle
-  noticeForm.noticePosition = setting.value.noticePosition
-  noticeForm.noticeType = setting.value.noticeType
-  noticeForm.noticeOffset = setting.value.noticeOffset
-  noticeForm.noticeWidth = setting.value.noticeWidth
-}
-
-function saveNoticePopup() {
-  noticeForm.noticeOffset = noticeForm.noticeOffset || 0
-  noticeForm.noticeWidth = noticeForm.noticeWidth || 0
-  noticeForm.noticeDuration = noticeForm.noticeDuration || 0
-  editSetting({...noticeForm})
-}
-
-function previewNoticePopup() {
-  uiStore.previewNotice({...noticeForm})
 }
 
 function openThirdEmailSetting() {
@@ -1452,11 +1342,22 @@ function ruleEmailSave() {
   editSetting(form)
 }
 
-function doOpacityChange() {
+function onOpacityInput(val) {
+  setting.value.loginOpacity = val
+}
+
+function applyOpacityPreset(val) {
+  backupSetting()
+  loginOpacity.value = val
+  setting.value.loginOpacity = val
+  doOpacityChange(true)
+}
+
+function doOpacityChange(skipBackup = false) {
   if (!settingReady.value) return
-  const form = {}
-  form.loginOpacity = loginOpacity.value
-  editSetting(form, true)
+  if (!skipBackup) backupSetting()
+  setting.value.loginOpacity = loginOpacity.value
+  editSetting({ loginOpacity: loginOpacity.value }, false)
 }
 
 function resetEmailPrefix() {
@@ -1760,7 +1661,6 @@ function editSetting(settingForm, refreshStatus = true) {
     addVerifyCountShow.value = false
     regVerifyCountShow.value = false
     loginVerifyCountShow.value = false
-    noticePopupShow.value = false
     addS3Show.value = false
     emailPrefixShow.value = false
     aiCodeFilterShow.value = false
@@ -1963,6 +1863,8 @@ function editSetting(settingForm, refreshStatus = true) {
   display: flex;
   flex-direction: column;
   background-color: var(--surface-elevated);
+  backdrop-filter: blur(18px) saturate(165%);
+  -webkit-backdrop-filter: blur(18px) saturate(165%);
   border-radius: 14px;
   border: 1px solid var(--border-subtle);
   box-shadow: var(--card-shadow);
@@ -1972,6 +1874,83 @@ function editSetting(settingForm, refreshStatus = true) {
 
   &:hover {
     border-color: var(--border-strong);
+  }
+}
+
+.row-label-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.opacity-readout {
+  padding: 1px 7px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary);
+}
+
+.opacity-presets {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.preset-chip {
+  height: 26px;
+  padding: 0 9px;
+  border-radius: 7px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-primary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, transform 100ms ease;
+
+  &:hover {
+    color: var(--text-primary);
+    border-color: var(--border-strong);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  &.active {
+    background: var(--brand-primary-soft);
+    border-color: rgba(37, 99, 235, 0.34);
+    color: var(--brand-primary);
+    font-weight: 600;
+  }
+}
+
+.opacity-slider-wrap {
+  width: 100%;
+  padding: 2px 4px 0;
+
+  :deep(.el-slider__runway) {
+    margin: 10px 0;
+    height: 5px;
+    border-radius: 99px;
+    background: var(--border-subtle);
+  }
+
+  :deep(.el-slider__bar) {
+    height: 5px;
+    border-radius: 99px;
+    background: linear-gradient(90deg, #2563eb, #0ea5e9);
+  }
+
+  :deep(.el-slider__button) {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--brand-primary);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.28);
   }
 }
 

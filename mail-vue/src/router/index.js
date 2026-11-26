@@ -109,8 +109,7 @@ router.beforeEach((to, from, next) => {
     }
 
     if (!token && to.path.startsWith('/login')) {
-        loadBackground(next)
-        return
+        return next()
     }
 
     if (token && to.path.startsWith('/login')) {

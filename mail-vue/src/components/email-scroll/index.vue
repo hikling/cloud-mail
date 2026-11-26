@@ -1092,6 +1092,8 @@ function renderHighlight(value) {
   overflow: hidden;
   height: 100%;
   background: var(--surface-primary);
+  backdrop-filter: blur(16px) saturate(155%);
+  -webkit-backdrop-filter: blur(16px) saturate(155%);
 }
 
 .header-actions {
@@ -1102,7 +1104,7 @@ function renderHighlight(value) {
   gap: 12px;
   padding: 0 14px 0 16px;
   border-bottom: 1px solid var(--border-subtle);
-  background: var(--surface-primary);
+  background: transparent;
 }
 
 .header-left-wrap {

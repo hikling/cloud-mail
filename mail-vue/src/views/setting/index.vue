@@ -62,10 +62,6 @@
                     <Icon icon="lucide:key-round" width="14" height="14" style="margin-right: 6px" />
                     {{ $t('changePwdBtn') }}
                   </el-button>
-                  <el-button class="hero-action-btn" @click="uiStore.showNotice()">
-                    <Icon icon="lucide:bell" width="14" height="14" style="margin-right: 6px" />
-                    {{ $t('viewNotice') }}
-                  </el-button>
                 </div>
               </div>
             </div>
@@ -179,28 +175,6 @@
                   </div>
                   <div class="row-control row-control--full">
                     <ThemeSelector />
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <!-- System Notice -->
-            <section class="panel-card">
-              <div class="panel-rows">
-                <div class="setting-row">
-                  <div class="row-info row-info--with-icon">
-                    <span class="card-icon card-icon--amber">
-                      <Icon icon="lucide:bell" width="16" height="16" />
-                    </span>
-                    <div>
-                      <div class="row-label">{{ $t('noticeTitle') }}</div>
-                      <div class="row-desc">{{ $t('noticeInfo') }}</div>
-                    </div>
-                  </div>
-                  <div class="row-control">
-                    <el-button size="small" @click="uiStore.showNotice()">
-                      {{ $t('viewNotice') }}
-                    </el-button>
                   </div>
                 </div>
               </div>
@@ -481,6 +455,8 @@ function submitPwd() {
 /* Profile Hero Card */
 .profile-hero-card {
   background: var(--surface-elevated);
+  backdrop-filter: blur(18px) saturate(165%);
+  -webkit-backdrop-filter: blur(18px) saturate(165%);
   border: 1px solid var(--border-subtle);
   border-radius: 16px;
   box-shadow: var(--card-shadow);
@@ -599,18 +575,20 @@ function submitPwd() {
 
 .hero-actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 10px;
 
   .hero-action-btn {
     margin: 0;
-    height: 36px;
+    height: 38px;
   }
 }
 
 /* Danger Zone Card */
 .danger-card {
   background: var(--surface-elevated);
+  backdrop-filter: blur(18px) saturate(165%);
+  -webkit-backdrop-filter: blur(18px) saturate(165%);
   border: 1px solid rgba(239, 68, 68, 0.28);
   border-radius: 16px;
   padding: 18px 20px;
@@ -646,6 +624,8 @@ function submitPwd() {
 /* Main Right Cards */
 .panel-card {
   background: var(--surface-elevated);
+  backdrop-filter: blur(18px) saturate(165%);
+  -webkit-backdrop-filter: blur(18px) saturate(165%);
   border: 1px solid var(--border-subtle);
   border-radius: 16px;
   box-shadow: var(--card-shadow);

@@ -430,5 +430,14 @@ const zh = {
     accountScopeSingleTip: '当前仅查看此邮箱邮件，点击切换为收取全部邮箱',
     accountScopeAllTip: '当前收取所有邮箱邮件，点击切换为仅看此邮箱',
     copiedShort: '已复制',
+    sysSectionWorkspace: '邮箱外观',
+    workspaceOpacity: '背景透明度',
+    workspaceOpacityDesc: '调节进入邮箱后卡片与面板的磨砂透光度，拖动即时生效',
+    workspaceBackground: '自定义背景',
+    workspaceBackgroundDesc: '留空默认使用首页同款动态极光背景，也可自定义图片',
+    sysSetWorkspaceBgHint: '当前使用默认动态极光背景，点击可上传自定义背景图',
+    opacityPresetGlass: '通透',
+    opacityPresetBalanced: '均衡',
+    opacityPresetSolid: '纯净',
 }
 export default zh

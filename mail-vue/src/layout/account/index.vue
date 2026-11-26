@@ -699,6 +699,8 @@ function submit() {
   flex-direction: column;
   border-right: 1px solid var(--border-subtle);
   background-color: var(--surface-subtle);
+  backdrop-filter: blur(18px) saturate(165%);
+  -webkit-backdrop-filter: blur(18px) saturate(165%);
   height: 100%;
   min-height: 0;
   overflow: hidden;

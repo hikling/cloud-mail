@@ -430,6 +430,15 @@ const en = {
     accountScopeSingleTip: 'Viewing only this address. Click to receive all addresses.',
     accountScopeAllTip: 'Receiving all addresses. Click to view only this address.',
     copiedShort: 'Copied',
+    sysSectionWorkspace: 'Workspace Look',
+    workspaceOpacity: 'Background Opacity',
+    workspaceOpacityDesc: 'Adjust frosted glass opacity across the mailbox in real time',
+    workspaceBackground: 'Custom Wallpaper',
+    workspaceBackgroundDesc: 'Uses the dynamic aurora backdrop by default, or upload an image',
+    sysSetWorkspaceBgHint: 'Using dynamic aurora backdrop — click to set custom wallpaper',
+    opacityPresetGlass: 'Glassy',
+    opacityPresetBalanced: 'Balanced',
+    opacityPresetSolid: 'Solid',
 }
 
 export default en
