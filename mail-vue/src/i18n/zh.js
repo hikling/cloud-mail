@@ -429,5 +429,6 @@ const zh = {
     accountScopeAll: '全部收取',
     accountScopeSingleTip: '当前仅查看此邮箱邮件，点击切换为收取全部邮箱',
     accountScopeAllTip: '当前收取所有邮箱邮件，点击切换为仅看此邮箱',
+    copiedShort: '已复制',
 }
 export default zh

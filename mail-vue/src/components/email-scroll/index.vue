@@ -532,9 +532,9 @@ const list = computed(() => {
 
 const itemHeight = computed(() => {
   if (props.type === 'all-email' || props.type === 'noone') {
-    return isMobile.value ? 128 : 74;
+    return isMobile.value ? 134 : 82;
   } else {
-    return isMobile.value ? 86 : 56;
+    return isMobile.value ? 92 : 64;
   }
 })
 
@@ -1220,11 +1220,11 @@ function renderHighlight(value) {
   cursor: pointer;
   position: relative;
   transition: background-color 0.14s ease;
-  height: 56px;
+  height: 64px;
 
   @media (max-width: 1366px) {
-    height: 86px;
-    padding: 10px 14px;
+    height: 92px;
+    padding: 12px 14px;
     align-items: flex-start;
   }
 
@@ -1234,9 +1234,9 @@ function renderHighlight(value) {
 
   &.all-email,
   &.noone {
-    height: 74px;
+    height: 82px;
     @media (max-width: 1366px) {
-      height: 128px;
+      height: 134px;
     }
   }
 
@@ -1281,13 +1281,13 @@ function renderHighlight(value) {
   }
 
   .sender-avatar {
-    width: 30px;
-    height: 30px;
-    border-radius: 9px;
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 12.5px;
+    font-size: 13px;
     font-weight: 700;
     flex-shrink: 0;
 

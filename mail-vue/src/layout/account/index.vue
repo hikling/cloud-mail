@@ -81,48 +81,12 @@
                 </span>
               </div>
             </div>
-          </div>
-
-          <div class="card-footer" @click.stop>
-            <el-tooltip
-              :content="item.allReceive ? $t('accountScopeAllTip') : $t('accountScopeSingleTip')"
-              placement="top"
-              :show-after="400"
-            >
-              <button
-                type="button"
-                class="scope-pill"
-                :class="{ enabled: !!item.allReceive }"
-                @click="setAllReceive(item)"
-              >
-                <span class="scope-dot"></span>
-                <Icon :icon="item.allReceive ? 'lucide:layers' : 'lucide:inbox'" width="13" height="13" />
-                <span>{{ item.allReceive ? $t('accountScopeAll') : $t('accountScopeSingle') }}</span>
-              </button>
-            </el-tooltip>
-
-            <div class="card-actions">
-              <el-tooltip
-                :content="copiedId === item.accountId ? $t('copySuccessMsg') : $t('copy')"
-                placement="top"
-                :show-after="350"
-              >
-                <button
-                  type="button"
-                  class="card-action-btn"
-                  :class="{ copied: copiedId === item.accountId }"
-                  @click="copyAccount(item.email, item.accountId)"
-                  :aria-label="$t('copy')"
-                >
-                  <Icon :icon="copiedId === item.accountId ? 'lucide:check' : 'lucide:copy'" width="14" height="14" />
-                </button>
-              </el-tooltip>
-
+            <div class="card-corner-more" @click.stop>
               <span v-if="showNullSetting(item)" class="rail-more-disabled">
                 <Icon icon="lucide:more-horizontal" width="15" height="15" />
               </span>
               <el-dropdown v-else trigger="click">
-                <button type="button" class="card-action-btn" :aria-label="$t('manage')">
+                <button type="button" class="corner-more-btn" :aria-label="$t('manage')">
                   <Icon icon="lucide:more-horizontal" width="15" height="15" />
                 </button>
                 <template #dropdown>
@@ -137,6 +101,36 @@
                 </template>
               </el-dropdown>
             </div>
+          </div>
+
+          <div class="card-footer" @click.stop>
+            <el-tooltip
+              :content="item.allReceive ? $t('accountScopeAllTip') : $t('accountScopeSingleTip')"
+              placement="top"
+              :show-after="400"
+            >
+              <button
+                type="button"
+                class="scope-pill"
+                :class="{ enabled: !!item.allReceive }"
+                @click="setAllReceive(item)"
+              >
+                <span v-if="item.allReceive" class="scope-dot"></span>
+                <Icon v-else icon="lucide:inbox" width="12.5" height="12.5" />
+                <span>{{ item.allReceive ? $t('accountScopeAll') : $t('accountScopeSingle') }}</span>
+              </button>
+            </el-tooltip>
+
+            <button
+              type="button"
+              class="copy-pill-btn"
+              :class="{ copied: copiedId === item.accountId }"
+              @click="copyAccount(item.email, item.accountId)"
+              :aria-label="$t('copy')"
+            >
+              <Icon :icon="copiedId === item.accountId ? 'lucide:check' : 'lucide:copy'" width="12.5" height="12.5" />
+              <span>{{ copiedId === item.accountId ? $t('copiedShort') : $t('copy') }}</span>
+            </button>
           </div>
         </div>
 
@@ -968,31 +962,36 @@ function submit() {
 .account-card {
   position: relative;
   padding: 13px 14px 11px;
-  border-radius: 13px;
+  border-radius: 14px;
   background: var(--surface-primary);
   border: 1px solid var(--border-subtle);
   box-shadow: var(--card-shadow);
   cursor: pointer;
   overflow: hidden;
-  transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+  transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease, transform 0.16s ease;
 
   &::before {
     content: "";
     position: absolute;
     left: 0;
-    top: 12px;
-    bottom: 12px;
-    width: 3.5px;
-    border-radius: 0 3px 3px 0;
-    background: var(--brand-primary);
+    top: 15px;
+    bottom: 15px;
+    width: 3px;
+    border-radius: 0 99px 99px 0;
+    background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
     opacity: 0;
-    transition: opacity 0.16s ease;
+    transform: scaleY(0.5);
+    transition: opacity 0.18s ease, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   &:hover {
     border-color: var(--border-strong);
     box-shadow: var(--card-shadow-hover);
     transform: translateY(-1px);
+
+    .corner-more-btn {
+      opacity: 1;
+    }
   }
 
   &:active {
@@ -1000,17 +999,19 @@ function submit() {
   }
 
   &.item-choose {
-    background: linear-gradient(135deg, rgba(37, 99, 235, 0.055) 0%, var(--surface-elevated) 70%);
-    border-color: rgba(37, 99, 235, 0.42);
-    box-shadow: var(--card-shadow-hover);
+    background: linear-gradient(145deg, rgba(37, 99, 235, 0.05) 0%, var(--surface-elevated) 62%);
+    border-color: rgba(37, 99, 235, 0.34);
+    box-shadow: 0 4px 14px -4px rgba(37, 99, 235, 0.14), var(--card-shadow);
 
     :global(.dark) & {
-      background: linear-gradient(135deg, rgba(59, 130, 246, 0.14) 0%, var(--surface-elevated) 72%);
-      border-color: rgba(96, 165, 250, 0.42);
+      background: linear-gradient(145deg, rgba(59, 130, 246, 0.14) 0%, var(--surface-elevated) 68%);
+      border-color: rgba(96, 165, 250, 0.36);
+      box-shadow: 0 4px 16px -4px rgba(37, 99, 235, 0.28), var(--card-shadow);
     }
 
     &::before {
       opacity: 1;
+      transform: scaleY(1);
     }
   }
 }
@@ -1032,23 +1033,23 @@ function submit() {
 }
 
 .account-avatar {
-  width: 38px;
-  height: 38px;
-  border-radius: 11px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   background: var(--surface-muted);
   color: var(--text-secondary);
-  font-size: 15px;
+  font-size: 15.5px;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
 
   &.active {
     background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
     color: #ffffff;
-    box-shadow: 0 3px 10px rgba(37, 99, 235, 0.28);
+    box-shadow: 0 4px 12px -2px rgba(37, 99, 235, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.25);
   }
 }
 
@@ -1081,11 +1082,12 @@ function submit() {
 .primary-badge {
   flex-shrink: 0;
   padding: 1px 6px;
-  border-radius: 5px;
-  font-size: 10.5px;
+  border-radius: 999px;
+  font-size: 10px;
   font-weight: 600;
   line-height: 1.5;
   background: var(--brand-primary-soft);
+  border: 1px solid rgba(37, 99, 235, 0.16);
   color: var(--brand-primary);
 }
 
@@ -1106,7 +1108,7 @@ function submit() {
 
   .account-alias {
     flex-shrink: 0;
-    max-width: 90px;
+    max-width: 84px;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
@@ -1114,28 +1116,77 @@ function submit() {
   }
 }
 
+.card-corner-more {
+  align-self: flex-start;
+  margin-top: -2px;
+  margin-right: -4px;
+  flex-shrink: 0;
+}
+
+.corner-more-btn,
+.rail-more-disabled {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.corner-more-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.14s ease, background-color 0.14s ease, color 0.14s ease, border-color 0.14s ease, transform 0.12s ease;
+
+  @media (hover: none) {
+    opacity: 1;
+  }
+
+  &:hover {
+    opacity: 1;
+    background: var(--surface-subtle);
+    border-color: var(--border-subtle);
+    color: var(--text-primary);
+  }
+
+  &:active {
+    transform: scale(0.9);
+  }
+}
+
+.rail-more-disabled {
+  opacity: 0.3;
+}
+
 .card-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-top: 11px;
+  margin-top: 10px;
   padding-top: 9px;
-  border-top: 1px solid var(--border-subtle);
+  border-top: 1px solid rgba(15, 23, 42, 0.06);
+
+  :global(.dark) & {
+    border-top-color: rgba(255, 255, 255, 0.06);
+  }
 }
 
 .scope-pill {
   height: 26px;
-  padding: 0 10px;
+  padding: 0 9px;
   border-radius: 8px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   font-size: 12px;
   font-weight: 500;
   color: var(--text-secondary);
   background: var(--surface-subtle);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid transparent;
   cursor: pointer;
   transition: background-color 0.14s ease, color 0.14s ease, border-color 0.14s ease, transform 0.12s ease;
 
@@ -1143,15 +1194,14 @@ function submit() {
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: var(--text-muted);
-    opacity: 0.55;
+    background: var(--brand-primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
     flex-shrink: 0;
-    transition: background-color 0.14s ease, box-shadow 0.14s ease;
   }
 
   &:hover {
     color: var(--text-primary);
-    border-color: var(--border-strong);
+    border-color: var(--border-subtle);
     background: var(--surface-hover);
   }
 
@@ -1162,56 +1212,42 @@ function submit() {
   &.enabled {
     color: var(--brand-primary);
     background: var(--brand-primary-soft);
-    border-color: rgba(37, 99, 235, 0.22);
-
-    .scope-dot {
-      opacity: 1;
-      background: var(--brand-primary);
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
-    }
+    border-color: rgba(37, 99, 235, 0.2);
 
     &:hover {
-      border-color: rgba(37, 99, 235, 0.42);
+      border-color: rgba(37, 99, 235, 0.38);
     }
   }
 }
 
-.card-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.card-action-btn,
-.rail-more-disabled {
-  width: 28px;
-  height: 28px;
+.copy-pill-btn {
+  height: 26px;
+  padding: 0 9px;
   border-radius: 8px;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--text-secondary);
-}
-
-.card-action-btn {
   background: transparent;
-  border: 1px solid transparent;
+  border: 1px solid var(--border-subtle);
   cursor: pointer;
   transition: background-color 0.14s ease, color 0.14s ease, border-color 0.14s ease, transform 0.12s ease;
 
   &:hover {
     background: var(--surface-subtle);
-    border-color: var(--border-subtle);
+    border-color: var(--border-strong);
     color: var(--text-primary);
   }
 
   &:active {
-    transform: scale(0.92);
+    transform: scale(0.94);
   }
 
   &.copied {
     background: rgba(16, 185, 129, 0.12);
-    border-color: rgba(16, 185, 129, 0.28);
+    border-color: rgba(16, 185, 129, 0.3);
     color: #059669;
 
     :global(.dark) & {
@@ -1219,10 +1255,6 @@ function submit() {
       background: rgba(16, 185, 129, 0.18);
     }
   }
-}
-
-.rail-more-disabled {
-  opacity: 0.35;
 }
 
 .empty {

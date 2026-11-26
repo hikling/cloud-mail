@@ -16,38 +16,10 @@
                actionLeft="4px"
                @jump="jumpContent"
                @refresh-success="onRefreshSuccess"
-  >
-    <template #first>
-      <div v-if="canViewNoone" class="inbox-mode-switch" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          :aria-selected="!isNoone"
-          class="mode-pill"
-          :class="{ active: !isNoone }"
-          @click="switchInboxTab('inbox')"
-        >
-          <Icon icon="lucide:inbox" width="14" height="14" />
-          <span>{{ $t('inbox') }}</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          :aria-selected="isNoone"
-          class="mode-pill mode-pill--noone"
-          :class="{ active: isNoone }"
-          @click="switchInboxTab('noone')"
-        >
-          <Icon icon="lucide:at-sign" width="14" height="14" />
-          <span>{{ $t('noRecipientTitle') }}</span>
-        </button>
-      </div>
-    </template>
-  </emailScroll>
+  />
 </template>
 
 <script setup>
-import {Icon} from "@iconify/vue";
 import {useAccountStore} from "@/store/account.js";
 import {useEmailStore} from "@/store/email.js";
 import {useSettingStore} from "@/store/setting.js";
@@ -80,11 +52,6 @@ let pullTimer = null
 
 const canViewNoone = computed(() => hasPerm('all-email:query'))
 const isNoone = computed(() => canViewNoone.value && emailStore.inboxTab === 'noone')
-
-function switchInboxTab(tab) {
-  if (emailStore.inboxTab === tab) return
-  emailStore.setInboxTab(tab)
-}
 
 function activeEmailDelete(emailIds) {
   return isNoone.value ? allEmailDelete(emailIds) : emailDelete(emailIds)
@@ -309,54 +276,6 @@ function getEmailList(emailId, size) {
 }
 
 </script>
-<style scoped lang="scss">
-.inbox-mode-switch {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 2px;
-  margin-left: 4px;
-  border-radius: 9px;
-  background: var(--surface-subtle);
-  border: 1px solid var(--border-subtle);
-}
-
-.mode-pill {
-  height: 26px;
-  padding: 0 10px;
-  border-radius: 7px;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 12.5px;
-  font-weight: 500;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
-
-  &:hover {
-    color: var(--text-primary);
-  }
-
-  &.active {
-    background: var(--surface-elevated);
-    color: var(--brand-primary);
-    font-weight: 600;
-    box-shadow: var(--shadow-xs);
-  }
-
-  &--noone.active {
-    color: #d97706;
-
-    :global(.dark) & {
-      color: #fbbf24;
-    }
-  }
-}
-</style>
 <style>
 .icon {
   cursor: pointer;

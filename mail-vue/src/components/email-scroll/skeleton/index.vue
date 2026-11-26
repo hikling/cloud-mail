@@ -10,7 +10,7 @@
 
       <el-skeleton animated class="avatar-sk">
         <template #template>
-          <el-skeleton-item variant="circle" style="width: 30px; height: 30px; border-radius: 9px" />
+          <el-skeleton-item variant="circle" style="width: 32px; height: 32px; border-radius: 10px" />
         </template>
       </el-skeleton>
 
@@ -84,19 +84,20 @@ defineProps({
   align-items: center;
   gap: 12px;
   padding: 0 16px;
-  height: 56px;
+  height: 64px;
   border-bottom: 1px solid var(--border-subtle);
 
   @media (max-width: 1366px) {
-    height: 86px;
+    height: 92px;
     padding: 12px 14px;
     align-items: flex-start;
   }
 
-  &.all-email {
-    height: 74px;
+  &.all-email,
+  &.noone {
+    height: 82px;
     @media (max-width: 1366px) {
-      height: 128px;
+      height: 134px;
     }
   }
 }
@@ -119,7 +120,7 @@ defineProps({
 }
 
 .avatar-sk {
-  width: 30px;
+  width: 32px;
   flex-shrink: 0;
 }
 
