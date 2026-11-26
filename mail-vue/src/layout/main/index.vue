@@ -89,9 +89,9 @@ onBeforeUnmount(() => {
 })
 
 const handleResize = () => {
-  if (['content','email','send'].includes(route.meta.name)) {
-    if (innerWidth !== window.innerWidth) {
-      innerWidth = window.innerWidth;
+  if (innerWidth !== window.innerWidth) {
+    innerWidth = window.innerWidth;
+    if (['content','email','send'].includes(route.meta.name)) {
       uiStore.accountShow = window.innerWidth >= 767;
     }
   }
@@ -103,7 +103,7 @@ const handleResize = () => {
   position: fixed;
   @media (max-width: 767px) {
     position: fixed;
-    top: 92px;
+    top: 52px;
     left: 0;
     right: 0;
     bottom: 0;
@@ -123,9 +123,9 @@ const handleResize = () => {
   transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
   @media (max-width: 767px) {
     position: fixed;
-    top: 92px;
+    top: 52px;
     left: 0;
-    height: calc(100% - 92px);
+    height: calc(100% - 52px);
     z-index: 100;
     width: 272px;
     box-shadow: var(--shadow-lg);

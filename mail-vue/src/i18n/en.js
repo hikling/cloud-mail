@@ -393,6 +393,11 @@ const en = {
     clientId: 'Client ID',
     clientSecret: 'Client Secret',
     notOwner: 'Base email does not belong to you',
+    navMenu: 'Menu',
+    sysTabGeneral: 'General & Look',
+    sysTabMail: 'Mail & Push',
+    sysTabSecurity: 'Security & OAuth',
+    sysTabStorage: 'Storage & About',
 }
 
 export default en

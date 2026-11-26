@@ -44,29 +44,30 @@ function changeDark(nextIsDark) {
         @change="changeDark(item.dark)"
       />
       <div class="theme-card__preview" aria-hidden="true">
-        <div class="preview-sidebar">
-          <span class="preview-logo"></span>
-          <span class="preview-nav is-active"></span>
-          <span class="preview-nav"></span>
-          <span class="preview-nav short"></span>
-        </div>
-        <div class="preview-stage">
-          <div class="preview-topbar">
-            <span class="preview-search"></span>
-            <span class="preview-avatar"></span>
+        <div class="preview-topbar">
+          <div class="preview-topbar-left">
+            <span class="preview-logo"></span>
+            <span class="preview-pill"></span>
           </div>
+          <span class="preview-search"></span>
+          <span class="preview-avatar"></span>
+        </div>
+        <div class="preview-body">
           <div class="preview-surface">
             <div class="preview-row">
               <span class="preview-badge"></span>
               <span class="preview-line wide"></span>
+              <span class="preview-meta"></span>
             </div>
             <div class="preview-row">
               <span class="preview-badge muted"></span>
               <span class="preview-line"></span>
+              <span class="preview-meta"></span>
             </div>
             <div class="preview-row">
               <span class="preview-badge muted"></span>
               <span class="preview-line short"></span>
+              <span class="preview-meta"></span>
             </div>
           </div>
         </div>
@@ -84,11 +85,11 @@ function changeDark(nextIsDark) {
 <style scoped lang="scss">
 .theme-selector {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 176px));
-  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  width: 100%;
 
-  @media (max-width: 520px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  @media (max-width: 480px) {
     gap: 10px;
   }
 }
@@ -98,13 +99,13 @@ function changeDark(nextIsDark) {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 10px;
-  border-radius: 12px;
+  padding: 12px;
+  border-radius: 14px;
   border: 1px solid var(--border-subtle);
   background: var(--surface-subtle);
   cursor: pointer;
   user-select: none;
-  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
 
   &:hover {
     border-color: var(--border-strong);
@@ -124,11 +125,11 @@ function changeDark(nextIsDark) {
   }
 
   &__preview {
-    height: 92px;
-    border-radius: 8px;
+    height: 112px;
+    border-radius: 9px;
     overflow: hidden;
-    display: grid;
-    grid-template-columns: 36px 1fr;
+    display: flex;
+    flex-direction: column;
     border: 1px solid transparent;
   }
 
@@ -136,18 +137,18 @@ function changeDark(nextIsDark) {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 2px 2px;
+    padding: 0 2px;
   }
 
   &__label {
-    font-size: 13px;
-    font-weight: 500;
+    font-size: 13.5px;
+    font-weight: 600;
     color: var(--text-primary);
   }
 
   &__indicator {
-    width: 16px;
-    height: 16px;
+    width: 18px;
+    height: 18px;
     border-radius: 999px;
     border: 1.5px solid var(--border-strong);
     display: inline-flex;
@@ -157,8 +158,8 @@ function changeDark(nextIsDark) {
   }
 
   &__dot {
-    width: 6px;
-    height: 6px;
+    width: 7px;
+    height: 7px;
     border-radius: 999px;
     background: #ffffff;
     opacity: 0;
@@ -181,25 +182,21 @@ function changeDark(nextIsDark) {
   background: #F4F5F8;
   border-color: #E2E5EE;
 
-  .preview-sidebar {
+  .preview-topbar {
     background: #FFFFFF;
-    border-right: 1px solid #EAEDF4;
+    border-bottom: 1px solid #EAEDF4;
   }
 
   .preview-logo {
     background: #2563EB;
   }
 
-  .preview-nav {
-    background: #E2E8F0;
-
-    &.is-active {
-      background: rgba(37, 99, 235, 0.22);
-    }
+  .preview-pill {
+    background: #EEF2FF;
   }
 
   .preview-search {
-    background: #FFFFFF;
+    background: #F4F5F8;
     border: 1px solid #E2E5EE;
   }
 
@@ -223,27 +220,27 @@ function changeDark(nextIsDark) {
   .preview-line {
     background: #E2E8F0;
   }
+
+  .preview-meta {
+    background: #EDF0F6;
+  }
 }
 
 .theme-card--dark .theme-card__preview {
   background: #0B0D12;
   border-color: #202534;
 
-  .preview-sidebar {
+  .preview-topbar {
     background: #12151E;
-    border-right: 1px solid #1E2433;
+    border-bottom: 1px solid #1E2433;
   }
 
   .preview-logo {
     background: #4F86FF;
   }
 
-  .preview-nav {
-    background: #262D3F;
-
-    &.is-active {
-      background: rgba(79, 134, 255, 0.28);
-    }
+  .preview-pill {
+    background: rgba(79, 134, 255, 0.22);
   }
 
   .preview-search {
@@ -271,63 +268,64 @@ function changeDark(nextIsDark) {
   .preview-line {
     background: #242B3D;
   }
+
+  .preview-meta {
+    background: #1D2333;
+  }
 }
 
-.preview-sidebar {
-  padding: 8px 6px;
+.preview-topbar {
+  height: 24px;
+  padding: 0 9px;
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.preview-topbar-left {
+  display: flex;
+  align-items: center;
   gap: 5px;
 }
 
 .preview-logo {
-  width: 12px;
-  height: 12px;
-  border-radius: 4px;
-  margin-bottom: 3px;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
 }
 
-.preview-nav {
-  height: 5px;
+.preview-pill {
+  width: 24px;
+  height: 8px;
   border-radius: 999px;
-  width: 100%;
-
-  &.short {
-    width: 70%;
-  }
-}
-
-.preview-stage {
-  padding: 7px 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.preview-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
 }
 
 .preview-search {
-  height: 9px;
+  height: 10px;
   flex: 1;
+  max-width: 72px;
   border-radius: 999px;
 }
 
 .preview-avatar {
-  width: 9px;
-  height: 9px;
+  width: 10px;
+  height: 10px;
   border-radius: 999px;
   flex-shrink: 0;
 }
 
+.preview-body {
+  flex: 1;
+  padding: 9px;
+  display: flex;
+}
+
 .preview-surface {
   flex: 1;
-  border-radius: 6px;
-  padding: 6px;
+  border-radius: 7px;
+  padding: 9px 10px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -336,7 +334,7 @@ function changeDark(nextIsDark) {
 .preview-row {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 7px;
 }
 
 .preview-badge {
@@ -347,16 +345,23 @@ function changeDark(nextIsDark) {
 }
 
 .preview-line {
-  height: 5px;
+  height: 6px;
   border-radius: 999px;
-  width: 72%;
+  width: 58%;
 
   &.wide {
-    width: 88%;
+    width: 72%;
   }
 
   &.short {
-    width: 52%;
+    width: 44%;
   }
+}
+
+.preview-meta {
+  margin-left: auto;
+  width: 18px;
+  height: 5px;
+  border-radius: 999px;
 }
 </style>

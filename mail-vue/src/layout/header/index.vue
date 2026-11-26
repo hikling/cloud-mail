@@ -1,13 +1,31 @@
 <template>
-  <div class="top-chrome">
-    <!-- Row 1: Brand + Search + Quick Actions -->
-    <div class="header-top">
-      <button type="button" class="brand-lockup" @click="router.push({ name: 'email' })">
-        <span class="brand-logo-wrap">
-          <img class="brand-logo" :src="logoUrl" alt="Logo" />
-        </span>
-        <span class="brand-title">{{ settingStore.settings.title }}</span>
-      </button>
+  <div class="top-chrome" ref="chromeRef">
+    <!-- Single-Row Top Bar -->
+    <div class="header-bar">
+      <div class="header-left">
+        <button type="button" class="brand-lockup" @click="navigateTo('email')">
+          <span class="brand-logo-wrap">
+            <img class="brand-logo" :src="logoUrl" alt="Logo" />
+          </span>
+          <span class="brand-title">{{ settingStore.settings.title }}</span>
+        </button>
+
+        <span class="header-slash" aria-hidden="true">/</span>
+
+        <!-- Hidden Menu Trigger Pill -->
+        <button
+          type="button"
+          class="menu-trigger"
+          :class="{ open: navMenuOpen }"
+          :aria-expanded="navMenuOpen"
+          :aria-label="$t('navMenu')"
+          @click.stop="navMenuOpen = !navMenuOpen"
+        >
+          <Icon :icon="currentRouteIcon" width="15" height="15" class="trigger-route-icon" />
+          <span class="trigger-route-label">{{ $t(route.meta.title) }}</span>
+          <Icon icon="lucide:chevron-down" width="14" height="14" class="trigger-caret" :class="{ open: navMenuOpen }" />
+        </button>
+      </div>
 
       <div class="header-search-slot" v-if="showInboxSearch || showSentSearch || showAllMailSearch">
         <email-search
@@ -122,134 +140,147 @@
       </div>
     </div>
 
-    <!-- Row 2: Horizontal Top Navigation Menu -->
-    <nav class="header-nav" aria-label="Primary">
-      <div class="nav-track">
-        <button
-          type="button"
-          class="top-nav-item"
-          :class="{ active: isActive('email', 'inbox') }"
-          @click="router.push({ name: 'email' })"
-        >
-          <Icon icon="lucide:inbox" width="15" height="15" />
-          <span>{{ $t('inbox') }}</span>
-        </button>
+    <!-- Collapsible Floating Top Menu Drawer -->
+    <Transition name="nav-backdrop-fade">
+      <div v-if="navMenuOpen" class="nav-backdrop" @click="navMenuOpen = false"></div>
+    </Transition>
 
-        <button
-          v-perm="'email:send'"
-          type="button"
-          class="top-nav-item"
-          :class="{ active: isActive('send', 'sent') }"
-          @click="router.push({ name: 'send' })"
-        >
-          <Icon icon="lucide:send" width="14" height="14" />
-          <span>{{ $t('sent') }}</span>
-        </button>
+    <Transition name="nav-drawer-drop">
+      <nav v-if="navMenuOpen" class="floating-nav-drawer" aria-label="Primary" @click.stop>
+        <div class="drawer-inner">
+          <div class="drawer-group">
+            <div class="drawer-group-label">{{ $t('inbox') }}</div>
+            <div class="drawer-grid">
+              <button
+                type="button"
+                class="drawer-nav-item"
+                :class="{ active: isActive('email', 'inbox') }"
+                @click="navigateTo('email')"
+              >
+                <span class="drawer-icon"><Icon icon="lucide:inbox" width="16" height="16" /></span>
+                <span>{{ $t('inbox') }}</span>
+              </button>
 
-        <button
-          v-perm="'email:send'"
-          type="button"
-          class="top-nav-item"
-          :class="{ active: route.meta.name === 'draft' }"
-          @click="router.push({ name: 'draft' })"
-        >
-          <Icon icon="lucide:file-text" width="15" height="15" />
-          <span>{{ $t('drafts') }}</span>
-        </button>
+              <button
+                v-perm="'email:send'"
+                type="button"
+                class="drawer-nav-item"
+                :class="{ active: isActive('send', 'sent') }"
+                @click="navigateTo('send')"
+              >
+                <span class="drawer-icon"><Icon icon="lucide:send" width="15" height="15" /></span>
+                <span>{{ $t('sent') }}</span>
+              </button>
 
-        <button
-          type="button"
-          class="top-nav-item"
-          :class="{ active: isActive('star', 'starred') }"
-          @click="router.push({ name: 'star' })"
-        >
-          <Icon icon="lucide:star" width="15" height="15" />
-          <span>{{ $t('starred') }}</span>
-        </button>
+              <button
+                v-perm="'email:send'"
+                type="button"
+                class="drawer-nav-item"
+                :class="{ active: route.meta.name === 'draft' }"
+                @click="navigateTo('draft')"
+              >
+                <span class="drawer-icon"><Icon icon="lucide:file-text" width="16" height="16" /></span>
+                <span>{{ $t('drafts') }}</span>
+              </button>
 
-        <button
-          type="button"
-          class="top-nav-item"
-          :class="{ active: route.meta.name === 'setting' }"
-          @click="router.push({ name: 'setting' })"
-        >
-          <Icon icon="lucide:settings" width="15" height="15" />
-          <span>{{ $t('settings') }}</span>
-        </button>
+              <button
+                type="button"
+                class="drawer-nav-item"
+                :class="{ active: isActive('star', 'starred') }"
+                @click="navigateTo('star')"
+              >
+                <span class="drawer-icon"><Icon icon="lucide:star" width="16" height="16" /></span>
+                <span>{{ $t('starred') }}</span>
+              </button>
 
-        <span
-          class="nav-sep"
-          v-perm="['all-email:query','user:query','role:query','setting:query','analysis:query','reg-key:query']"
-          aria-hidden="true"
-        ></span>
+              <button
+                type="button"
+                class="drawer-nav-item"
+                :class="{ active: route.meta.name === 'setting' }"
+                @click="navigateTo('setting')"
+              >
+                <span class="drawer-icon"><Icon icon="lucide:settings" width="16" height="16" /></span>
+                <span>{{ $t('settings') }}</span>
+              </button>
+            </div>
+          </div>
 
-        <button
-          v-perm="'analysis:query'"
-          type="button"
-          class="top-nav-item"
-          :class="{ active: route.meta.name === 'analysis' }"
-          @click="router.push({ name: 'analysis' })"
-        >
-          <Icon icon="lucide:bar-chart-2" width="15" height="15" />
-          <span>{{ $t('analytics') }}</span>
-        </button>
+          <div
+            class="drawer-group drawer-group--manage"
+            v-perm="['all-email:query','user:query','role:query','setting:query','analysis:query','reg-key:query']"
+          >
+            <div class="drawer-group-label">{{ $t('manage') }}</div>
+            <div class="drawer-grid">
+              <button
+                v-perm="'analysis:query'"
+                type="button"
+                class="drawer-nav-item"
+                :class="{ active: route.meta.name === 'analysis' }"
+                @click="navigateTo('analysis')"
+              >
+                <span class="drawer-icon"><Icon icon="lucide:bar-chart-2" width="16" height="16" /></span>
+                <span>{{ $t('analytics') }}</span>
+              </button>
 
-        <button
-          v-perm="'user:query'"
-          type="button"
-          class="top-nav-item"
-          :class="{ active: route.meta.name === 'user' }"
-          @click="router.push({ name: 'user' })"
-        >
-          <Icon icon="lucide:users" width="15" height="15" />
-          <span>{{ $t('allUsers') }}</span>
-        </button>
+              <button
+                v-perm="'user:query'"
+                type="button"
+                class="drawer-nav-item"
+                :class="{ active: route.meta.name === 'user' }"
+                @click="navigateTo('user')"
+              >
+                <span class="drawer-icon"><Icon icon="lucide:users" width="16" height="16" /></span>
+                <span>{{ $t('allUsers') }}</span>
+              </button>
 
-        <button
-          v-perm="'all-email:query'"
-          type="button"
-          class="top-nav-item"
-          :class="{ active: isActive('all-email', 'all-mail') }"
-          @click="router.push({ name: 'all-email' })"
-        >
-          <Icon icon="lucide:mails" width="15" height="15" />
-          <span>{{ $t('allMail') }}</span>
-        </button>
+              <button
+                v-perm="'all-email:query'"
+                type="button"
+                class="drawer-nav-item"
+                :class="{ active: isActive('all-email', 'all-mail') }"
+                @click="navigateTo('all-email')"
+              >
+                <span class="drawer-icon"><Icon icon="lucide:mails" width="16" height="16" /></span>
+                <span>{{ $t('allMail') }}</span>
+              </button>
 
-        <button
-          v-perm="'role:query'"
-          type="button"
-          class="top-nav-item"
-          :class="{ active: route.meta.name === 'role' }"
-          @click="router.push({ name: 'role' })"
-        >
-          <Icon icon="lucide:shield" width="15" height="15" />
-          <span>{{ $t('permissions') }}</span>
-        </button>
+              <button
+                v-perm="'role:query'"
+                type="button"
+                class="drawer-nav-item"
+                :class="{ active: route.meta.name === 'role' }"
+                @click="navigateTo('role')"
+              >
+                <span class="drawer-icon"><Icon icon="lucide:shield" width="16" height="16" /></span>
+                <span>{{ $t('permissions') }}</span>
+              </button>
 
-        <button
-          v-perm="'reg-key:query'"
-          type="button"
-          class="top-nav-item"
-          :class="{ active: route.meta.name === 'reg-key' }"
-          @click="router.push({ name: 'reg-key' })"
-        >
-          <Icon icon="lucide:key-round" width="15" height="15" />
-          <span>{{ $t('inviteCode') }}</span>
-        </button>
+              <button
+                v-perm="'reg-key:query'"
+                type="button"
+                class="drawer-nav-item"
+                :class="{ active: route.meta.name === 'reg-key' }"
+                @click="navigateTo('reg-key')"
+              >
+                <span class="drawer-icon"><Icon icon="lucide:key-round" width="16" height="16" /></span>
+                <span>{{ $t('inviteCode') }}</span>
+              </button>
 
-        <button
-          v-perm="'setting:query'"
-          type="button"
-          class="top-nav-item"
-          :class="{ active: route.meta.name === 'sys-setting' }"
-          @click="router.push({ name: 'sys-setting' })"
-        >
-          <Icon icon="lucide:sliders" width="15" height="15" />
-          <span>{{ $t('SystemSettings') }}</span>
-        </button>
-      </div>
-    </nav>
+              <button
+                v-perm="'setting:query'"
+                type="button"
+                class="drawer-nav-item"
+                :class="{ active: route.meta.name === 'sys-setting' }"
+                @click="navigateTo('sys-setting')"
+              >
+                <span class="drawer-icon"><Icon icon="lucide:sliders" width="16" height="16" /></span>
+                <span>{{ $t('SystemSettings') }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </Transition>
   </div>
 </template>
 
@@ -260,7 +291,7 @@ import {Icon} from "@iconify/vue";
 import {useUiStore} from "@/store/ui.js";
 import {useUserStore} from "@/store/user.js";
 import {useRoute} from "vue-router";
-import {computed, onBeforeUnmount, onMounted, ref} from "vue";
+import {computed, onBeforeUnmount, onMounted, ref, watch} from "vue";
 import {useSettingStore} from "@/store/setting.js";
 import {hasPerm} from "@/perm/perm.js"
 import {useI18n} from "vue-i18n";
@@ -277,11 +308,35 @@ const uiStore = useUiStore();
 const emailStore = useEmailStore()
 const sendStore = useSendStore()
 const logoUrl = `${import.meta.env.BASE_URL}mail.png`
+const chromeRef = ref(null)
+const navMenuOpen = ref(false)
 const logoutLoading = ref(false)
 const userDropdownRef = ref(null)
 const userCardVisible = ref(false)
 const outsidePointerEvents = ['mousedown', 'pointerup', 'mouseup', 'click', 'pointercancel']
 let blockOutsideClick = false
+
+const ROUTE_ICONS = {
+  email: 'lucide:inbox',
+  send: 'lucide:send',
+  draft: 'lucide:file-text',
+  star: 'lucide:star',
+  setting: 'lucide:settings',
+  analysis: 'lucide:bar-chart-2',
+  user: 'lucide:users',
+  'all-email': 'lucide:mails',
+  role: 'lucide:shield',
+  'reg-key': 'lucide:key-round',
+  'sys-setting': 'lucide:sliders',
+}
+
+const currentRouteIcon = computed(() => {
+  if (route.meta.name === 'content') {
+    const map = { inbox: 'lucide:inbox', sent: 'lucide:send', starred: 'lucide:star', 'all-mail': 'lucide:mails' }
+    return map[route.params.mailbox] || 'lucide:mail'
+  }
+  return ROUTE_ICONS[route.meta.name] || 'lucide:menu'
+})
 
 const inboxSearchOptions = computed(() => [
   {label: t('subject'), type: 'subject'},
@@ -304,6 +359,15 @@ const showSentSearch = computed(() =>
 const showAllMailSearch = computed(() =>
   route.meta.name === 'all-email' || isMailboxDetail('all-mail')
 )
+
+watch(() => route.fullPath, () => {
+  navMenuOpen.value = false
+})
+
+function navigateTo(name) {
+  navMenuOpen.value = false
+  router.push({ name })
+}
 
 function isActive(routeName, mailbox) {
   if (route.meta.name === routeName) return true
@@ -383,6 +447,7 @@ async function copyEmail(email) {
 }
 
 function openSend() {
+  navMenuOpen.value = false
   uiStore.writerRef.open()
 }
 
@@ -408,6 +473,10 @@ function isInsideUserCard(target) {
 }
 
 function handleUserCardPointerDown(event) {
+  if (navMenuOpen.value && chromeRef.value && !chromeRef.value.contains(event.target)) {
+    navMenuOpen.value = false
+  }
+
   blockOutsideClick = userCardVisible.value && !isInsideUserCard(event.target)
   if (!blockOutsideClick) return
 
@@ -427,8 +496,15 @@ function handleUserCardPointerEvent(event) {
   }
 }
 
+function handleKeyDown(event) {
+  if (event.key === 'Escape' && navMenuOpen.value) {
+    navMenuOpen.value = false
+  }
+}
+
 onMounted(() => {
   document.addEventListener('pointerdown', handleUserCardPointerDown, true)
+  document.addEventListener('keydown', handleKeyDown)
   outsidePointerEvents.forEach(type => {
     document.addEventListener(type, handleUserCardPointerEvent, true)
   })
@@ -436,6 +512,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('pointerdown', handleUserCardPointerDown, true)
+  document.removeEventListener('keydown', handleKeyDown)
   outsidePointerEvents.forEach(type => {
     document.removeEventListener(type, handleUserCardPointerEvent, true)
   })
@@ -450,38 +527,52 @@ onBeforeUnmount(() => {
 
 <style lang="scss" scoped>
 .top-chrome {
-  display: flex;
-  flex-direction: column;
+  position: relative;
   background: var(--surface-primary);
   border-bottom: 1px solid var(--border-subtle);
   user-select: none;
+  z-index: 80;
 }
 
-.header-top {
-  height: 54px;
+.header-bar {
+  position: relative;
+  height: 56px;
   padding: 0 24px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  background: var(--surface-primary);
+  z-index: 82;
 
   @media (max-width: 767px) {
-    height: 50px;
+    height: 52px;
     padding: 0 12px;
     gap: 8px;
+  }
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex-shrink: 0;
+
+  @media (max-width: 767px) {
+    gap: 6px;
   }
 }
 
 .brand-lockup {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 4px 6px 4px 0;
+  gap: 9px;
+  padding: 4px 2px;
   border: none;
   background: transparent;
   cursor: pointer;
   flex-shrink: 0;
-  min-width: 0;
 }
 
 .brand-logo-wrap {
@@ -497,24 +588,78 @@ onBeforeUnmount(() => {
 }
 
 .brand-logo {
-  width: 19px;
-  height: 19px;
+  width: 18px;
+  height: 18px;
   object-fit: contain;
 }
 
 .brand-title {
-  font-size: 15.5px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.025em;
   color: var(--text-primary);
   white-space: nowrap;
+  max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 190px;
 
-  @media (max-width: 520px) {
-    max-width: 120px;
-    font-size: 14.5px;
+  @media (max-width: 560px) {
+    display: none;
+  }
+}
+
+.header-slash {
+  color: var(--border-strong);
+  font-size: 16px;
+  font-weight: 300;
+  line-height: 1;
+
+  @media (max-width: 560px) {
+    display: none;
+  }
+}
+
+.menu-trigger {
+  height: 34px;
+  padding: 0 11px 0 10px;
+  border-radius: 9px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+  font-size: 13.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
+
+  .trigger-route-icon {
+    color: var(--brand-primary);
+    flex-shrink: 0;
+  }
+
+  .trigger-caret {
+    color: var(--text-muted);
+    transition: transform 180ms ease;
+
+    &.open {
+      transform: rotate(180deg);
+      color: var(--brand-primary);
+    }
+  }
+
+  &:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-strong);
+  }
+
+  &.open {
+    border-color: var(--brand-primary);
+    background: var(--brand-primary-soft);
+    color: var(--brand-primary);
+    box-shadow: 0 0 0 3px var(--brand-primary-soft);
   }
 }
 
@@ -658,103 +803,143 @@ onBeforeUnmount(() => {
   }
 }
 
-/* Row 2: Top Navigation Menu */
-.header-nav {
-  height: 44px;
-  border-top: 1px solid var(--border-subtle);
-  padding: 0 24px;
-  display: flex;
-  align-items: stretch;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
+/* Hidden Collapsible Top Menu Drawer */
+.nav-backdrop {
+  position: fixed;
+  top: 56px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.24);
+  backdrop-filter: blur(2px);
+  z-index: 80;
 
   @media (max-width: 767px) {
-    height: 42px;
-    padding: 0 10px;
+    top: 52px;
   }
 }
 
-.nav-track {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  height: 100%;
-  min-width: max-content;
+.floating-nav-drawer {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: var(--surface-elevated);
+  border-bottom: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-lg);
+  z-index: 81;
 }
 
-.top-nav-item {
-  position: relative;
-  height: 100%;
-  padding: 0 12px;
-  border: none;
-  background: transparent;
+.drawer-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 18px 24px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  @media (max-width: 767px) {
+    padding: 14px 14px 18px;
+    gap: 14px;
+  }
+}
+
+.drawer-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  &--manage {
+    padding-top: 14px;
+    border-top: 1px solid var(--border-subtle);
+  }
+}
+
+.drawer-group-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding-left: 4px;
+}
+
+.drawer-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.drawer-nav-item {
+  height: 38px;
+  padding: 0 14px 0 11px;
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-subtle);
   color: var(--text-secondary);
   font-size: 13.5px;
   font-weight: 500;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 9px;
   cursor: pointer;
   white-space: nowrap;
-  transition: color 150ms ease;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, transform 120ms ease;
 
-  &::before {
-    content: "";
-    position: absolute;
-    inset: 6px 2px;
-    border-radius: 8px;
-    background: transparent;
-    transition: background-color 150ms ease;
-    z-index: 0;
-  }
-
-  > * {
-    position: relative;
-    z-index: 1;
+  .drawer-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    transition: color 140ms ease;
   }
 
   &:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-strong);
     color: var(--text-primary);
 
-    &::before {
-      background: var(--surface-hover);
+    .drawer-icon {
+      color: var(--text-primary);
     }
   }
 
   &.active {
+    background: var(--brand-primary-soft);
+    border-color: var(--brand-primary);
     color: var(--brand-primary);
     font-weight: 600;
 
-    &::after {
-      content: "";
-      position: absolute;
-      left: 10px;
-      right: 10px;
-      bottom: 0;
-      height: 2px;
-      border-radius: 2px 2px 0 0;
-      background: var(--brand-primary);
+    .drawer-icon {
+      color: var(--brand-primary);
     }
   }
 
-  @media (max-width: 767px) {
-    padding: 0 10px;
-    font-size: 13px;
-    gap: 5px;
+  @media (max-width: 520px) {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 132px;
   }
 }
 
-.nav-sep {
-  width: 1px;
-  height: 16px;
-  background: var(--border-subtle);
-  margin: 0 8px;
-  flex-shrink: 0;
+.nav-backdrop-fade-enter-active,
+.nav-backdrop-fade-leave-active {
+  transition: opacity 180ms ease;
+}
+
+.nav-backdrop-fade-enter-from,
+.nav-backdrop-fade-leave-to {
+  opacity: 0;
+}
+
+.nav-drawer-drop-enter-active,
+.nav-drawer-drop-leave-active {
+  transition: opacity 180ms ease, transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.nav-drawer-drop-enter-from,
+.nav-drawer-drop-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
 }
 
 /* User Popover Card */
