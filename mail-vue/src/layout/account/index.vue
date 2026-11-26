@@ -2,16 +2,23 @@
   <div class="account-box">
     <div class="head-opt">
       <div class="head-title">
-        <Icon icon="lucide:mail" width="15" height="15" />
+        <span class="head-title-icon">
+          <Icon icon="lucide:mail" width="14" height="14" />
+        </span>
         <span>{{ $t('account') }}</span>
         <span v-if="accounts.length" class="head-count">{{ accounts.length }}</span>
       </div>
       <div class="head-actions">
-        <el-tooltip v-perm="'account:add'" :content="$t('addAccount')" placement="bottom">
-          <button v-perm="'account:add'" type="button" class="rail-icon-btn primary" @click="add" :aria-label="$t('addAccount')">
-            <Icon icon="lucide:plus" width="16" height="16" />
-          </button>
-        </el-tooltip>
+        <button
+          v-perm="'account:add'"
+          type="button"
+          class="rail-add-btn"
+          @click="add"
+          :aria-label="$t('addAccount')"
+        >
+          <Icon icon="lucide:plus" width="14" height="14" />
+          <span>{{ $t('add') }}</span>
+        </button>
         <button type="button" class="rail-icon-btn" @click="refresh" aria-label="Refresh">
           <Icon icon="lucide:refresh-cw" width="14" height="14" :class="{ spinning: loading }" />
         </button>
@@ -28,56 +35,94 @@
           @click="selectNoone"
         >
           <span class="noone-shortcut-icon">
-            <Icon icon="lucide:at-sign" width="15" height="15" />
+            <Icon icon="lucide:at-sign" width="17" height="17" />
           </span>
           <span class="noone-shortcut-meta">
             <span class="noone-shortcut-title">{{ $t('noRecipientTitle') }}</span>
             <span class="noone-shortcut-desc">{{ $t('noRecipientInboxDesc') }}</span>
           </span>
+          <span class="noone-shortcut-arrow">
+            <Icon icon="lucide:chevron-right" width="15" height="15" />
+          </span>
         </button>
+
+        <div v-if="showNooneShortcut && accounts.length" class="rail-section-label">
+          <span>{{ $t('accountListSection') }}</span>
+          <span class="rail-section-count">{{ accounts.length }}</span>
+        </div>
 
         <div
           class="account-card"
-          :class="{ 'item-choose': accountStore.currentAccountId === item.accountId && !(showNooneShortcut && emailStore.inboxTab === 'noone') }"
+          :class="{ 'item-choose': isAccountSelected(item) }"
           v-for="(item, index) in accounts"
           :key="item.accountId"
           @click="changeAccount(item)"
         >
-          <div class="card-top">
-            <div class="account-avatar" :class="{ active: accountStore.currentAccountId === item.accountId }">
-              {{ item.email?.[0]?.toUpperCase() || '@' }}
+          <div class="card-main">
+            <div
+              class="account-avatar"
+              :class="{ active: isAccountSelected(item) }"
+              :style="isAccountSelected(item) ? null : avatarStyle(item.email)"
+            >
+              {{ (item.email?.[0] || '@').toUpperCase() }}
             </div>
             <div class="account-meta">
-              <div class="account-email" :title="item.email">{{ item.email }}</div>
-              <div class="account-sub" v-if="item.name && item.name !== item.email.split('@')[0]">{{ item.name }}</div>
+              <div class="account-title-row">
+                <span class="account-local" :title="item.email">{{ splitEmail(item.email).local }}</span>
+                <span
+                  v-if="item.accountId === userStore.user.account.accountId"
+                  class="primary-badge"
+                >{{ $t('accountPrimary') }}</span>
+              </div>
+              <div class="account-domain" :title="item.email">
+                <span class="domain-part">{{ splitEmail(item.email).domain }}</span>
+                <span v-if="item.name && item.name !== splitEmail(item.email).local" class="account-alias">
+                  · {{ item.name }}
+                </span>
+              </div>
             </div>
-            <button
-              type="button"
-              class="copy-mini-btn"
-              @click.stop="copyAccount(item.email, item.accountId)"
-              :title="$t('copy')"
-            >
-              <Icon :icon="copiedId === item.accountId ? 'lucide:check' : 'lucide:copy'" width="13" height="13" />
-            </button>
           </div>
 
-          <div class="card-opt" @click.stop>
-            <button
-              type="button"
-              class="all-receive-pill"
-              :class="{ enabled: !!item.allReceive }"
-              @click="setAllReceive(item)"
+          <div class="card-footer" @click.stop>
+            <el-tooltip
+              :content="item.allReceive ? $t('accountScopeAllTip') : $t('accountScopeSingleTip')"
+              placement="top"
+              :show-after="400"
             >
-              <Icon :icon="item.allReceive ? 'lucide:layers' : 'lucide:inbox'" width="12" height="12" />
-              <span>{{ item.allReceive ? $t('all') : $t('account') }}</span>
-            </button>
+              <button
+                type="button"
+                class="scope-pill"
+                :class="{ enabled: !!item.allReceive }"
+                @click="setAllReceive(item)"
+              >
+                <span class="scope-dot"></span>
+                <Icon :icon="item.allReceive ? 'lucide:layers' : 'lucide:inbox'" width="13" height="13" />
+                <span>{{ item.allReceive ? $t('accountScopeAll') : $t('accountScopeSingle') }}</span>
+              </button>
+            </el-tooltip>
 
             <div class="card-actions">
+              <el-tooltip
+                :content="copiedId === item.accountId ? $t('copySuccessMsg') : $t('copy')"
+                placement="top"
+                :show-after="350"
+              >
+                <button
+                  type="button"
+                  class="card-action-btn"
+                  :class="{ copied: copiedId === item.accountId }"
+                  @click="copyAccount(item.email, item.accountId)"
+                  :aria-label="$t('copy')"
+                >
+                  <Icon :icon="copiedId === item.accountId ? 'lucide:check' : 'lucide:copy'" width="14" height="14" />
+                </button>
+              </el-tooltip>
+
               <span v-if="showNullSetting(item)" class="rail-more-disabled">
                 <Icon icon="lucide:more-horizontal" width="15" height="15" />
               </span>
               <el-dropdown v-else trigger="click">
-                <button type="button" class="rail-more-btn">
+                <button type="button" class="card-action-btn" :aria-label="$t('manage')">
                   <Icon icon="lucide:more-horizontal" width="15" height="15" />
                 </button>
                 <template #dropdown>
@@ -100,13 +145,16 @@
           <div class="account-card skeleton-card" v-for="i in skeletonRows" :key="i">
             <el-skeleton animated>
               <template #template>
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px">
-                  <el-skeleton-item variant="circle" style="width: 28px; height: 28px; flex-shrink: 0" />
-                  <el-skeleton-item variant="text" style="width: 75%; height: 14px" />
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px">
+                  <el-skeleton-item variant="rect" style="width: 38px; height: 38px; border-radius: 11px; flex-shrink: 0" />
+                  <div style="flex: 1; display: flex; flex-direction: column; gap: 6px">
+                    <el-skeleton-item variant="text" style="width: 62%; height: 15px" />
+                    <el-skeleton-item variant="text" style="width: 82%; height: 12px" />
+                  </div>
                 </div>
-                <div style="display: flex; justify-content: space-between">
-                  <el-skeleton-item variant="text" style="width: 56px; height: 18px" />
-                  <el-skeleton-item variant="text" style="width: 24px; height: 18px" />
+                <div style="display: flex; justify-content: space-between; padding-top: 9px; border-top: 1px solid var(--border-subtle)">
+                  <el-skeleton-item variant="text" style="width: 82px; height: 24px; border-radius: 8px" />
+                  <el-skeleton-item variant="text" style="width: 56px; height: 24px; border-radius: 8px" />
                 </div>
               </template>
             </el-skeleton>
@@ -118,10 +166,16 @@
           <div class="account-card skeleton-card">
             <el-skeleton animated>
               <template #template>
-                <el-skeleton-item variant="text" style="width: 75%; height: 14px; margin-bottom: 12px" />
-                <div style="display: flex; justify-content: space-between">
-                  <el-skeleton-item variant="text" style="width: 56px; height: 18px" />
-                  <el-skeleton-item variant="text" style="width: 24px; height: 18px" />
+                <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px">
+                  <el-skeleton-item variant="rect" style="width: 38px; height: 38px; border-radius: 11px; flex-shrink: 0" />
+                  <div style="flex: 1; display: flex; flex-direction: column; gap: 6px">
+                    <el-skeleton-item variant="text" style="width: 62%; height: 15px" />
+                    <el-skeleton-item variant="text" style="width: 82%; height: 12px" />
+                  </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding-top: 9px; border-top: 1px solid var(--border-subtle)">
+                  <el-skeleton-item variant="text" style="width: 82px; height: 24px; border-radius: 8px" />
+                  <el-skeleton-item variant="text" style="width: 56px; height: 24px; border-radius: 8px" />
                 </div>
               </template>
             </el-skeleton>
@@ -227,6 +281,35 @@ const showNooneShortcut = computed(() => {
   if (!hasPerm('all-email:query')) return false
   return route.meta.name === 'email' || (route.meta.name === 'content' && route.params.mailbox === 'inbox')
 })
+
+const AVATAR_TONES = [
+  { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563EB' },
+  { bg: 'rgba(14, 165, 233, 0.13)', fg: '#0284C7' },
+  { bg: 'rgba(16, 185, 129, 0.12)', fg: '#059669' },
+  { bg: 'rgba(139, 92, 246, 0.12)', fg: '#7C3AED' },
+  { bg: 'rgba(236, 72, 153, 0.12)', fg: '#DB2777' },
+]
+
+function avatarStyle(seed) {
+  const str = String(seed || 'M')
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash * 31 + str.charCodeAt(i)) >>> 0
+  }
+  const tone = AVATAR_TONES[hash % AVATAR_TONES.length]
+  return { backgroundColor: tone.bg, color: tone.fg }
+}
+
+function splitEmail(email) {
+  const raw = String(email || '')
+  const at = raw.indexOf('@')
+  if (at === -1) return { local: raw, domain: '' }
+  return { local: raw.slice(0, at), domain: raw.slice(at) }
+}
+
+function isAccountSelected(item) {
+  return accountStore.currentAccountId === item.accountId && !(showNooneShortcut.value && emailStore.inboxTab === 'noone')
+}
 const showAdd = ref(false)
 const addLoading = ref(false);
 const domainList = computed(() => settingStore.domainList)
@@ -628,8 +711,8 @@ function submit() {
 }
 
 .head-opt {
-  height: 46px;
-  padding: 0 12px 0 14px;
+  height: 48px;
+  padding: 0 14px 0 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -640,16 +723,29 @@ function submit() {
 .head-title {
   display: flex;
   align-items: center;
-  gap: 7px;
-  font-size: 13px;
-  font-weight: 600;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 650;
   color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.head-title-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .head-count {
-  padding: 1px 6px;
+  padding: 1px 7px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   background: var(--surface-muted);
@@ -662,10 +758,35 @@ function submit() {
   gap: 6px;
 }
 
+.rail-add-btn {
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--brand-primary);
+  background: var(--brand-primary-soft);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color 0.14s ease, color 0.14s ease, transform 0.12s ease;
+
+  &:hover {
+    background: var(--brand-primary);
+    color: #ffffff;
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
 .rail-icon-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -682,17 +803,6 @@ function submit() {
 
   &:active {
     transform: scale(0.92);
-  }
-
-  &.primary {
-    color: var(--brand-primary);
-    background: var(--brand-primary-soft);
-    border-color: transparent;
-
-    &:hover {
-      background: var(--brand-primary);
-      color: #FFFFFF;
-    }
   }
 }
 
@@ -711,30 +821,66 @@ function submit() {
 }
 
 .account-list {
-  padding: 10px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+}
+
+.rail-section-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 4px 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+
+.rail-section-count {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
 }
 
 .noone-shortcut-card {
+  position: relative;
   width: 100%;
   text-align: left;
-  padding: 10px 11px;
-  border-radius: 10px;
+  padding: 12px 13px;
+  border-radius: 13px;
   background: var(--surface-primary);
   border: 1px solid var(--border-subtle);
   box-shadow: var(--card-shadow);
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   cursor: pointer;
+  overflow: hidden;
   transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 
+  &::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 10px;
+    bottom: 10px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: #f59e0b;
+    opacity: 0;
+    transition: opacity 0.16s ease;
+  }
+
   &:hover {
-    border-color: rgba(245, 158, 11, 0.45);
+    border-color: rgba(245, 158, 11, 0.42);
     box-shadow: var(--card-shadow-hover);
     transform: translateY(-1px);
+
+    .noone-shortcut-arrow {
+      color: #d97706;
+      transform: translateX(2px);
+    }
   }
 
   &:active {
@@ -742,35 +888,54 @@ function submit() {
   }
 
   &.item-choose {
-    background: var(--surface-elevated);
-    border-color: #f59e0b;
-    box-shadow: 0 0 0 1px #f59e0b, var(--card-shadow);
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.09) 0%, var(--surface-elevated) 72%);
+    border-color: rgba(245, 158, 11, 0.46);
+    box-shadow: var(--card-shadow-hover);
+
+    :global(.dark) & {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, var(--surface-elevated) 75%);
+      border-color: rgba(251, 191, 36, 0.42);
+    }
+
+    &::before {
+      opacity: 1;
+    }
 
     .noone-shortcut-icon {
-      background: #f59e0b;
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
       color: #ffffff;
+      box-shadow: 0 3px 10px rgba(245, 158, 11, 0.28);
+    }
+
+    .noone-shortcut-arrow {
+      color: #d97706;
+      :global(.dark) & {
+        color: #fbbf24;
+      }
     }
   }
 }
 
 .noone-shortcut-icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  background: rgba(245, 158, 11, 0.14);
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(245, 158, 11, 0.13);
   color: #d97706;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: background-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
 
   :global(.dark) & {
     color: #fbbf24;
+    background: rgba(245, 158, 11, 0.18);
   }
 }
 
 .noone-shortcut-meta {
+  flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -778,38 +943,56 @@ function submit() {
 }
 
 .noone-shortcut-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
-  line-height: 1.25;
+  line-height: 1.3;
 }
 
 .noone-shortcut-desc {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.noone-shortcut-arrow {
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  transition: transform 0.16s ease, color 0.16s ease;
+}
+
 .account-card {
   position: relative;
-  padding: 10px 11px;
-  border-radius: 10px;
+  padding: 13px 14px 11px;
+  border-radius: 13px;
   background: var(--surface-primary);
   border: 1px solid var(--border-subtle);
   box-shadow: var(--card-shadow);
   cursor: pointer;
+  overflow: hidden;
   transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+
+  &::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 12px;
+    bottom: 12px;
+    width: 3.5px;
+    border-radius: 0 3px 3px 0;
+    background: var(--brand-primary);
+    opacity: 0;
+    transition: opacity 0.16s ease;
+  }
 
   &:hover {
     border-color: var(--border-strong);
     box-shadow: var(--card-shadow-hover);
     transform: translateY(-1px);
-
-    .copy-mini-btn {
-      opacity: 1;
-    }
   }
 
   &:active {
@@ -817,9 +1000,18 @@ function submit() {
   }
 
   &.item-choose {
-    background: var(--surface-elevated);
-    border-color: var(--brand-primary);
-    box-shadow: 0 0 0 1px var(--brand-primary), var(--card-shadow);
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.055) 0%, var(--surface-elevated) 70%);
+    border-color: rgba(37, 99, 235, 0.42);
+    box-shadow: var(--card-shadow-hover);
+
+    :global(.dark) & {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.14) 0%, var(--surface-elevated) 72%);
+      border-color: rgba(96, 165, 250, 0.42);
+    }
+
+    &::before {
+      opacity: 1;
+    }
   }
 }
 
@@ -833,135 +1025,199 @@ function submit() {
   }
 }
 
-.card-top {
+.card-main {
   display: flex;
   align-items: center;
-  gap: 9px;
-  margin-bottom: 9px;
+  gap: 12px;
 }
 
 .account-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
   background: var(--surface-muted);
   color: var(--text-secondary);
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: all 0.15s ease;
+  transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
 
   &.active {
-    background: var(--brand-primary-soft);
-    color: var(--brand-primary);
+    background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+    color: #ffffff;
+    box-shadow: 0 3px 10px rgba(37, 99, 235, 0.28);
   }
 }
 
 .account-meta {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.account-email {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.account-sub {
-  font-size: 11.5px;
-  color: var(--text-muted);
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.copy-mini-btn {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
-  display: inline-flex;
+.account-title-row {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  color: var(--text-muted);
-  cursor: pointer;
-  opacity: 0.55;
-  transition: opacity 0.14s ease, background-color 0.14s ease, color 0.14s ease;
-  flex-shrink: 0;
+  gap: 6px;
+  min-width: 0;
+}
 
-  @media (hover: none) {
-    opacity: 1;
+.account-local {
+  font-size: 14.5px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+  line-height: 1.3;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.primary-badge {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary);
+}
+
+.account-domain {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--text-secondary);
+
+  .domain-part {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 
-  &:hover {
-    opacity: 1;
-    background: var(--surface-muted);
-    color: var(--brand-primary);
+  .account-alias {
+    flex-shrink: 0;
+    max-width: 90px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    color: var(--text-muted);
   }
 }
 
-.card-opt {
+.card-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
+  margin-top: 11px;
+  padding-top: 9px;
+  border-top: 1px solid var(--border-subtle);
 }
 
-.all-receive-pill {
-  height: 22px;
-  padding: 0 8px;
-  border-radius: 999px;
+.scope-pill {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 8px;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 11px;
+  gap: 6px;
+  font-size: 12px;
   font-weight: 500;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   background: var(--surface-subtle);
   border: 1px solid var(--border-subtle);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background-color 0.14s ease, color 0.14s ease, border-color 0.14s ease, transform 0.12s ease;
+
+  .scope-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    opacity: 0.55;
+    flex-shrink: 0;
+    transition: background-color 0.14s ease, box-shadow 0.14s ease;
+  }
 
   &:hover {
     color: var(--text-primary);
     border-color: var(--border-strong);
+    background: var(--surface-hover);
+  }
+
+  &:active {
+    transform: scale(0.95);
   }
 
   &.enabled {
     color: var(--brand-primary);
     background: var(--brand-primary-soft);
-    border-color: transparent;
+    border-color: rgba(37, 99, 235, 0.22);
+
+    .scope-dot {
+      opacity: 1;
+      background: var(--brand-primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+    }
+
+    &:hover {
+      border-color: rgba(37, 99, 235, 0.42);
+    }
   }
 }
 
 .card-actions {
   display: flex;
   align-items: center;
+  gap: 4px;
 }
 
-.rail-more-btn,
+.card-action-btn,
 .rail-more-disabled {
-  width: 24px;
-  height: 24px;
-  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
-.rail-more-btn {
+.card-action-btn {
+  background: transparent;
+  border: 1px solid transparent;
   cursor: pointer;
-  transition: background-color 0.14s ease, color 0.14s ease;
+  transition: background-color 0.14s ease, color 0.14s ease, border-color 0.14s ease, transform 0.12s ease;
 
   &:hover {
-    background: var(--surface-muted);
+    background: var(--surface-subtle);
+    border-color: var(--border-subtle);
     color: var(--text-primary);
+  }
+
+  &:active {
+    transform: scale(0.92);
+  }
+
+  &.copied {
+    background: rgba(16, 185, 129, 0.12);
+    border-color: rgba(16, 185, 129, 0.28);
+    color: #059669;
+
+    :global(.dark) & {
+      color: #34d399;
+      background: rgba(16, 185, 129, 0.18);
+    }
   }
 }
 

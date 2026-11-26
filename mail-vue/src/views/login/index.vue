@@ -341,7 +341,7 @@
       </div>
     </el-dialog>
 
-    <a v-show="settingStore.settings.projectLink" class="github-link" href="https://github.com/maillab/cloud-mail" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
+    <a v-show="settingStore.settings.projectLink" class="github-link" href="https://github.com/hikling/cloud-mail" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
       <Icon icon="mingcute:github-line" width="18" height="18"/>
     </a>
   </div>

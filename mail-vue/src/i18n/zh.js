@@ -421,5 +421,13 @@ const zh = {
     sysSectionMailCore: '邮件收发',
     sysSectionMailFilter: '发送与过滤',
     sysSectionLinks: '项目与文档',
+    versionSyncedGitHub: '已与 GitHub 仓库同步',
+    versionUpdateAvailable: 'GitHub 有新版本：{version}',
+    accountListSection: '我的邮箱',
+    accountPrimary: '主邮箱',
+    accountScopeSingle: '仅此邮箱',
+    accountScopeAll: '全部收取',
+    accountScopeSingleTip: '当前仅查看此邮箱邮件，点击切换为收取全部邮箱',
+    accountScopeAllTip: '当前收取所有邮箱邮件，点击切换为仅看此邮箱',
 }
 export default zh

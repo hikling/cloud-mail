@@ -1095,7 +1095,7 @@ function renderHighlight(value) {
 }
 
 .header-actions {
-  height: 46px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: space-between;

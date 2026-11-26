@@ -9,11 +9,13 @@
         <header class="sys-header">
           <div class="sys-header-left">
             <h1 class="workspace-title">{{ $t('SystemSettings') }}</h1>
-            <el-badge is-dot :hidden="!hasUpdate">
-              <button type="button" class="version-text-btn" @click="jump('https://github.com/maillab/cloud-mail/releases')">
-                {{ currentVersion }}
-              </button>
-            </el-badge>
+            <el-tooltip :content="versionTooltip" placement="bottom" :show-after="300">
+              <el-badge is-dot :hidden="!hasUpdate">
+                <button type="button" class="version-text-btn" @click="jump(versionLink)">
+                  {{ currentVersion }}
+                </button>
+              </el-badge>
+            </el-tooltip>
           </div>
           <div class="tab-switcher" role="tablist">
             <button
@@ -442,11 +444,13 @@
                     <div class="row-label">{{ $t('version') }}</div>
                   </div>
                   <div class="row-control">
-                    <el-badge is-dot :hidden="!hasUpdate">
-                      <button type="button" class="action-btn" @click="jump('https://github.com/maillab/cloud-mail/releases')">
-                        {{ currentVersion }}
-                      </button>
-                    </el-badge>
+                    <el-tooltip :content="versionTooltip" placement="top" :show-after="300">
+                      <el-badge is-dot :hidden="!hasUpdate">
+                        <button type="button" class="action-btn" @click="jump(versionLink)">
+                          {{ currentVersion }}
+                        </button>
+                      </el-badge>
+                    </el-tooltip>
                   </div>
                 </div>
                 <div class="setting-row">
@@ -454,10 +458,8 @@
                     <div class="row-label">{{ $t('sysSectionLinks') }}</div>
                   </div>
                   <div class="row-control link-row">
-                    <button type="button" class="action-btn" @click="jump('https://github.com/maillab/cloud-mail')">GitHub</button>
-                    <button type="button" class="action-btn" @click="jump('https://t.me/cloud_mail_tg')">Telegram</button>
-                    <button type="button" class="action-btn" @click="jump('https://docs.skymail.ink')">{{ t('document') }}</button>
-                    <button type="button" class="action-btn" @click="jump('https://docs.skymail.ink/support.html')">{{ t('support') }}</button>
+                    <button type="button" class="action-btn" @click="jump(GITHUB_URL)">GitHub</button>
+                    <button type="button" class="action-btn" @click="jump(GITHUB_DOCS_URL)">{{ t('document') }}</button>
                   </div>
                 </div>
               </div>
@@ -930,9 +932,22 @@ const workspaceTabs = [
   { id: 'security', labelKey: 'sysTabSecurity' },
 ]
 
-const currentVersion = 'v3.6.0'
+const GITHUB_REPO = 'hikling/cloud-mail'
+const GITHUB_URL = `https://github.com/${GITHUB_REPO}`
+const GITHUB_DOCS_URL = `${GITHUB_URL}#readme`
+
+const buildGitTag = typeof __APP_GIT_TAG__ === 'string' ? __APP_GIT_TAG__ : ''
+const buildGitSha = typeof __APP_GIT_SHA__ === 'string' ? __APP_GIT_SHA__ : ''
+
+const currentVersion = ref(buildGitTag || (buildGitSha ? `main@${buildGitSha}` : 'main'))
+const latestVersion = ref('')
+const versionLink = ref(buildGitTag ? `${GITHUB_URL}/releases` : `${GITHUB_URL}/commits/main`)
 const hasUpdate = ref(false)
-let getUpdateErrorCount = 1;
+const versionTooltip = computed(() =>
+  hasUpdate.value && latestVersion.value
+    ? t('versionUpdateAvailable', { version: latestVersion.value })
+    : t('versionSyncedGitHub')
+)
 const {t, locale} = useI18n();
 const firstLoading = ref(true)
 const settingReady = ref(false)
@@ -1150,18 +1165,48 @@ const resendList = computed(() => {
   return list;
 });
 
-function getUpdate() {
-  if (getUpdateErrorCount > 5 || !getUpdateErrorCount) return
-  axios.get('https://api.github.com/repos/maillab/cloud-mail/releases/latest').then(({data}) => {
-    hasUpdate.value = data.name !== currentVersion
-    getUpdateErrorCount = 0
-  }).catch(e => {
-    getUpdateErrorCount++
-    setTimeout(() => {
-      getUpdate()
-    }, 2000)
-    console.error('检查更新失败：', e)
-  })
+async function getUpdate() {
+  try {
+    const releaseRes = await axios.get(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
+      timeout: 6000,
+      validateStatus: (status) => status === 200 || status === 404
+    })
+    if (releaseRes.status === 200 && releaseRes.data) {
+      const remoteTag = (releaseRes.data.tag_name || releaseRes.data.name || '').trim()
+      if (remoteTag) {
+        latestVersion.value = remoteTag
+        versionLink.value = releaseRes.data.html_url || `${GITHUB_URL}/releases`
+        if (buildGitTag) {
+          hasUpdate.value = remoteTag !== buildGitTag
+          return
+        }
+      }
+    }
+
+    const commitRes = await axios.get(`https://api.github.com/repos/${GITHUB_REPO}/commits/main`, {
+      timeout: 6000
+    })
+    const remoteSha = String(commitRes.data?.sha || '').slice(0, 7)
+    if (remoteSha) {
+      const remoteLabel = `main@${remoteSha}`
+      if (!latestVersion.value) {
+        latestVersion.value = remoteLabel
+        versionLink.value = commitRes.data?.html_url || `${GITHUB_URL}/commits/main`
+      }
+      if (!buildGitTag && !buildGitSha) {
+        currentVersion.value = remoteLabel
+        hasUpdate.value = false
+      } else if (buildGitSha) {
+        hasUpdate.value = remoteSha !== buildGitSha
+        if (hasUpdate.value) {
+          latestVersion.value = remoteLabel
+          versionLink.value = `${GITHUB_URL}/commits/main`
+        }
+      }
+    }
+  } catch {
+    // Ignore transient GitHub API errors or rate limits
+  }
 }
 
 function saveAddVerifyCount() {

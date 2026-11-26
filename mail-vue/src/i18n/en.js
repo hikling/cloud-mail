@@ -421,6 +421,14 @@ const en = {
     sysSectionMailCore: 'Mail Delivery',
     sysSectionMailFilter: 'Routing & Filters',
     sysSectionLinks: 'Links & Docs',
+    versionSyncedGitHub: 'Synced with GitHub repository',
+    versionUpdateAvailable: 'Update available on GitHub: {version}',
+    accountListSection: 'Mailboxes',
+    accountPrimary: 'Primary',
+    accountScopeSingle: 'Single',
+    accountScopeAll: 'All Mail',
+    accountScopeSingleTip: 'Viewing only this address. Click to receive all addresses.',
+    accountScopeAllTip: 'Receiving all addresses. Click to view only this address.',
 }
 
 export default en

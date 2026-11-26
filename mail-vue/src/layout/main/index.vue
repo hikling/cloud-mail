@@ -129,7 +129,7 @@ const handleResize = () => {
     left: 0;
     height: calc(100% - 52px);
     z-index: 100;
-    width: 272px;
+    width: min(308px, 86vw);
     box-shadow: var(--shadow-lg);
   }
 }
@@ -141,14 +141,14 @@ const handleResize = () => {
   opacity: 0;
   pointer-events: none;
   @media (max-width: 1024px) {
-    width: 272px;
+    width: min(308px, 86vw);
     z-index: 100;
   }
 }
 
 .main-box-show {
   display: grid;
-  grid-template-columns: 272px 1fr;
+  grid-template-columns: 308px 1fr;
   flex: 1;
   min-height: 0;
   overflow: hidden;
