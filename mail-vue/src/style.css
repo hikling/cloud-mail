@@ -4,37 +4,25 @@
     box-sizing: border-box;
     -webkit-tap-highlight-color: transparent;
     scrollbar-width: thin;
-    scrollbar-color: var(--dark-border) transparent;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
 html, body {
     width: 100%;
     height: 100%;
+    background: var(--app-canvas);
+    color: var(--text-primary);
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    line-height: 1.5;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 #app {
     width: 100%;
     height: 100%;
-}
-
-:deep(.el-input__inner:focus) {
-    background-color: transparent !important;
-    border-color: #dcdfe6 !important;
-}
-
-.el-table thead th {
-    font-weight: bold !important;
-}
-
-body {
-    font-family: Inter, "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
-    line-height: 1.5;
-    color: var(--el-text-color-primary);
-    font-size: 14px;
-}
-
-html, body {
-    background: var(--el-bg-color);
 }
 
 ul, ol {
@@ -59,8 +47,354 @@ button, input, select, textarea {
     outline: none;
 }
 
+/* ===========================
+   Design Tokens — Light Mode
+   =========================== */
+:root {
+    --app-canvas: #F4F5F8;
+    --surface-primary: #FFFFFF;
+    --surface-elevated: #FFFFFF;
+    --surface-subtle: #F8F9FB;
+    --surface-muted: #EFF2F6;
+    --surface-hover: #F1F4F9;
+    --surface-active: rgba(37, 99, 235, 0.09);
+
+    --aside-bg: #F7F8FA;
+    --aside-item-hover: rgba(15, 23, 42, 0.045);
+    --aside-item-active: #FFFFFF;
+    --aside-item-active-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 0 0 1px rgba(15, 23, 42, 0.06);
+
+    --border-subtle: rgba(15, 23, 42, 0.08);
+    --border-strong: rgba(15, 23, 42, 0.14);
+    --border-hairline: inset 0 -1px 0 0 rgba(15, 23, 42, 0.07);
+
+    --text-primary: #0F172A;
+    --text-secondary: #475569;
+    --text-muted: #94A3B8;
+
+    --brand-primary: #2563EB;
+    --brand-primary-hover: #1D4ED8;
+    --brand-primary-soft: rgba(37, 99, 235, 0.10);
+    --brand-primary-ring: 0 0 0 3px rgba(37, 99, 235, 0.14);
+
+    --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+    --shadow-sm: 0 2px 8px -2px rgba(15, 23, 42, 0.07), 0 1px 2px rgba(15, 23, 42, 0.04);
+    --shadow-md: 0 10px 28px -6px rgba(15, 23, 42, 0.11), 0 2px 8px -2px rgba(15, 23, 42, 0.05);
+    --shadow-lg: 0 24px 56px -12px rgba(15, 23, 42, 0.18), 0 6px 18px -4px rgba(15, 23, 42, 0.08);
+
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+
+    --scrollbar-thumb: rgba(15, 23, 42, 0.16);
+
+    /* Legacy & Semantic Tokens Mapped */
+    --el-color-primary: #2563EB;
+    --el-color-primary-dark-2: #1D4ED8;
+    --el-color-primary-light-3: #3B82F6;
+    --el-color-primary-light-5: #60A5FA;
+    --el-color-primary-light-7: #93C5FD;
+    --el-color-primary-light-8: #DBEAFE;
+    --el-color-primary-light-9: #EFF6FF;
+    --el-color-success: #10B981;
+    --el-color-warning: #F59E0B;
+    --el-color-danger: #EF4444;
+    --el-bg-color: #FFFFFF;
+    --el-bg-color-overlay: #FFFFFF;
+    --el-fill-color-light: #F4F6FA;
+    --el-fill-color-lighter: #F8FAFC;
+    --el-text-color-primary: #0F172A;
+    --el-text-color-regular: #334155;
+    --el-text-color-secondary: #64748B;
+    --el-border-color: rgba(15, 23, 42, 0.10);
+    --el-border-color-light: rgba(15, 23, 42, 0.08);
+    --el-border-color-lighter: rgba(15, 23, 42, 0.06);
+    --el-border-radius-base: 8px;
+    --el-box-shadow-light: var(--shadow-md);
+
+    --extra-light-fill: var(--surface-subtle);
+    --settings-page-background: var(--app-canvas);
+    --light-ill: var(--surface-muted);
+    --light-border: var(--border-subtle);
+    --header-actions-border: var(--border-hairline);
+    --aside-backgound: var(--aside-bg);
+    --aside-menu-active-background: var(--aside-item-active);
+    --loadding-background: rgba(255, 255, 255, 0.72);
+    --dark-border: var(--border-strong);
+    --base-fill: var(--surface-muted);
+    --regular-text-color: var(--text-secondary);
+    --light-border-color: var(--border-subtle);
+    --aside-right-border: 4px 0 24px rgba(15, 23, 42, 0.10);
+    --choose-account-background: var(--surface-active);
+    --email-scroll-content-color: var(--text-muted);
+    --search-hit-background: rgba(250, 204, 21, 0.38);
+    --email-hover-background: #F7F9FC;
+    --email-right-click-background: rgba(37, 99, 235, 0.06);
+    --login-border: rgba(15, 23, 42, 0.08);
+    --form-desc-color: #64748B;
+    --login-switch-color: #2563EB;
+    --scrollbar-track-color: transparent;
+    --base-border-color: var(--border-subtle);
+    --secondary-text-color: var(--text-muted);
+    --message-block-color: rgba(0, 0, 0, 0);
+    --loading-hide-transition: all 200ms;
+}
+
+/* ===========================
+   Design Tokens — Dark Mode
+   =========================== */
+.dark {
+    --app-canvas: #0B0D12;
+    --surface-primary: #11141B;
+    --surface-elevated: #171B24;
+    --surface-subtle: #141821;
+    --surface-muted: #1D222D;
+    --surface-hover: #1A1F2B;
+    --surface-active: rgba(59, 130, 246, 0.14);
+
+    --aside-bg: #0E1117;
+    --aside-item-hover: rgba(255, 255, 255, 0.05);
+    --aside-item-active: #1A1F2B;
+    --aside-item-active-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 0 1px rgba(255, 255, 255, 0.08);
+
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.14);
+    --border-hairline: inset 0 -1px 0 0 rgba(255, 255, 255, 0.06);
+
+    --text-primary: #F1F5F9;
+    --text-secondary: #94A3B8;
+    --text-muted: #64748B;
+
+    --brand-primary: #3B82F6;
+    --brand-primary-hover: #60A5FA;
+    --brand-primary-soft: rgba(59, 130, 246, 0.15);
+    --brand-primary-ring: 0 0 0 3px rgba(59, 130, 246, 0.22);
+
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow-sm: 0 2px 10px -2px rgba(0, 0, 0, 0.45);
+    --shadow-md: 0 12px 32px -6px rgba(0, 0, 0, 0.65);
+    --shadow-lg: 0 24px 60px -12px rgba(0, 0, 0, 0.8);
+
+    --scrollbar-thumb: rgba(255, 255, 255, 0.15);
+
+    --el-color-primary: #3B82F6;
+    --el-color-primary-dark-2: #2563EB;
+    --el-color-primary-light-3: #60A5FA;
+    --el-color-primary-light-5: #93C5FD;
+    --el-color-primary-light-7: #1E3A8A;
+    --el-color-primary-light-8: rgba(59, 130, 246, 0.16);
+    --el-color-primary-light-9: rgba(59, 130, 246, 0.12);
+    --el-bg-color: #11141B;
+    --el-bg-color-overlay: #171B24;
+    --el-fill-color-light: #1A1F2A;
+    --el-fill-color-lighter: #151922;
+    --el-text-color-primary: #F1F5F9;
+    --el-text-color-regular: #CBD5E1;
+    --el-text-color-secondary: #94A3B8;
+    --el-border-color: rgba(255, 255, 255, 0.09) !important;
+    --el-border-color-light: rgba(255, 255, 255, 0.08);
+    --el-border-color-lighter: rgba(255, 255, 255, 0.06);
+    --el-box-shadow-light: var(--shadow-md);
+
+    --extra-light-fill: var(--surface-subtle);
+    --settings-page-background: var(--app-canvas);
+    --light-ill: var(--surface-muted);
+    --light-border: var(--border-subtle);
+    --header-actions-border: var(--border-hairline);
+    --aside-backgound: var(--aside-bg);
+    --aside-menu-active-background: var(--aside-item-active);
+    --loadding-background: rgba(11, 13, 18, 0.72);
+    --dark-border: var(--border-strong);
+    --base-fill: var(--surface-muted);
+    --regular-text-color: var(--text-secondary);
+    --light-border-color: var(--border-subtle);
+    --aside-right-border: 4px 0 28px rgba(0, 0, 0, 0.55);
+    --choose-account-background: var(--surface-active);
+    --email-scroll-content-color: var(--text-muted);
+    --search-hit-background: rgba(234, 179, 8, 0.30);
+    --email-hover-background: rgba(255, 255, 255, 0.035);
+    --email-right-click-background: rgba(59, 130, 246, 0.12);
+    --login-border: rgba(255, 255, 255, 0.09);
+    --form-desc-color: #94A3B8;
+    --login-switch-color: #60A5FA;
+    --scrollbar-track-color: transparent;
+    --base-border-color: var(--border-subtle);
+    --secondary-text-color: var(--text-muted);
+    --message-block-color: rgba(17, 20, 27, 0.12);
+}
+
+/* ===========================
+   Element Plus Global Polish
+   =========================== */
+.el-button {
+    border-radius: 8px !important;
+    font-weight: 500;
+    transition: all 0.16s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+}
+
+.el-button--primary:not(.is-link):not(.is-text):not(.is-plain) {
+    background: var(--brand-primary);
+    border-color: var(--brand-primary);
+    box-shadow: 0 1px 2px rgba(37, 99, 235, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.el-button--primary:not(.is-link):not(.is-text):not(.is-plain):hover {
+    background: var(--brand-primary-hover);
+    border-color: var(--brand-primary-hover);
+}
+
+.el-button--default:not(.is-link):not(.is-text) {
+    background: var(--surface-primary);
+    border-color: var(--border-strong);
+    color: var(--text-primary);
+}
+
+.el-button--default:not(.is-link):not(.is-text):hover {
+    background: var(--surface-hover);
+    border-color: var(--border-strong);
+    color: var(--text-primary);
+}
+
+.el-input__wrapper,
+.el-select__wrapper,
+.el-input-tag {
+    border-radius: 8px !important;
+    background-color: var(--surface-primary) !important;
+    box-shadow: 0 0 0 1px var(--border-subtle) inset !important;
+    transition: box-shadow 0.16s ease, background-color 0.16s ease !important;
+}
+
+.el-input__wrapper:hover,
+.el-select__wrapper:hover,
+.el-input-tag:hover {
+    box-shadow: 0 0 0 1px var(--border-strong) inset !important;
+}
+
+.el-input__wrapper.is-focus,
+.el-select__wrapper.is-focused,
+.el-input-tag.is-focused {
+    box-shadow: 0 0 0 1px var(--brand-primary) inset, var(--brand-primary-ring) !important;
+}
+
+.el-textarea__inner {
+    border-radius: 8px !important;
+    background-color: var(--surface-primary) !important;
+    box-shadow: 0 0 0 1px var(--border-subtle) inset !important;
+}
+
+.el-textarea__inner:focus {
+    box-shadow: 0 0 0 1px var(--brand-primary) inset, var(--brand-primary-ring) !important;
+}
+
+.el-input-group__append,
+.el-input-group__prepend {
+    color: var(--text-primary) !important;
+    background-color: var(--surface-subtle) !important;
+    box-shadow: 0 0 0 1px var(--border-subtle) inset !important;
+}
+
+.el-input {
+    --el-input-text-color: var(--text-primary) !important;
+}
+
+.el-dialog {
+    border-radius: 16px !important;
+    background: var(--surface-elevated) !important;
+    border: 1px solid var(--border-subtle) !important;
+    box-shadow: var(--shadow-lg) !important;
+    padding: 20px 22px !important;
+}
+
+.el-dialog__header {
+    padding-bottom: 14px !important;
+    margin-right: 0 !important;
+}
+
+.el-dialog__title {
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.01em;
+    color: var(--text-primary) !important;
+}
+
+.el-overlay {
+    backdrop-filter: blur(4px);
+    background-color: rgba(15, 23, 42, 0.42) !important;
+}
+
+.dark .el-overlay {
+    background-color: rgba(0, 0, 0, 0.58) !important;
+}
+
+.el-popper.is-light,
+.el-dropdown__popper.el-popper {
+    border-radius: 12px !important;
+    background: var(--surface-elevated) !important;
+    border: 1px solid var(--border-subtle) !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+.el-dropdown-menu {
+    padding: 6px !important;
+    background: transparent !important;
+    border: none !important;
+}
+
+.el-dropdown-menu__item {
+    border-radius: 7px !important;
+    padding: 7px 12px !important;
+    font-size: 13px !important;
+    color: var(--text-primary) !important;
+    transition: background-color 0.14s ease !important;
+}
+
+.el-dropdown-menu__item:hover {
+    background-color: var(--surface-hover) !important;
+    color: var(--brand-primary) !important;
+}
+
+.el-tag {
+    border-radius: 6px !important;
+    font-weight: 500;
+}
+
+.el-table {
+    --el-table-bg-color: var(--surface-primary);
+    --el-table-tr-bg-color: var(--surface-primary);
+    --el-table-header-bg-color: var(--surface-subtle);
+    --el-table-row-hover-bg-color: var(--surface-hover);
+    --el-table-border-color: var(--border-subtle);
+    --el-table-text-color: var(--text-primary);
+    --el-table-header-text-color: var(--text-secondary);
+}
+
+.el-table thead th {
+    font-weight: 600 !important;
+    font-size: 12.5px !important;
+    letter-spacing: 0.01em;
+}
+
 .el-message {
     white-space: nowrap !important;
+    border-radius: 10px !important;
+    box-shadow: var(--shadow-md) !important;
+    border: 1px solid var(--border-subtle) !important;
+}
+
+.el-message-box {
+    border-radius: 16px !important;
+    background: var(--surface-elevated) !important;
+    border: 1px solid var(--border-subtle) !important;
+    box-shadow: var(--shadow-lg) !important;
+    padding: 20px !important;
+}
+
+.el-notification {
+    border-radius: 12px !important;
+    background: var(--surface-elevated) !important;
+    border: 1px solid var(--border-subtle) !important;
+    box-shadow: var(--shadow-md) !important;
 }
 
 .message-bottom {
@@ -72,10 +406,13 @@ button, input, select, textarea {
     }
 }
 
-.el-input-group__append, .el-input-group__prepend {
-    color: var(--el-text-color-primary) !important;
+/* NProgress bar polish */
+#nprogress .bar {
+    background: var(--brand-primary) !important;
+    height: 2px !important;
 }
 
+/* TinyMCE overrides */
 .tox .tox-dialog__iframe.tox-dialog__iframe--opaque {
     background-color: var(--el-bg-color) !important;
 }
@@ -103,74 +440,4 @@ button, input, select, textarea {
 
 .tox .tox-collection--grid .tox-collection__group {
     max-height: 220px !important;
-}
-
-:root {
-    --el-color-primary: #1890ff;
-    --el-color-primary-dark-2: #1064c0;
-    --el-color-primary-light-3: #4dabff;
-    --el-color-primary-light-5: #69c0ff;
-    --el-color-primary-light-7: #91d5ff;
-    --el-color-primary-light-9: #e6f7ff;
-
-    --extra-light-fill: #FAFCFF;
-    --settings-page-background: #fafbfc;
-    --light-ill: #F5F7FA;
-    --light-border: #E4E7ED;
-    --header-actions-border: inset 0 -1px 0 0 var(--el-border-color-lighter);
-    --aside-backgound: #191A23;
-    --aside-menu-active-background: #27282D;
-    --loadding-background: rgba(255, 255, 255, 0.8);
-    --dark-border: #CDD0D6;
-    --base-fill: #F0F2F5;
-    --regular-text-color: #585d69;
-    --light-border-color: #e7e9ec;
-    --aside-right-border: 3px 0 5px rgba(0, 21, 41, .35);
-    --choose-account-background: var(--el-color-primary-light-8);
-    --el-text-color-regular: var(--el-text-color-primary);
-    --email-scroll-content-color: rgba(25, 41, 59, 0.4);
-    --search-hit-background: #ffe58f;
-    --email-hover-background: #F2F6FC;
-    --email-right-click-background: #FDF6EC;
-    --login-border: none;
-    --form-desc-color: #71717a;
-    --login-switch-color: #006be6;
-    --scrollbar-track-color: #A8ABB2;
-    --base-border-color: #DCDFE6;
-    --secondary-text-color: #909399;
-    --message-block-color: rgba(0, 0, 0, 0);
-    --loading-hide-transition: all 200ms;
-}
-
-.dark {
-    --extra-light-fill: #191919;
-    --settings-page-background: var(--extra-light-fill);
-    --light-ill: #262727;
-    --light-border: #414243;
-    --aside-backgound: #141414;
-    --aside-menu-active-background: rgba(255, 255, 255, 0.08);
-    --header-actions-border: inset 0 -1px 0 0 var(--el-border-color-lighter);
-    --loadding-background: rgba(0, 0, 0, 0.3);
-    --dark-border: #636466;
-    --base-fill: #303030;
-    --regular-text-color: #bfbdbc;
-    --light-border-color: #414243;
-    --aside-right-border: 3px 0 5px #0A0A0A;
-    --choose-account-background: #39393A;
-    --email-scroll-content-color: rgba(255, 255, 255, 0.3);
-    --search-hit-background: #8a6a12;
-    --email-hover-background: #1D1E1F;
-    --email-right-click-background: var(--email-hover-background);
-    --login-border: none;
-    --form-desc-color: #8D9095;
-    --login-switch-color: rgb(102, 177, 255);
-    --scrollbar-track-color: #8D9095;
-    --base-border-color: #4C4D4F;
-    --secondary-text-color: #A3A6AD;
-    --message-block-color: rgba(30, 30, 30, 0.2);
-    --el-border-color: #414243 !important;
-}
-
-.el-input {
-    --el-input-text-color: var(--el-text-color-primary) !important;
 }

@@ -1,81 +1,52 @@
 <template>
-  <div v-for="item in rows" style="background: var(--el-bg-color)">
-    <div :class="'email-row ' + type ">
-      <el-checkbox disabled :class=" props.type === 'all-email' ? 'all-email-checkbox' : 'checkbox'"
-      ></el-checkbox>
-      <div class="pc-star" v-if="showStar">
-        <Icon style="color: var(--el-border-color)" icon="solar:star-line-duotone" width="18" height="18"/>
+  <div v-for="item in rows" :key="item" class="skeleton-wrap">
+    <div :class="'skeleton-row ' + type">
+      <div class="row-leading">
+        <el-checkbox disabled />
+        <span class="pc-star" v-if="showStar">
+          <Icon style="color: var(--border-subtle)" icon="lucide:star" width="15" height="15"/>
+        </span>
       </div>
-      <div v-if="!showStar"></div>
-      <div class="title" :class="accountShow ? 'title-column' : 'title-column'">
 
+      <el-skeleton animated class="avatar-sk">
+        <template #template>
+          <el-skeleton-item variant="circle" style="width: 30px; height: 30px; border-radius: 9px" />
+        </template>
+      </el-skeleton>
+
+      <div class="title">
         <div class="email-sender">
-          <div class="email-status" v-if="showStatus">
-
-          </div>
-          <div v-else></div>
-          <span class="name">
-             <span>
-               <el-skeleton animated>
-                 <template #template>
-                   <el-skeleton-item variant="text" class="name-skeleton"/>
-                 </template>
-               </el-skeleton>
-             </span>
-             <span></span>
-          </span>
-          <span class="phone-time">
-            <el-skeleton animated>
-              <template #template>
-                <el-skeleton-item variant="text" style="width: 50px;height: 1rem;"/>
-              </template>
-            </el-skeleton>
-          </span>
+          <el-skeleton animated style="width: 120px">
+            <template #template>
+              <el-skeleton-item variant="text" style="width: 100%; height: 14px" />
+            </template>
+          </el-skeleton>
         </div>
-        <div>
-          <div class="email-text-skeleton">
-            <el-skeleton animated>
-              <template #template>
-                <el-skeleton-item variant="text" class="text-skeleton-one"/>
-                <el-skeleton-item variant="text" class="text-skeleton-two"/>
-              </template>
-            </el-skeleton>
-          </div>
-          <div class="user-info" v-if="showUserInfo">
-            <div class="user">
-              <el-skeleton animated>
-                <template #template>
-                  <el-skeleton-item variant="text"
-                                    style="width: 180px;margin-right: 5px;height: 1rem;margin-bottom: 4px;"/>
-                </template>
-              </el-skeleton>
-            </div>
-            <div class="account">
-              <el-skeleton animated>
-                <template #template>
-                  <el-skeleton-item variant="text"
-                                    style="width: 180px;margin-right: 5px;height: 1rem;margin-bottom: 4px;"/>
-                </template>
-              </el-skeleton>
-            </div>
-            <div class="del-status" v-if="item.isDel">
-              <el-tag type="danger" size="small">{{ $t('deleted') }}</el-tag>
-            </div>
-          </div>
+        <div class="email-body-sk">
+          <el-skeleton animated>
+            <template #template>
+              <el-skeleton-item variant="text" class="text-skeleton-one"/>
+              <el-skeleton-item v-if="showUserInfo" variant="text" class="text-skeleton-two"/>
+            </template>
+          </el-skeleton>
         </div>
       </div>
-      <div class="email-right-skeleton" :style="showUserInfo ? 'align-self: start;':''">
+
+      <div class="email-right-skeleton">
         <el-skeleton animated>
           <template #template>
-            <el-skeleton-item variant="text" style="width: 60px;margin-right: 15px;height: 1rem;"/>
+            <el-skeleton-item variant="text" style="width: 52px; height: 12px;"/>
           </template>
         </el-skeleton>
       </div>
     </div>
   </div>
 </template>
+
 <script setup>
-const props = defineProps({
+import {Icon} from "@iconify/vue";
+
+defineProps({
   rows: {
     type: Number,
     default: 1
@@ -101,38 +72,89 @@ const props = defineProps({
     default: ''
   }
 })
-import {Icon} from "@iconify/vue";
 </script>
 
 <style scoped lang="scss">
+.skeleton-wrap {
+  background: var(--surface-primary);
+}
 
-.phone-star {
-  display: none;
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  height: 56px;
+  border-bottom: 1px solid var(--border-subtle);
+
+  @media (max-width: 1366px) {
+    height: 86px;
+    padding: 12px 14px;
+    align-items: flex-start;
+  }
+
+  &.all-email {
+    height: 74px;
+    @media (max-width: 1366px) {
+      height: 128px;
+    }
+  }
+}
+
+.row-leading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .pc-star {
-  display: flex;
-  width: 40px;
-}
-
-:deep(.el-skeleton__item) {
-  position: relative;
-  top: 2px;
-}
-
-@media (max-width: 1366px) {
-  .pc-star {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  @media (max-width: 1366px) {
     display: none;
   }
-  .phone-star {
-    display: block;
-    align-self: end;
-    padding-right: 16px;
-    padding-top: 8px;
-  }
-  .star-pd {
-    padding-top: 6px !important;
+}
+
+.avatar-sk {
+  width: 30px;
+  flex-shrink: 0;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 210px 1fr;
+  align-items: center;
+  gap: 14px;
+
+  @media (max-width: 1366px) {
+    grid-template-columns: 1fr;
+    gap: 6px;
   }
 }
 
+.email-body-sk {
+  min-width: 0;
+  .text-skeleton-one {
+    width: 72%;
+    height: 14px;
+  }
+  .text-skeleton-two {
+    width: 45%;
+    height: 12px;
+    margin-top: 6px;
+  }
+}
+
+.email-right-skeleton {
+  width: 52px;
+  flex-shrink: 0;
+  @media (max-width: 1366px) {
+    display: none;
+  }
+}
 </style>

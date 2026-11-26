@@ -29,7 +29,6 @@ const props = defineProps({
   }
 });
 
-
 const {locale} = useI18n()
 const emit = defineEmits(['change','focus']);
 const editor = shallowRef(null);
@@ -62,7 +61,6 @@ const language = computed(() => {
   if (locale.value === 'zh') {
     return 'zh_CN'
   }
-
   return 'en'
 })
 
@@ -91,14 +89,17 @@ function initEditor() {
     statusbar: false,
     height: "100%",
     auto_focus: true,
-    //relative_urls: false,  //阻止 img标签域名和网站域名相同 自动把链接转换相对路径
-    //remove_script_host: false, // 阻止删除 URL 中的域名
     forced_root_block: 'div',
     skin: `${uiStore.dark ? 'oxide-dark' : 'oxide'}`,
     content_css: `/tinymce/css/index.css,${uiStore.dark ? 'dark' : 'default'}`,
     content_style: `:root {
-         --scrollbar-track-color: ${uiStore.dark ? '#141414' : '#FFFFFF'};
-         --scrollbar-thumb-color: ${uiStore.dark ? '#8D9095' : '#A8ABB2'};
+         --scrollbar-track-color: ${uiStore.dark ? '#11141B' : '#FFFFFF'};
+         --scrollbar-thumb-color: ${uiStore.dark ? '#475569' : '#CBD5E1'};
+    }
+    body {
+      background-color: ${uiStore.dark ? '#171B24' : '#FFFFFF'};
+      color: ${uiStore.dark ? '#F1F5F9' : '#0F172A'};
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
     }`,
     plugins: 'link image advlist lists  emoticons fullscreen  table preview code',
     toolbar: 'bold emoticons forecolor backcolor italic fontsize | alignleft aligncenter alignright alignjustify | outdent indent |  bullist numlist | link image  | table code preview fullscreen',
@@ -132,7 +133,7 @@ function initEditor() {
     image_description: false,
     link_title: false,
     dialog_type: 'none',
-    file_picker_callback: (callback, value, meta) => {
+    file_picker_callback: (callback) => {
       const input = document.createElement('input');
       input.setAttribute('type', 'file');
       input.setAttribute('accept', 'image/*');
@@ -159,14 +160,13 @@ function initEditor() {
 
 function focus() {
   nextTick(() => {
-    editor.value.focus()
+    editor.value?.focus()
   })
 }
 
 function getContent() {
-  return editor.value.getContent()
+  return editor.value?.getContent()
 }
-
 
 function destroyEditor() {
   if (editor.value) {
@@ -197,20 +197,29 @@ function destroyEditor() {
 }
 
 :deep(.tox.tox-tinymce.tox-fullscreen) {
-  padding-right: 15px;
-  padding-left: 15px;
-  padding-bottom: 15px;
-  background: var(--el-bg-color);
+  padding: 15px;
+  background: var(--surface-elevated);
   @media (max-width: 767px) {
-    padding-right: 10px;
-    padding-left: 10px;
-    padding-bottom: 10px;
+    padding: 10px;
   }
 }
 
 :deep(.tox-tinymce) {
   border: none;
   border-radius: 0;
+  background: transparent;
+}
+
+:deep(.tox-editor-header) {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  padding: 2px 0 !important;
+}
+
+:deep(.tox-toolbar-overlord),
+:deep(.tox-toolbar__primary) {
+  background: transparent !important;
 }
 
 :deep(.tox-toolbar__group) {
@@ -219,11 +228,11 @@ function destroyEditor() {
 }
 
 :deep(.tox-tbtn) {
-  margin: 0 !important;
+  margin: 0 1px !important;
+  border-radius: 6px !important;
 }
 
 :deep(.tox .tox-edit-area::before) {
   display: none;
 }
-
 </style>

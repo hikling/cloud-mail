@@ -3,38 +3,40 @@
     <div class="write-box">
       <div class="title">
         <div class="title-left">
-          <span class="title-text">
-            <Icon icon="hugeicons:quill-write-01" width="28" height="28"/>
+          <span class="title-badge">
+            <Icon icon="lucide:square-pen" width="16" height="16"/>
           </span>
-          <span class="sender">{{ $t('sender') }}:</span>
-          <span class="sender-name">{{ form.name }}</span>
-          <span class="send-email"><{{ form.sendEmail }}></span>
+          <span class="sender">{{ $t('sender') }}</span>
+          <div class="sender-chip">
+            <span class="sender-name">{{ form.name }}</span>
+            <span class="send-email">&lt;{{ form.sendEmail }}&gt;</span>
+          </div>
         </div>
-        <div @click="close" style="cursor: pointer;">
-          <Icon icon="material-symbols-light:close-rounded" width="22" height="22"/>
-        </div>
+        <button type="button" class="close-btn" @click="close" aria-label="Close">
+          <Icon icon="lucide:x" width="17" height="17"/>
+        </button>
       </div>
+
       <div class="container">
         <div class="address-fields">
-          <el-input-tag  @add-tag="addTagChange" tag-type="primary" @input="value => updateSuggest('receive', value)" size="large" v-model="form.receiveEmail" >
+          <el-input-tag @add-tag="addTagChange" tag-type="primary" @input="value => updateSuggest('receive', value)" size="large" v-model="form.receiveEmail">
             <template #prefix>
-              <div class="item-title" >{{ $t('recipient') }}</div>
+              <div class="item-title">{{ $t('recipient') }}</div>
               <el-select
-                  ref="mySelect"
-                  class="write-select"
-                  popper-class="write-select"
-                  :show-arrow="false"
-                  :no-match-text="' '"
-                  :no-data-text="' '"
-                  @visible-change="status => suggestStatusChange('receive', status)"
-                  @change="value => suggestChange('receive', value)"
+                ref="mySelect"
+                class="write-select"
+                popper-class="write-select"
+                :show-arrow="false"
+                :no-match-text="' '"
+                :no-data-text="' '"
+                @visible-change="status => suggestStatusChange('receive', status)"
+                @change="value => suggestChange('receive', value)"
               >
                 <el-option
-                    v-for="item in selectRecipientList"
-                    :key="item"
-                    :label="item"
-                    :value="item"
-                    style="color: #999896;"
+                  v-for="item in selectRecipientList"
+                  :key="item"
+                  :label="item"
+                  :value="item"
                 />
               </el-select>
             </template>
@@ -42,86 +44,104 @@
               <div class="address-actions">
                 <button type="button" class="address-toggle" v-if="form.manyType !== 'divide' && !showCc" @click.stop="openCc">CC</button>
                 <button type="button" class="address-toggle" v-if="form.manyType !== 'divide' && !showBcc" @click.stop="openBcc">BCC</button>
-                <Icon icon="fa7-solid:user-plus" width="20" height="20" class="add-contact" @click.stop="openContacts('receive')" />
+                <button type="button" class="contact-icon-btn" @click.stop="openContacts('receive')" :title="$t('recentContacts')">
+                  <Icon icon="lucide:user-plus" width="16" height="16" />
+                </button>
               </div>
             </template>
           </el-input-tag>
+
           <el-input-tag v-if="form.manyType !== 'divide' && showCc" ref="ccInputRef" tag-type="primary" size="large" v-model="form.ccEmail" @input="value => updateSuggest('cc', value)" @add-tag="addCcTag">
             <template #prefix>
               <div class="item-title">{{ $t('cc') }}</div>
               <el-select
-                  ref="ccSelectRef"
-                  class="write-select"
-                  popper-class="write-select"
-                  :show-arrow="false"
-                  :no-match-text="' '"
-                  :no-data-text="' '"
-                  @visible-change="status => suggestStatusChange('cc', status)"
-                  @change="value => suggestChange('cc', value)"
+                ref="ccSelectRef"
+                class="write-select"
+                popper-class="write-select"
+                :show-arrow="false"
+                :no-match-text="' '"
+                :no-data-text="' '"
+                @visible-change="status => suggestStatusChange('cc', status)"
+                @change="value => suggestChange('cc', value)"
               >
                 <el-option
-                    v-for="item in ccSuggestList"
-                    :key="item"
-                    :label="item"
-                    :value="item"
-                    style="color: #999896;"
+                  v-for="item in ccSuggestList"
+                  :key="item"
+                  :label="item"
+                  :value="item"
                 />
               </el-select>
             </template>
             <template #suffix>
               <div class="address-actions">
-                <Icon icon="fa7-solid:user-plus" width="20" height="20" class="add-contact" @click.stop="openContacts('cc')" />
+                <button type="button" class="contact-icon-btn" @click.stop="openContacts('cc')" :title="$t('recentContacts')">
+                  <Icon icon="lucide:user-plus" width="16" height="16" />
+                </button>
               </div>
             </template>
           </el-input-tag>
+
           <el-input-tag v-if="form.manyType !== 'divide' && showBcc" ref="bccInputRef" tag-type="primary" size="large" v-model="form.bccEmail" @input="value => updateSuggest('bcc', value)" @add-tag="addBccTag">
             <template #prefix>
               <div class="item-title">{{ $t('bcc') }}</div>
               <el-select
-                  ref="bccSelectRef"
-                  class="write-select"
-                  popper-class="write-select"
-                  :show-arrow="false"
-                  :no-match-text="' '"
-                  :no-data-text="' '"
-                  @visible-change="status => suggestStatusChange('bcc', status)"
-                  @change="value => suggestChange('bcc', value)"
+                ref="bccSelectRef"
+                class="write-select"
+                popper-class="write-select"
+                :show-arrow="false"
+                :no-match-text="' '"
+                :no-data-text="' '"
+                @visible-change="status => suggestStatusChange('bcc', status)"
+                @change="value => suggestChange('bcc', value)"
               >
                 <el-option
-                    v-for="item in bccSuggestList"
-                    :key="item"
-                    :label="item"
-                    :value="item"
-                    style="color: #999896;"
+                  v-for="item in bccSuggestList"
+                  :key="item"
+                  :label="item"
+                  :value="item"
                 />
               </el-select>
             </template>
             <template #suffix>
               <div class="address-actions">
-                <Icon icon="fa7-solid:user-plus" width="20" height="20" class="add-contact" @click.stop="openContacts('bcc')" />
+                <button type="button" class="contact-icon-btn" @click.stop="openContacts('bcc')" :title="$t('recentContacts')">
+                  <Icon icon="lucide:user-plus" width="16" height="16" />
+                </button>
               </div>
             </template>
           </el-input-tag>
         </div>
-        <el-input v-model="form.subject" :placeholder="t('subject')" size="large"  @focus="hideEmptyCcBcc" style="padding-bottom: 4px" />
-        <tinyEditor :def-value="defValue" ref="editor" @change="change" @focus="focusChange" />
+
+        <div class="subject-field">
+          <el-input v-model="form.subject" :placeholder="t('subject')" size="large" @focus="hideEmptyCcBcc" />
+        </div>
+
+        <div class="editor-shell">
+          <tinyEditor :def-value="defValue" ref="editor" @change="change" @focus="focusChange" />
+        </div>
+
         <div class="button-item">
-          <div class="att-add" @click="chooseFile">
-            <Icon icon="iconamoon:attachment-fill" width="24" height="24"/>
+          <div class="footer-left-tools">
+            <button type="button" class="tool-btn" @click="chooseFile" :title="$t('attachments')">
+              <Icon icon="lucide:paperclip" width="17" height="17"/>
+            </button>
+            <button type="button" class="tool-btn danger" @click="clearContent" :title="$t('clear')">
+              <Icon icon="lucide:eraser" width="17" height="17"/>
+            </button>
           </div>
-          <div class="att-clear" @click="clearContent">
-            <Icon icon="icon-park-outline:clear-format" width="24" height="24 "/>
-          </div>
+
           <div class="att-list">
             <div class="att-item" v-for="(item,index) in form.attachments" :key="index">
               <Icon v-bind="getIconByName(item.filename)"/>
               <span class="att-filename">{{ item.filename }}</span>
               <span class="att-size">{{ formatBytes(item.size) }}</span>
-              <Icon style="cursor: pointer;" icon="material-symbols-light:close-rounded" @click="delAtt(index)"
-                    width="22" height="22"/>
+              <button type="button" class="att-del-btn" @click="delAtt(index)">
+                <Icon icon="lucide:x" width="14" height="14"/>
+              </button>
             </div>
           </div>
-          <div>
+
+          <div class="send-action-wrap">
             <el-dropdown split-button type="primary" trigger="click" @click="sendEmail" @command="selectSendMode">
               {{ sendButtonLabel }}
               <template #dropdown>
@@ -139,18 +159,19 @@
         </div>
       </div>
     </div>
+
     <el-dialog top="10vh" v-model="showContacts" @closed="clearSelectContact" :title="t('recentContacts')">
       <el-table class="contacts-table" ref="contactsTabRef" row-key="email" :data="contacts" style="height: 445px" @row-click="toggleContactRow">
-        <el-table-column type="selection" width="32" />
-        <el-table-column property="email" :label="t('emailAccount')" >
+        <el-table-column type="selection" width="38" />
+        <el-table-column property="email" :label="t('emailAccount')">
           <template #default="props">
             <div class="email-row">{{ props.row.email }}</div>
           </template>
         </el-table-column>
-        <el-table-column width="55" label="" >
+        <el-table-column width="50" label="">
           <template #default>
-            <div style="display: flex;">
-              <Icon icon="mage:user" style="color: var(--el-text-color-primary)" width="22" height="22" color="#606266" />
+            <div style="display: flex; color: var(--text-muted)">
+              <Icon icon="lucide:users" width="16" height="16" />
             </div>
           </template>
         </el-table-column>
@@ -162,6 +183,7 @@
     </el-dialog>
   </div>
 </template>
+
 <script setup>
 import tinyEditor from '@/components/tiny-editor/index.vue'
 import {h, nextTick, onMounted, onUnmounted, reactive, ref, toRaw, computed} from "vue";
@@ -308,7 +330,6 @@ function deleteContact() {
 }
 
 function chooseContact() {
-
   const contactList = contactsTabRef.value.getSelectionRows().map(item => item.email);
   const key = targetAddressKey()
   contactList.forEach(item => {
@@ -422,7 +443,6 @@ function clearContent() {
   }).then(() => {
     resetForm()
   })
-
 }
 
 function delAtt(index) {
@@ -436,20 +456,14 @@ function chooseFile() {
   doc.multiple = true;
   doc.click()
   doc.onchange = async (e) => {
-
     const fileList = e.target.files;
-
     for (const file of fileList) {
-
       const size = file.size
       const filename = file.name
       const contentType = file.type
-
       const content = await fileToBase64(file)
       form.attachments.push({content, filename, size, contentType})
-
     }
-
   }
 }
 
@@ -503,7 +517,6 @@ async function sendEmail() {
   })
 
   sending = true
-
   show.value = false
 
   emailSend(form, (e) => {
@@ -533,7 +546,7 @@ async function sendEmail() {
     ElNotification({
       title: t('sendSuccessMsg'),
       type: "success",
-      message: h('span', {style: 'color: teal'}, email.subject),
+      message: h('span', {style: 'color: var(--brand-primary)'}, email.subject),
       position: 'bottom-right'
     })
 
@@ -550,7 +563,7 @@ async function sendEmail() {
     ElNotification({
       title: t('sendFailMsg'),
       type: e.code === 403 ? 'warning' : 'error',
-      message: h('span', {style: 'color: teal'}, e.message),
+      message: h('span', {style: 'color: var(--el-color-danger)'}, e.message),
       position: 'bottom-right'
     })
     if (e.code === 401) {
@@ -616,12 +629,9 @@ function focusChange() {
 
 function openForward(email) {
   resetForm();
-
   email.subject = email.subject || ''
-
   form.subject = email.subject
   form.sendType = 'forward'
-
   defValue.value = ''
 
   setTimeout(() => {
@@ -636,16 +646,12 @@ function openForward(email) {
       backReply.receiveEmail = form.receiveEmail
       backReply.sendType = form.sendType
     })
-
   });
 }
 
 function openReply(email) {
-
   resetForm();
-
   email.subject = email.subject || ''
-
   form.receiveEmail.push(email.sendEmail)
   form.subject = (
       email.subject.startsWith('Re:') ||
@@ -654,7 +660,6 @@ function openReply(email) {
       email.subject.startsWith('回复:')) ? email.subject : 'Re: ' + email.subject
   form.sendType = 'reply'
   form.emailId = email.emailId
-
   defValue.value = ''
 
   setTimeout(() => {
@@ -678,7 +683,6 @@ function openReply(email) {
       backReply.sendType = form.sendType
     })
   })
-
 }
 
 function formatImage(content) {
@@ -717,7 +721,7 @@ function openDraft(draft) {
 }
 
 const handleKeyDown = (event) => {
-  if (event.key === 'Escape') {
+  if (event.key === 'Escape' && show.value) {
     close()
   }
 };
@@ -731,7 +735,6 @@ onUnmounted(() => {
 });
 
 function close() {
-
   closeOpenSuggest();
 
   if (!form.content) {
@@ -756,7 +759,7 @@ function close() {
     let contentFlag = editor.value.getContent() === backReply.content
     let receiveFlag = form.receiveEmail.length === 1 && form.receiveEmail[0] === backReply.receiveEmail[0]
     if (backReply.sendType === 'forward' && form.receiveEmail.length === 0) {
-      receiveFlag = true;
+      receiveFlag = true
     }
     if (subjectFlag && contentFlag && receiveFlag) {
       resetForm();
@@ -788,202 +791,310 @@ function close() {
       resetForm()
     }
   })
-
 }
-
 </script>
+
 <style>
 .write-select .el-select-dropdown__list {
-  padding: 4px 4px !important;
+  padding: 4px !important;
 }
 .write-select .el-select-dropdown__item {
-  padding: 0 10px 0 10px;
+  padding: 0 10px;
 }
-
 .write-select .el-select-dropdown {
   min-width: 0 !important;
 }
 </style>
+
 <style scoped lang="scss">
 .send {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  inset: 0;
+  z-index: 250;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+}
 
-  .write-box {
-    background: var(--el-bg-color);
-    width: min(1367px, calc(100% - 80px));
-    box-shadow: var(--el-box-shadow-light);
-    border: 1px solid var(--el-border-color-light);
-    transition: var(--el-transition-duration);
-    padding: 15px;
+.write-box {
+  background: var(--surface-elevated);
+  width: min(1200px, calc(100% - 64px));
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  overflow: hidden;
+
+  @media (max-width: 1024px) {
+    width: 100%;
+    height: 100%;
+    border-radius: 0;
+    border: 0;
+  }
+
+  @media (min-width: 1025px) {
+    height: min(780px, calc(100vh - 56px));
+  }
+}
+
+.title {
+  height: 52px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+
+  .title-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .title-badge {
+    width: 28px;
+    height: 28px;
     border-radius: 8px;
-    display: grid;
-    grid-template-rows: auto 1fr;
+    background: var(--brand-primary-soft);
+    color: var(--brand-primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .sender {
+    font-size: 13px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  .sender-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--surface-primary);
+    border: 1px solid var(--border-subtle);
+    min-width: 0;
+  }
+
+  .sender-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    flex-shrink: 0;
+  }
+
+  .send-email {
+    font-size: 12.5px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    text-overflow: ellipsis;
     overflow: hidden;
-    @media (max-width: 1024px) {
-      width: 100%;
-      height: 100%;
-      border-radius: 0;
-      border: 0;
-      padding-top: 10px;
-    }
+  }
 
-    @media (min-width: 1025px) {
-      height: min(800px, calc(100vh - 60px));
-    }
+  .close-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color 0.14s ease, color 0.14s ease;
 
-    .title {
+    &:hover {
+      background: var(--surface-muted);
+      color: var(--text-primary);
+    }
+  }
+}
+
+.container {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  padding: 0 16px 14px;
+
+  .address-fields {
+    display: grid;
+  }
+
+  .subject-field {
+    border-bottom: 1px solid var(--border-subtle);
+    margin-bottom: 6px;
+  }
+
+  :deep(.el-input-tag),
+  :deep(.el-input__wrapper) {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  :deep(.el-input-tag) {
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  :deep(.el-input-tag__prefix) {
+    padding-left: 0;
+    margin-right: 8px;
+  }
+
+  .item-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    min-width: 44px;
+    text-align: left;
+  }
+
+  .address-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .address-toggle {
+    height: 24px;
+    padding: 0 8px;
+    border-radius: 6px;
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.14s ease;
+
+    &:hover {
+      border-color: var(--border-strong);
+      color: var(--text-primary);
+    }
+  }
+
+  .contact-icon-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    cursor: pointer;
+
+    &:hover {
+      background: var(--surface-hover);
+      color: var(--brand-primary);
+    }
+  }
+
+  .editor-shell {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .button-item {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-subtle);
+
+    .footer-left-tools {
       display: flex;
-      justify-content: space-between;
-      .title-left {
-        align-items: center;
-        display: grid;
-        grid-template-columns: auto auto auto 1fr;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tool-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface-subtle);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.14s ease;
+
+      &:hover {
+        border-color: var(--border-strong);
+        color: var(--text-primary);
       }
 
-      .title-text {
-      }
-
-      .sender {
-        margin-left: 8px;
-      }
-
-      .sender-name {
-        margin-left: 8px;
-        font-weight: bold;
-      }
-
-      .send-email {
-        color: #999896;
-        margin-left: 5px;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-        overflow: hidden;
-      }
-
-
-      div {
-        display: flex;
-        align-items: center;
+      &.danger:hover {
+        border-color: rgba(239, 68, 68, 0.3);
+        color: var(--el-color-danger);
       }
     }
 
-    .container {
-      height: 100%;
-      display: grid;
-      grid-template-rows: auto auto 1fr auto;
-      gap: 5px;
+    .att-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      max-height: 76px;
+      overflow-y: auto;
 
-      .address-fields {
-        display: grid;
-      }
-
-      :deep(.el-input-tag) {
-        padding-right: 0;
-        padding-left: 0;
-      }
-
-      :deep(.el-input-tag__suffix) {
-        padding-right: 5px;
-      }
-      :deep(.el-input-tag__prefix) {
-        padding-left: 5px;
-      }
-
-      :deep(.el-input__wrapper) {
-        padding-left: 5px;
-        padding-right: 5px;
-      }
-
-      :deep(.el-input-tag),
-      :deep(.el-input__wrapper),
-      :deep(.el-input-tag.is-focused),
-      :deep(.el-input-tag.is-hovering),
-      :deep(.el-input-tag:hover),
-      :deep(.el-input__wrapper.is-focus),
-      :deep(.el-input__wrapper:hover) {
-        box-shadow: none;
-        border-radius: 0;
-        border-bottom: 1px solid var(--el-border-color-lighter);
-      }
-
-      .address-actions {
-        display: flex;
+      .att-item {
+        display: inline-flex;
         align-items: center;
-        gap: 8px;
-        margin-right: 3px;
-      }
+        gap: 6px;
+        max-width: 240px;
+        height: 32px;
+        font-size: 12.5px;
+        padding: 0 8px;
+        background: var(--surface-subtle);
+        border: 1px solid var(--border-subtle);
+        border-radius: 8px;
 
-      .address-toggle {
-        border: none;
-        background: transparent;
-        padding: 0;
-        color: var(--regular-text-color);
-        font-size: 13px;
-        font-weight: 600;
-        line-height: 1;
-        cursor: pointer;
-
-        &:hover,
-        &:focus {
-          color: var(--regular-text-color);
+        .att-filename {
+          white-space: nowrap;
+          text-overflow: ellipsis;
+          overflow: hidden;
+          color: var(--text-primary);
         }
-      }
 
-      .item-title {
-      }
+        .att-size {
+          color: var(--text-muted);
+          font-size: 11.5px;
+          flex-shrink: 0;
+        }
 
-      .button-item {
-        display: grid;
-        grid-template-columns: auto auto 1fr auto;
-
-        .att-add {
+        .att-del-btn {
+          width: 20px;
+          height: 20px;
+          border-radius: 5px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--text-muted);
           cursor: pointer;
-        }
+          flex-shrink: 0;
 
-        .att-clear {
-          cursor: pointer;
-          margin-left: 10px;
-        }
-
-        .att-list {
-          display: grid;
-          gap: 5px;
-          grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-          padding-left: 10px;
-          padding-right: 10px;
-          max-height: 110px;
-          overflow-y: auto;
-          @media (max-width: 450px) {
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-          }
-
-          .att-item {
-            display: grid;
-            grid-template-columns: auto 1fr auto auto;
-            gap: 5px;
-            height: 32px;
-            font-size: 14px;
-            padding: 4px 5px;
-            background: var(--light-ill);
-            border-radius: 4px;
-            .att-filename {
-              white-space: nowrap;
-              text-overflow: ellipsis;
-              overflow: hidden;
-            }
+          &:hover {
+            background: var(--surface-muted);
+            color: var(--el-color-danger);
           }
         }
       }
     }
   }
-
 }
 
 .email-row {
@@ -995,24 +1106,19 @@ function close() {
 :deep(.el-dialog) {
   width: 420px !important;
   @media (max-width: 460px) {
-    width: calc(100% - 40px) !important;
-    margin-right: 20px !important;
-    margin-left: 20px !important;
+    width: calc(100% - 32px) !important;
   }
 }
 
 .contacts-bottom {
   display: flex;
-  justify-content: end;
-  margin-top: 10px;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
 }
 
 .contacts-table :deep(.el-table__row) {
   cursor: pointer;
-}
-
-.add-contact {
-  color: var(--regular-text-color)
 }
 
 .write-select {
@@ -1022,9 +1128,5 @@ function close() {
   z-index: 0;
   opacity: 0;
   pointer-events: none;
-}
-
-.icon {
-  cursor: pointer;
 }
 </style>

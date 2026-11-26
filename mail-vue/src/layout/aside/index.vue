@@ -1,81 +1,156 @@
 <template>
-  <el-scrollbar class="scroll">
-    <div>
-      <div class="title" :class="{ 'title-display': titleUsesDisplayFont }">
-        <img class="logo" :src="logoUrl" alt="" />
-        <div>{{settingStore.settings.title}}</div>
+  <aside class="aside-rail">
+    <div class="brand-header">
+      <div class="brand-logo-wrap">
+        <img class="logo" :src="logoUrl" alt="Logo" />
       </div>
-      <button v-perm="'email:send'" class="compose-bar" type="button" @click="openCompose">
-        <Icon icon="hugeicons:quill-write-01" width="22" height="22" />
+      <div class="brand-title">{{ settingStore.settings.title }}</div>
+    </div>
+
+    <div class="compose-wrap" v-perm="'email:send'">
+      <button class="compose-btn" type="button" @click="openCompose">
+        <Icon icon="lucide:square-pen" width="17" height="17" />
         <span>{{ $t('compose') }}</span>
       </button>
-      <el-menu :collapse="false" text-color="#fff" active-text-color="#fff" style="margin-top: 6px">
-        <el-menu-item @click="router.push({name: 'email'})" index="email"
-                      :class="route.meta.name === 'email' ? 'choose-item' : ''">
-          <Icon icon="hugeicons:mailbox-01" width="20" height="20" />
-          <span class="menu-name" style="margin-left: 16px">{{$t('inbox')}}</span>
-        </el-menu-item>
-        <el-menu-item @click="router.push({name: 'send'})" index="send" v-perm="'email:send'"
-                      :class="route.meta.name === 'send' ? 'choose-item' : ''">
-          <Icon icon="cil:send" width="20" height="20" />
-          <span class="menu-name" style="margin-left: 16px">{{$t('sent')}}</span>
-        </el-menu-item>
-        <el-menu-item @click="router.push({name: 'draft'})" index="draft" v-perm="'email:send'"
-                      :class="route.meta.name === 'draft' ? 'choose-item' : ''">
-          <Icon icon="ep:document" width="19" height="19" />
-          <span class="menu-name" style="margin-left: 17px">{{$t('drafts')}}</span>
-        </el-menu-item>
-        <el-menu-item @click="router.push({name: 'star'})" index="star"
-                      :class="route.meta.name === 'star' ? 'choose-item' : ''">
-          <Icon icon="solar:star-line-duotone" width="20" height="20" />
-          <span class="menu-name" style="margin-left: 16px">{{$t('starred')}}</span>
-        </el-menu-item>
-        <el-menu-item @click="router.push({name: 'setting'})" index="setting"
-                      :class="route.meta.name === 'setting' ? 'choose-item' : ''">
-          <Icon icon="fluent:settings-48-regular" width="20" height="20" />
-          <span class="menu-name" style="margin-left: 16px">{{$t('settings')}}</span>
-        </el-menu-item>
-        <div class="manage-title" v-perm="['all-email:query','user:query','role:query','setting:query','analysis:query','reg-key:query']">
-          <div>{{$t('manage')}}</div>
-        </div>
-        <el-menu-item @click="router.push({name: 'analysis'})" index="analysis" v-perm="'analysis:query'"
-                      :class="route.meta.name === 'analysis' ? 'choose-item' : ''">
-          <Icon icon="fluent:data-pie-20-regular" width="24" height="24" />
-          <span class="menu-name" style="margin-left: 13px">{{$t('analytics')}}</span>
-        </el-menu-item>
-        <el-menu-item @click="router.push({name: 'user'})" index="setting" v-perm="'user:query'"
-                      :class="route.meta.name === 'user' ? 'choose-item' : ''">
-          <Icon icon="si:user-alt-2-line" width="20" height="20" />
-          <span class="menu-name" style="margin-left: 16px">{{$t('allUsers')}}</span>
-        </el-menu-item>
-        <el-menu-item @click="router.push({name: 'all-email'})" index="all-email" v-perm="'all-email:query'"
-                      :class="route.meta.name === 'all-email' ? 'choose-item' : ''">
-          <Icon icon="fluent:mail-list-28-regular" width="22" height="22" />
-          <span class="menu-name" style="margin-left: 15px">{{$t('allMail')}}</span>
-        </el-menu-item>
-        <el-menu-item @click="router.push({name: 'role'})" index="setting" v-perm="'role:query'"
-                      :class="route.meta.name === 'role' ? 'choose-item' : ''">
-          <Icon icon="fluent:lock-closed-16-regular" width="22" height="22" />
-          <span class="menu-name" style="margin-left: 15px">{{$t('permissions')}}</span>
-        </el-menu-item>
-        <el-menu-item @click="router.push({name: 'reg-key'})" index="reg-key" v-perm="'reg-key:query'"
-                      :class="route.meta.name === 'reg-key' ? 'choose-item' : ''">
-          <Icon icon="fluent:fingerprint-20-filled" width="22" height="22" />
-          <span class="menu-name" style="margin-left: 15px">{{$t('inviteCode')}}</span>
-        </el-menu-item>
-        <el-menu-item @click="router.push({name: 'sys-setting'})" index="sys-setting" v-perm="'setting:query'"
-                      :class="route.meta.name === 'sys-setting' ? 'choose-item' : ''">
-          <Icon icon="eos-icons:system-ok-outlined" width="18" height="18" style="margin-left: 2px" />
-          <span class="menu-name" style="margin-left: 17px">{{$t('SystemSettings')}}</span>
-        </el-menu-item>
-      </el-menu>
     </div>
-  </el-scrollbar>
+
+    <el-scrollbar class="nav-scroll">
+      <nav class="nav-list" aria-label="Primary">
+        <button
+          type="button"
+          class="nav-item"
+          :class="{ active: isActive('email', 'inbox') }"
+          @click="router.push({name: 'email'})"
+        >
+          <span class="nav-icon"><Icon icon="lucide:inbox" width="18" height="18" /></span>
+          <span class="nav-label">{{ $t('inbox') }}</span>
+        </button>
+
+        <button
+          v-perm="'email:send'"
+          type="button"
+          class="nav-item"
+          :class="{ active: isActive('send', 'sent') }"
+          @click="router.push({name: 'send'})"
+        >
+          <span class="nav-icon"><Icon icon="lucide:send" width="17" height="17" /></span>
+          <span class="nav-label">{{ $t('sent') }}</span>
+        </button>
+
+        <button
+          v-perm="'email:send'"
+          type="button"
+          class="nav-item"
+          :class="{ active: route.meta.name === 'draft' }"
+          @click="router.push({name: 'draft'})"
+        >
+          <span class="nav-icon"><Icon icon="lucide:file-text" width="17" height="17" /></span>
+          <span class="nav-label">{{ $t('drafts') }}</span>
+        </button>
+
+        <button
+          type="button"
+          class="nav-item"
+          :class="{ active: isActive('star', 'starred') }"
+          @click="router.push({name: 'star'})"
+        >
+          <span class="nav-icon"><Icon icon="lucide:star" width="18" height="18" /></span>
+          <span class="nav-label">{{ $t('starred') }}</span>
+        </button>
+
+        <button
+          type="button"
+          class="nav-item"
+          :class="{ active: route.meta.name === 'setting' }"
+          @click="router.push({name: 'setting'})"
+        >
+          <span class="nav-icon"><Icon icon="lucide:settings" width="18" height="18" /></span>
+          <span class="nav-label">{{ $t('settings') }}</span>
+        </button>
+
+        <div class="section-divider" v-perm="['all-email:query','user:query','role:query','setting:query','analysis:query','reg-key:query']">
+          <span>{{ $t('manage') }}</span>
+        </div>
+
+        <button
+          v-perm="'analysis:query'"
+          type="button"
+          class="nav-item"
+          :class="{ active: route.meta.name === 'analysis' }"
+          @click="router.push({name: 'analysis'})"
+        >
+          <span class="nav-icon"><Icon icon="lucide:bar-chart-2" width="18" height="18" /></span>
+          <span class="nav-label">{{ $t('analytics') }}</span>
+        </button>
+
+        <button
+          v-perm="'user:query'"
+          type="button"
+          class="nav-item"
+          :class="{ active: route.meta.name === 'user' }"
+          @click="router.push({name: 'user'})"
+        >
+          <span class="nav-icon"><Icon icon="lucide:users" width="18" height="18" /></span>
+          <span class="nav-label">{{ $t('allUsers') }}</span>
+        </button>
+
+        <button
+          v-perm="'all-email:query'"
+          type="button"
+          class="nav-item"
+          :class="{ active: isActive('all-email', 'all-mail') }"
+          @click="router.push({name: 'all-email'})"
+        >
+          <span class="nav-icon"><Icon icon="lucide:mails" width="18" height="18" /></span>
+          <span class="nav-label">{{ $t('allMail') }}</span>
+        </button>
+
+        <button
+          v-perm="'role:query'"
+          type="button"
+          class="nav-item"
+          :class="{ active: route.meta.name === 'role' }"
+          @click="router.push({name: 'role'})"
+        >
+          <span class="nav-icon"><Icon icon="lucide:shield" width="18" height="18" /></span>
+          <span class="nav-label">{{ $t('permissions') }}</span>
+        </button>
+
+        <button
+          v-perm="'reg-key:query'"
+          type="button"
+          class="nav-item"
+          :class="{ active: route.meta.name === 'reg-key' }"
+          @click="router.push({name: 'reg-key'})"
+        >
+          <span class="nav-icon"><Icon icon="lucide:key-round" width="18" height="18" /></span>
+          <span class="nav-label">{{ $t('inviteCode') }}</span>
+        </button>
+
+        <button
+          v-perm="'setting:query'"
+          type="button"
+          class="nav-item"
+          :class="{ active: route.meta.name === 'sys-setting' }"
+          @click="router.push({name: 'sys-setting'})"
+        >
+          <span class="nav-icon"><Icon icon="lucide:sliders" width="18" height="18" /></span>
+          <span class="nav-label">{{ $t('SystemSettings') }}</span>
+        </button>
+      </nav>
+    </el-scrollbar>
+
+    <div class="aside-footer">
+      <button type="button" class="theme-toggle-btn" @click="toggleTheme">
+        <Icon :icon="uiStore.dark ? 'lucide:sun' : 'lucide:moon'" width="16" height="16" />
+        <span>{{ uiStore.dark ? $t('lightTheme') : $t('darkTheme') }}</span>
+      </button>
+    </div>
+  </aside>
 </template>
 
 <script setup>
 import router from "@/router/index.js";
-import {computed} from "vue";
 import { useRoute } from "vue-router";
 import {Icon} from "@iconify/vue";
 import {useSettingStore} from "@/store/setting.js";
@@ -85,150 +160,224 @@ const settingStore = useSettingStore();
 const uiStore = useUiStore();
 const route = useRoute();
 const logoUrl = `${import.meta.env.BASE_URL}mail.png`
-const titleUsesDisplayFont = computed(() => !/\p{Script=Han}/u.test(settingStore.settings.title || ''))
+
+function isActive(routeName, mailbox) {
+  if (route.meta.name === routeName) return true
+  return route.meta.name === 'content' && route.params.mailbox === mailbox
+}
 
 function openCompose() {
   uiStore.writerRef.open()
 }
 
+function toggleTheme() {
+  const nextIsDark = !uiStore.dark
+  document.documentElement.classList.toggle('dark', nextIsDark)
+  document.getElementById('theme-color-meta')?.setAttribute('content', nextIsDark ? '#0B0D12' : '#F4F5F8')
+  uiStore.dark = nextIsDark
+}
 </script>
 
 <style lang="scss" scoped>
-
-@font-face {
-  font-family: "BAHAMASB";
-  src: url("/fonts/BAHAMASB.woff") format("woff");
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
-
-.title {
-  margin: 10px 6px;
-  height: 45px;
-  border-radius: 6px;
+.aside-rail {
+  width: 244px;
+  height: 100%;
   display: flex;
-  position: relative;
-  font-size: 18px;
-  font-weight: 600;
+  flex-direction: column;
+  background: var(--aside-bg);
+  border-right: 1px solid var(--border-subtle);
+  user-select: none;
+}
+
+.brand-header {
+  height: 58px;
+  padding: 0 16px;
+  display: flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: 10px;
-  color: #ffffff;
-  transition: all 0.3s ease;
-  max-width: 240px;
-  padding: 0 10px;
-  > div {
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    max-width: calc(240px - 20px - 32px - 5px);
-  }
-
-  .logo {
-    width: 36px;
-    height: 36px;
-    flex-shrink: 0;
-    object-fit: contain;
-  }
-
-  .user-right-icon {
-    align-self: center;
-    position: absolute;
-    font-size: 12px;
-    right: 8px;
-    color: #ffffff;
-  }
-
+  gap: 11px;
+  flex-shrink: 0;
 }
 
-.title.title-display {
-  font-family: "BAHAMASB", Inter, "Helvetica Neue", Helvetica, sans-serif;
-  font-size: 22px;
-  font-weight: normal;
-}
-
-.compose-bar {
+.brand-logo-wrap {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-xs);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  width: calc(100% - 24px);
-  height: 42px;
-  margin-right: 12px;
-  margin-left: 12px;
-  margin-bottom: 15px;
-  border: 0;
-  border-radius: 8px;
-  background: #1890ff;
-  color: #ffffff;
-  font-family: inherit;
-  font-size: 15px;
-  line-height: 1;
-  cursor: pointer;
+  flex-shrink: 0;
+}
 
-  &:hover {
-    background: #1064c0;
-  }
+.logo {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+.brand-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--text-primary);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.compose-wrap {
+  padding: 4px 12px 12px;
+  flex-shrink: 0;
 
   @media (max-width: 767px) {
     display: none;
   }
 }
 
-.manage-title {
-  margin-top: 12px;
-  padding-left: 20px;
-  color: #fff;
-}
+.compose-btn {
+  width: 100%;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--brand-primary);
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px -2px rgba(37, 99, 235, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: transform 0.14s ease, background-color 0.16s ease, box-shadow 0.16s ease;
 
-.el-menu-item {
-  margin: 3px 12px !important;
-  border-radius: 6px;
-  height: 36px;
-  padding: 10px !important;
-}
+  &:hover {
+    background: var(--brand-primary-hover);
+    box-shadow: 0 4px 12px -2px rgba(37, 99, 235, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    transform: translateY(-0.5px);
+  }
 
-.choose-item {
-  font-weight: 400;
-  background: var(--aside-menu-active-background) !important;
-  backdrop-filter: blur(4px);
-}
-
-@media (hover: hover) {
-  .el-menu-item:hover {
-    background: rgba(255, 255, 255, 0.08) !important;
+  &:active {
+    transform: translateY(0.5px) scale(0.99);
   }
 }
 
-.menu-name {
-  user-select: none;
+.nav-scroll {
+  flex: 1;
+  min-height: 0;
 }
 
-
-:deep(.el-scrollbar__wrap--hidden-default ) {
-  background: var(--aside-backgound) !important;
+.nav-list {
+  padding: 2px 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-:deep(.el-menu-item) {
-  background: var(--aside-backgound);
+.nav-item {
+  position: relative;
+  width: 100%;
+  height: 37px;
+  padding: 0 11px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color 0.14s ease, color 0.14s ease, box-shadow 0.14s ease;
+  text-align: left;
+
+  .nav-icon {
+    width: 20px;
+    height: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--text-muted);
+    transition: color 0.14s ease;
+  }
+
+  .nav-label {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  @media (hover: hover) {
+    &:hover:not(.active) {
+      background: var(--aside-item-hover);
+      color: var(--text-primary);
+
+      .nav-icon {
+        color: var(--text-secondary);
+      }
+    }
+  }
+
+  &.active {
+    background: var(--aside-item-active);
+    color: var(--text-primary);
+    font-weight: 600;
+    box-shadow: var(--aside-item-active-shadow);
+
+    .nav-icon {
+      color: var(--brand-primary);
+    }
+  }
 }
 
-:deep(.el-menu) {
-  background: var(--aside-backgound);
+.section-divider {
+  margin: 14px 10px 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  span {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  &::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border-subtle);
+  }
 }
 
-.el-menu {
-  border-right: 0;
-  width: 260px;
+.aside-footer {
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--border-subtle);
+  flex-shrink: 0;
 }
 
-:deep(.el-divider__text) {
-  background: var(--aside-backgound);
-  color: #FFFFFF;
-}
+.theme-toggle-btn {
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
 
-.scroll {
-
+  &:hover {
+    background: var(--aside-item-hover);
+    color: var(--text-primary);
+  }
 }
 </style>

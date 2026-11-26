@@ -1,87 +1,162 @@
 <template>
   <div class="settings-page">
     <el-scrollbar height="100%">
-  <div class="box">
-    <div class="container">
-      <div class="title">{{$t('profile')}}</div>
-      <div class="item setting-row">
-        <div>{{$t('username')}}</div>
-        <div>
-          <span v-if="setNameShow" class="edit-name-input">
-            <el-input v-model="accountName"  ></el-input>
-            <span class="edit-name" @click="setName">
-             {{$t('save')}}
+      <div class="settings-container">
+        <div class="settings-header">
+          <div class="settings-title">{{ $t('settings') }}</div>
+        </div>
+
+        <!-- Profile Card -->
+        <section class="settings-card">
+          <div class="card-head">
+            <span class="card-icon card-icon--blue">
+              <Icon icon="lucide:users" width="16" height="16" />
             </span>
-          </span>
-          <span v-else class="user-name">
-            <span >{{ userStore.user.name }}</span>
-            <span class="edit-name" @click="showSetName">
-             {{$t('change')}}
+            <h2 class="card-title">{{ $t('profile') }}</h2>
+          </div>
+
+          <div class="setting-list">
+            <div class="setting-row">
+              <div class="row-label">{{ $t('username') }}</div>
+              <div class="row-control">
+                <div v-if="setNameShow" class="edit-name-group">
+                  <el-input
+                    v-model="accountName"
+                    class="name-input"
+                    @keyup.enter="setName"
+                  />
+                  <el-button type="primary" size="small" @click="setName">
+                    {{ $t('save') }}
+                  </el-button>
+                </div>
+                <div v-else class="user-name">
+                  <span class="name-text">{{ userStore.user.name }}</span>
+                  <button type="button" class="text-action" @click="showSetName">
+                    {{ $t('change') }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="row-label">{{ $t('emailAccount') }}</div>
+              <div class="row-control">
+                <span class="mono-value">{{ userStore.user.email }}</span>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="row-label">{{ $t('password') }}</div>
+              <div class="row-control">
+                <el-button type="primary" plain @click="pwdShow = true">
+                  {{ $t('changePwdBtn') }}
+                </el-button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Preferences Card -->
+        <section class="settings-card">
+          <div class="card-head">
+            <span class="card-icon card-icon--violet">
+              <Icon icon="lucide:palette" width="16" height="16" />
             </span>
-          </span>
-        </div>
+            <h2 class="card-title">{{ $t('themeStyle') }} &amp; {{ $t('language') }}</h2>
+          </div>
+
+          <div class="setting-list">
+            <div class="setting-row">
+              <div class="row-label">{{ $t('preferredLanguage') }}</div>
+              <div class="row-control">
+                <el-select
+                  :model-value="langSelect"
+                  class="language-select"
+                  placeholder="Select"
+                  @change="changeLang"
+                >
+                  <el-option label="中文" value="zh" @pointerdown.prevent.stop="changeLang('zh')" />
+                  <el-option label="English" value="en" @pointerdown.prevent.stop="changeLang('en')" />
+                </el-select>
+              </div>
+            </div>
+
+            <div class="setting-row setting-row--stack">
+              <div class="row-label" id="theme-label">{{ $t('themeStyle') }}</div>
+              <div class="row-control">
+                <ThemeSelector />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Notice Card -->
+        <section class="settings-card">
+          <div class="card-head">
+            <span class="card-icon card-icon--amber">
+              <Icon icon="lucide:bell" width="16" height="16" />
+            </span>
+            <h2 class="card-title">{{ $t('noticeTitle') }}</h2>
+          </div>
+
+          <div class="setting-list">
+            <div class="setting-row">
+              <div class="row-label">{{ $t('noticeInfo') }}</div>
+              <div class="row-control">
+                <el-button @click="uiStore.showNotice()">{{ $t('viewNotice') }}</el-button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Danger Zone -->
+        <section class="settings-card settings-card--danger" v-perm="'my:delete'">
+          <div class="card-head">
+            <span class="card-icon card-icon--danger">
+              <Icon icon="lucide:trash-2" width="16" height="16" />
+            </span>
+            <h2 class="card-title">{{ $t('deleteUser') }}</h2>
+          </div>
+
+          <div class="danger-body">
+            <p class="danger-desc">{{ $t('delAccountMsg') }}</p>
+            <div>
+              <el-button type="danger" plain @click="deleteConfirm">{{ $t('deleteUserBtn') }}</el-button>
+            </div>
+          </div>
+        </section>
+
+        <el-dialog v-model="pwdShow" :title="$t('changePassword')" width="380">
+          <div class="update-pwd">
+            <el-input
+              type="password"
+              show-password
+              :placeholder="$t('newPassword')"
+              v-model="form.password"
+              autocomplete="off"
+              @keyup.enter="submitPwd"
+            />
+            <el-input
+              type="password"
+              show-password
+              :placeholder="$t('confirmPassword')"
+              v-model="form.newPwd"
+              autocomplete="off"
+              @keyup.enter="submitPwd"
+            />
+            <el-button class="pwd-submit" type="primary" :loading="setPwdLoading" @click="submitPwd">
+              {{ $t('save') }}
+            </el-button>
+          </div>
+        </el-dialog>
       </div>
-      <div class="item setting-row">
-        <div>{{$t('emailAccount')}}</div>
-        <div>{{ userStore.user.email }}</div>
-      </div>
-      <div class="item setting-row">
-        <div>{{$t('password')}}</div>
-        <div>
-          <el-button type="primary" @click="pwdShow = true">{{$t('changePwdBtn')}}</el-button>
-        </div>
-      </div>
-    </div>
-    <div class="language">
-      <div class="title">{{$t('language')}}</div>
-      <div class="language-row setting-row">
-        <div>{{$t('preferredLanguage')}}</div>
-        <el-select
-            :model-value="langSelect"
-            class="language-select"
-            placeholder="Select"
-            @change="changeLang"
-        >
-          <el-option label="中文" value="zh" @pointerdown.prevent.stop="changeLang('zh')"/>
-          <el-option label="English" value="en" @pointerdown.prevent.stop="changeLang('en')"/>
-        </el-select>
-      </div>
-    </div>
-    <div class="preference-item">
-      <div class="title" id="theme-label">{{$t('themeStyle')}}</div>
-      <ThemeSelector/>
-    </div>
-    <div class="preference-item">
-      <div class="title">{{$t('noticeTitle')}}</div>
-      <div class="language-row setting-row">
-        <div>{{$t('noticeInfo')}}</div>
-        <div>
-          <el-button @click="uiStore.showNotice()">{{$t('viewNotice')}}</el-button>
-        </div>
-      </div>
-    </div>
-    <div class="del-email" v-perm="'my:delete'">
-      <div class="title">{{$t('deleteUser')}}</div>
-      <div style="color: var(--regular-text-color);">
-        {{$t('delAccountMsg')}}
-      </div>
-      <div>
-        <el-button type="primary" @click="deleteConfirm">{{$t('deleteUserBtn')}}</el-button>
-      </div>
-    </div>
-    <el-dialog v-model="pwdShow" :title="$t('changePassword')" width="340">
-      <div class="update-pwd">
-        <el-input type="password" :placeholder="$t('newPassword')" v-model="form.password" autocomplete="off" @keyup.enter="submitPwd"/>
-        <el-input type="password" :placeholder="$t('confirmPassword')" v-model="form.newPwd" autocomplete="off" @keyup.enter="submitPwd"/>
-        <el-button type="primary" :loading="setPwdLoading" @click="submitPwd">{{$t('save')}}</el-button>
-      </div>
-    </el-dialog>
-  </div>
     </el-scrollbar>
   </div>
 </template>
+
 <script setup>
 import {reactive, ref, defineOptions} from 'vue'
+import {Icon} from '@iconify/vue'
 import {resetPassword, userDelete} from "@/request/my.js";
 import {useUserStore} from "@/store/user.js";
 import router from "@/router/index.js";
@@ -230,117 +305,222 @@ function submitPwd() {
 }
 
 </script>
+
 <style scoped lang="scss">
 .settings-page {
   height: 100%;
   min-height: 0;
   min-width: 0;
   overflow: hidden;
+  background: var(--app-canvas);
 }
 
-.box {
-  padding: 40px 40px;
+.settings-container {
+  max-width: 820px;
+  padding: 24px 28px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 
   @media (max-width: 767px) {
-    padding: 30px 30px;
+    padding: 16px 14px 28px;
+    gap: 12px;
+  }
+}
+
+.settings-header {
+  padding: 2px 2px 4px;
+}
+
+.settings-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.settings-card {
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: var(--shadow-xs);
+
+  @media (max-width: 767px) {
+    padding: 16px;
   }
 
-  .update-pwd {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
+  &--danger {
+    border-color: rgba(239, 68, 68, 0.25);
+  }
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 4px;
+}
+
+.card-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  &--blue {
+    background: var(--brand-primary-soft);
+    color: var(--brand-primary);
   }
 
-  .title {
-    font-size: 18px;
-    font-weight: bold;
+  &--violet {
+    background: rgba(124, 58, 237, 0.12);
+    color: #7c3aed;
   }
 
-  .container {
-    font-size: 14px;
-    display: grid;
-    gap: 20px;
-    margin-bottom: 40px;
-
-    .item {
-      position: relative;
-      .user-name {
-        display: grid;
-        grid-template-columns: minmax(0, auto) max-content;
-        justify-content: start;
-        align-items: center;
-        span:first-child {
-          min-width: 0;
-          overflow: hidden;
-          white-space: nowrap;
-          text-overflow: ellipsis;
-        }
-      }
-
-      .edit-name-input {
-        position: absolute;
-        bottom: -6px;
-        .el-input {
-          width: min(200px,calc(100vw - 222px));
-        }
-      }
-
-      .edit-name {
-        color: #4dabff;
-        padding-left: 10px;
-        white-space: nowrap;
-        cursor: pointer;
-      }
-
-    }
+  &--amber {
+    background: rgba(245, 158, 11, 0.14);
+    color: #d97706;
   }
 
-  .preference-item,
-  .language {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    margin-bottom: 40px;
-    align-items: flex-start;
+  &--danger {
+    background: rgba(239, 68, 68, 0.12);
+    color: #ef4444;
+  }
+}
 
+.card-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.setting-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.setting-row {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border-subtle);
+
+  &:last-child {
+    border-bottom: none;
+    padding-bottom: 2px;
   }
 
-  .setting-row {
+  &--stack {
+    align-items: start;
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
+.row-label {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.row-control {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.mono-value {
+  font-size: 13.5px;
+  color: var(--text-primary);
+  font-weight: 500;
+  word-break: break-all;
+}
+
+.user-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+
+  .name-text {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.text-action {
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary);
+  border: none;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 150ms ease;
+
+  &:hover {
+    background: rgba(37, 99, 235, 0.18);
+  }
+}
+
+.edit-name-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(320px, 100%);
+
+  .name-input {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.language-select {
+  width: 160px;
+  max-width: 100%;
+}
+
+.danger-body {
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.danger-desc {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+
+.update-pwd {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+
+  .pwd-submit {
     width: 100%;
-    display: grid;
-    grid-template-columns: 120px 220px;
-    align-items: center;
-    column-gap: 110px;
-    font-size: 14px;
-
-    > div:first-child {
-      font-weight: bold;
-      min-width: 0;
-      text-align: left;
-    }
-
-    > div:last-child {
-      min-width: 0;
-      overflow: hidden;
-      text-align: left;
-    }
-
-    @media (max-width: 767px) {
-      grid-template-columns: 120px minmax(0, 1fr);
-      column-gap: 24px;
-    }
-  }
-
-  .language-select {
-    width: 110px;
-    max-width: 100%;
-  }
-
-  .del-email {
-    font-size: 14px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+    height: 38px;
   }
 }
 </style>

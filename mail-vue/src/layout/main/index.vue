@@ -1,7 +1,7 @@
 <template>
   <div :class="accountShow && hasPerm('account:query') ? 'main-box-show' : 'main-box-hide'">
     <div :class="accountShow && hasPerm('account:query') ? 'block-show' : 'block-hide'" @click="uiStore.accountShow = false"></div>
-    <account  :class="accountShow && hasPerm('account:query') ? 'show' : 'hide'" />
+    <account :class="accountShow && hasPerm('account:query') ? 'show' : 'hide'" />
     <router-view class="main-view" v-slot="{ Component,route }">
       <keep-alive :include="['email','all-email','send','sys-setting','star','user','role','analysis','reg-key','draft']">
         <component :is="Component" :key="route.name"/>
@@ -9,6 +9,7 @@
     </router-view>
   </div>
 </template>
+
 <script setup>
 import account from '@/layout/account/index.vue'
 import {useUiStore} from "@/store/ui.js";
@@ -20,8 +21,7 @@ import { hasPerm } from "@/perm/perm.js"
 const settingStore = useSettingStore()
 const uiStore = useUiStore();
 const route = useRoute()
-let  innerWidth =  window.innerWidth
-
+let innerWidth = window.innerWidth
 let elNotification = null
 
 const accountShow = computed(() => {
@@ -29,10 +29,8 @@ const accountShow = computed(() => {
 })
 
 watch(() => uiStore.changeNotice, () => {
-
   const settings = settingStore.settings
-
-  let data = {
+  showNotice({
     notice: settings.notice,
     noticeWidth: settings.noticeWidth,
     noticeTitle: settings.noticeTitle,
@@ -41,9 +39,7 @@ watch(() => uiStore.changeNotice, () => {
     noticeDuration: settings.noticeDuration,
     noticePosition: settings.noticePosition,
     noticeOffset: settings.noticeOffset
-  }
-
-  showNotice(data)
+  })
 })
 
 watch(() => uiStore.changePreview, () => {
@@ -51,7 +47,6 @@ watch(() => uiStore.changePreview, () => {
 })
 
 function showNotice(data) {
-
   if (data.notice === 1) {
     return;
   }
@@ -60,14 +55,17 @@ function showNotice(data) {
     elNotification.close()
   }
 
-  const style = document.createElement('style');
-  style.innerHTML = `
+  let style = document.getElementById('custom-notice-style');
+  if (!style) {
+    style = document.createElement('style');
+    style.id = 'custom-notice-style';
+    document.head.appendChild(style);
+  }
+  style.textContent = `
   .custom-notice.el-notification {
     --el-notification-width: min(${data.noticeWidth}px,calc(100% - 30px)) !important;
   }
   `;
-
-  document.head.appendChild(style);
 
   elNotification = ElNotification({
     title: data.noticeTitle,
@@ -92,62 +90,63 @@ onBeforeUnmount(() => {
 
 const handleResize = () => {
   if (['content','email','send'].includes(route.meta.name)) {
-    if (innerWidth !==  window.innerWidth) {
+    if (innerWidth !== window.innerWidth) {
       innerWidth = window.innerWidth;
       uiStore.accountShow = window.innerWidth >= 767;
     }
   }
 }
-
 </script>
-<style lang="scss" scoped>
 
+<style lang="scss" scoped>
 .block-show {
   position: fixed;
   @media (max-width: 767px) {
-    position: absolute;
-    right: 0;
-    border: 0;
-    height: 100%;
-    width: 100%;
-    background: #000000;
-    opacity: 0.6;
-    z-index: 10;
-    transition: all 300ms;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(3px);
+    z-index: 95;
+    transition: opacity 200ms;
   }
 }
 
 .block-hide {
-  position: fixed;
+  display: none;
   pointer-events: none;
-  transition: all 300ms;
 }
 
 .show {
-  transition: all 100ms;
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
   @media (max-width: 767px) {
     position: fixed;
+    top: 54px;
+    left: 0;
+    height: calc(100% - 54px);
     z-index: 100;
-    width: 260px;
+    width: 272px;
+    box-shadow: var(--shadow-lg);
   }
 }
 
 .hide {
-  transition: all 100ms;
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.15s ease;
   position: fixed;
   transform: translateX(-100%);
   opacity: 0;
+  pointer-events: none;
   @media (max-width: 1024px) {
-    width: 260px;
+    width: 272px;
     z-index: 100;
   }
 }
 
-
 .main-box-show {
   display: grid;
-  grid-template-columns: 260px  1fr;
-  height: calc(100% - 60px);
+  grid-template-columns: 272px 1fr;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
   @media (max-width: 767px) {
     grid-template-columns: 1fr;
   }
@@ -156,25 +155,15 @@ const handleResize = () => {
 .main-box-hide {
   display: grid;
   grid-template-columns: 1fr;
-  height: calc(100% - 60px);
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
-
 
 .main-view {
-  background: var(--el-bg-color);
-}
-
-
-.navigation {
-  height: 30px;
-  border-bottom: solid 1px var(--el-menu-border-color);
-  display: inline-flex;
-  justify-items: center;
-  align-items: center;
-  width: 100%;
-  .tag {
-    background: var(--el-bg-color);
-    margin-left: 5px;
-  }
+  background: var(--surface-primary);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 </style>

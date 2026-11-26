@@ -1,26 +1,29 @@
 <template>
   <div ref="searchRef" class="all-email-search">
-    <div class="search-placeholder" @click="openSearch">
-      <Icon icon="bytesize:search" width="20" height="20"/>
+    <button type="button" class="search-placeholder" @click="openSearch">
+      <Icon icon="lucide:search" width="15" height="15" class="search-icon"/>
       <span class="search-placeholder-text" :class="{ 'has-search-text': savedSearchSummary }" :title="savedSearchSummary">
         {{ savedSearchSummary || t('searchMail') }}
       </span>
-    </div>
-    <el-button
+      <span v-if="savedSearchSummary" class="search-active-dot"></span>
+    </button>
+
+    <button
+      type="button"
       class="mobile-search-button"
-      size="default"
+      :class="{ 'has-filter': !!savedSearchSummary }"
       :aria-label="t('searchMail')"
       :aria-expanded="visible"
       @click="openSearch"
     >
-      <el-icon :size="20">
-        <Icon icon="bytesize:search"/>
-      </el-icon>
-    </el-button>
+      <Icon icon="lucide:search" width="18" height="18"/>
+    </button>
+
     <Transition name="search-panel-fade" @after-enter="focusInputOnDesktop">
       <div v-if="visible" class="search-panel-shell" @click.stop>
-        <el-card class="search-panel" shadow="always">
+        <div class="search-panel">
           <div class="search-input">
+            <Icon icon="lucide:search" width="16" height="16" class="panel-search-icon" />
             <el-input
               ref="inputRef"
               v-model="searchText"
@@ -78,7 +81,7 @@
             <el-button @click="handleReset">{{ t('reset') }}</el-button>
             <el-button type="primary" @click="handleSearch">{{ t('search') }}</el-button>
           </div>
-        </el-card>
+        </div>
       </div>
     </Transition>
   </div>
@@ -86,19 +89,13 @@
 
 <script setup>
 import {computed, onBeforeUnmount, onMounted, ref, watch} from 'vue'
-import {useRoute} from 'vue-router'
 import {Icon} from '@iconify/vue'
 import {useI18n} from 'vue-i18n'
 import {useAllEmailStore} from '@/store/all-email.js'
-import {useUiStore} from '@/store/ui.js'
 
 const {t} = useI18n()
 const emit = defineEmits(['search', 'reset'])
-const route = useRoute()
-const uiStore = useUiStore()
 const allEmailStore = useAllEmailStore()
-let alignFrame = 0
-let listObserver = null
 
 const searchOptions = computed(() => [
   {label: t('subject'), type: 'subject'},
@@ -293,125 +290,70 @@ function handleReset() {
   closeSearch()
 }
 
-function subjectAnchor() {
-  return document.querySelector('.email-row.all-email .email-subject')
-    || document.querySelector('.email-row.all-email .email-text-skeleton')
-}
-
-function alignSearch() {
-  const el = searchRef.value
-  if (!el) return
-  if (window.matchMedia('(max-width: 767px)').matches) {
-    el.style.left = ''
-    el.style.marginLeft = ''
-    el.style.width = ''
-    return
-  }
-
-  const anchor = subjectAnchor()
-  const header = el.offsetParent
-  if (!anchor || !header || typeof header.getBoundingClientRect !== 'function') return
-
-  const paddingLeft = parseFloat(getComputedStyle(anchor).paddingLeft) || 0
-  const skeletonOffset = anchor.classList.contains('email-text-skeleton') && window.innerWidth >= 1367 ? 5 : 0
-  const left = Math.round(
-    anchor.getBoundingClientRect().left + paddingLeft + skeletonOffset - header.getBoundingClientRect().left
-  ) - 5
-  const preferred = window.innerWidth <= 1080 ? 400 : 450
-  const width = Math.max(220, Math.min(preferred, header.clientWidth - left - 80))
-  el.style.marginLeft = '0'
-  el.style.left = `${left}px`
-  el.style.width = `${width}px`
-}
-
-function scheduleAlign() {
-  if (alignFrame) return
-  alignFrame = requestAnimationFrame(() => {
-    alignFrame = 0
-    alignSearch()
-  })
-}
-
-watch(() => uiStore.accountShow, () => {
-  scheduleAlign()
-  setTimeout(scheduleAlign, 150)
-})
-
-watch(() => route.fullPath, () => {
-  scheduleAlign()
-  setTimeout(scheduleAlign, 50)
-})
-
 onMounted(() => {
   document.addEventListener('click', handleDocumentClick, true)
   document.addEventListener('keydown', handleDocumentKeydown, true)
-  scheduleAlign()
-  setTimeout(scheduleAlign, 50)
-  setTimeout(scheduleAlign, 300)
-  window.addEventListener('resize', scheduleAlign)
-  const main = document.querySelector('.main-container')
-  if (main && typeof ResizeObserver !== 'undefined') {
-    listObserver = new ResizeObserver(() => scheduleAlign())
-    listObserver.observe(main)
-  }
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', handleDocumentClick, true)
   document.removeEventListener('keydown', handleDocumentKeydown, true)
-  window.removeEventListener('resize', scheduleAlign)
-  listObserver?.disconnect()
-  if (alignFrame) cancelAnimationFrame(alignFrame)
 })
 </script>
 
 <style lang="scss" scoped>
 .all-email-search {
-  position: absolute;
-  left: -1;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 10;
-  width: min(450px, calc(100% - 20px));
-  height: 36px;
-  @media (max-width: 1080px) {
-    width: min(400px, calc(100% - 20px));
-  }
-}
-
-@media (min-width: 768px) {
-  .all-email-search.account-show {
-    left: 259px;
-  }
+  position: relative;
+  width: 100%;
+  max-width: 460px;
+  z-index: 30;
 }
 
 .search-placeholder {
   width: 100%;
   height: 36px;
-  border-radius: 6px;
-  box-sizing: border-box;
+  padding: 0 12px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 10px;
-  background: var(--el-fill-color-light);
-  color: var(--el-text-color-secondary);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
   text-align: left;
   white-space: nowrap;
-  cursor: text;
-  position: relative;
-  z-index: 0;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+
+  &:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-strong);
+  }
+}
+
+.search-icon {
+  flex-shrink: 0;
 }
 
 .search-placeholder-text {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 15px;
+  font-size: 13.5px;
 }
 
 .search-placeholder-text.has-search-text {
-  color: var(--el-text-color-primary);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.search-active-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--brand-primary);
+  flex-shrink: 0;
 }
 
 .mobile-search-button {
@@ -421,11 +363,7 @@ onBeforeUnmount(() => {
 @media (max-width: 767px) {
   .all-email-search {
     position: static;
-    transform: none;
-    width: 32px;
-    height: 32px;
-    flex-shrink: 0;
-    margin-left: auto;
+    width: auto;
   }
 
   .search-placeholder {
@@ -433,28 +371,29 @@ onBeforeUnmount(() => {
   }
 
   .mobile-search-button {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
     display: inline-flex;
-    width: 32px;
-    height: 32px;
-    padding: 0;
-    border: none;
-    background: transparent;
-    box-shadow: none;
-    --el-button-bg-color: transparent;
-    --el-button-border-color: transparent;
-    --el-button-hover-bg-color: transparent;
-    --el-button-hover-border-color: transparent;
-    --el-button-active-bg-color: transparent;
-    --el-button-active-border-color: transparent;
-    --el-button-outline-color: transparent;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-subtle);
+    cursor: pointer;
+
+    &.has-filter {
+      color: var(--brand-primary);
+      background: var(--brand-primary-soft);
+      border-color: transparent;
+    }
   }
 
   .all-email-search .search-panel-shell {
-    top: calc(100% + 8px);
+    top: calc(100% + 6px);
     left: 50%;
-    right: auto;
-    width: min(450px, calc(100vw - 30px));
-    translate: -50% 0;
+    width: min(450px, calc(100vw - 24px));
+    transform: translateX(-50%);
   }
 }
 
@@ -463,35 +402,21 @@ onBeforeUnmount(() => {
   top: -4px;
   left: 0;
   z-index: 1001;
-  width: 100%;
-  box-sizing: border-box;
-  background: var(--el-bg-color-overlay);
+  width: min(480px, calc(100vw - 32px));
 }
 
 .search-panel {
   width: 100%;
-  height: auto;
-  min-height: 0;
-  box-sizing: border-box;
-  --el-card-bg-color: var(--el-bg-color-overlay);
-  background-color: var(--el-card-bg-color) !important;
-  border-radius: 6px !important;
-  border: 1px solid var(--el-border-color) !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
+  background: var(--surface-elevated);
+  border-radius: 14px;
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
-  isolation: isolate;
-}
-
-.search-panel :deep(.el-card__body) {
-  position: relative;
-  z-index: 1;
-  padding: 3px;
-  background-color: var(--el-card-bg-color) !important;
 }
 
 .search-panel-fade-enter-active,
 .search-panel-fade-leave-active {
-  transition: opacity 0.2s, transform 0.2s;
+  transition: opacity 0.16s ease, transform 0.16s ease;
 }
 
 .search-panel-fade-enter-from,
@@ -500,29 +425,43 @@ onBeforeUnmount(() => {
   transform: translateY(-4px);
 }
 
-.search-actions {
+.search-input {
   display: flex;
-  justify-content: flex-end;
-  padding-top: 25px;
-  padding-bottom: 15px;
-  padding-right: 15px;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-subtle);
+}
+
+.panel-search-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.search-input :deep(.el-input__wrapper),
+.search-input :deep(.el-input__wrapper.is-focus),
+.search-input :deep(.el-input__wrapper:hover) {
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0 4px;
 }
 
 .search-content {
-  padding: 20px 15px 0;
+  padding: 16px 16px 0;
 }
 
 .search-content-title {
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 20px;
-  color: var(--el-text-color-primary);
-  width: 100%;
-  text-align: left !important;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  text-align: left;
 }
 
 .search-type-title {
-  margin-top: 20px;
+  margin-top: 16px;
 }
 
 .search-options {
@@ -531,23 +470,24 @@ onBeforeUnmount(() => {
   justify-content: flex-start;
   gap: 8px;
   margin-top: 8px;
-  min-width: 0;
-  max-width: 100%;
 }
 
 .search-options :deep(.el-radio-button .el-radio-button__inner) {
-  border-radius: var(--el-border-radius-base);
+  border-radius: 7px !important;
+  border: 1px solid var(--border-subtle) !important;
+  box-shadow: none !important;
+  font-size: 12.5px;
+  padding: 7px 12px;
 }
 
 .search-options :deep(.el-radio-button.is-active .el-radio-button__inner) {
-  box-shadow: none;
-  outline-color: var(--el-color-primary);
+  border-color: var(--brand-primary) !important;
 }
 
 .search-date-range {
   display: flex;
   gap: 10px;
-  margin-top: 20px;
+  margin-top: 16px;
 }
 
 .search-date-field {
@@ -556,11 +496,10 @@ onBeforeUnmount(() => {
 }
 
 .search-date-label {
-  margin-bottom: 4px;
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 20px;
-  color: var(--el-text-color-primary);
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
   text-align: left;
 }
 
@@ -568,19 +507,10 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 
-.search-input {
-  --el-input-bg-color: var(--el-bg-color-overlay);
-  margin: 4px -3px 0;
-  padding: 0 8px 6px;
-  border-bottom: solid 1px var(--el-border-color);
-}
-
-.search-input :deep(.el-input__wrapper),
-.search-input :deep(.el-input__wrapper.is-focus) {
-  box-shadow: none !important;
-}
-
-.search-input :deep(.el-input__inner::placeholder) {
-  font-size: 15px;
+.search-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px;
 }
 </style>

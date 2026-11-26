@@ -56,28 +56,26 @@ onBeforeUnmount(() => {
   height: 100%;
   z-index: 100;
   transform: translateX(-100%);
-  transition: all 100ms ease;
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .aside-show {
-  -webkit-box-shadow: var(--aside-right-border);
-  box-shadow: var(--aside-right-border);
   transform: translateX(0);
-  transition: all 100ms ease;
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
   z-index: 101;
-  @media (max-width: 1025px) {
+  @media (max-width: 1024px) {
     position: fixed;
     top: 0;
     left: 0;
     z-index: 101;
     height: 100%;
-    background: var(--el-bg-color);
+    box-shadow: var(--aside-right-border);
   }
 }
 
 .el-aside {
   width: auto;
-  transition: all 100ms ease;
+  overflow: visible;
 }
 
 .layout {
@@ -87,41 +85,46 @@ onBeforeUnmount(() => {
   top: 0;
   left: 0;
   overflow: hidden;
+  background: var(--app-canvas);
 }
 
 .main-container {
   min-height: 100%;
-  background: var(--el-bg-color);
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  height: 100%;
+  background: var(--surface-primary);
+  overflow: hidden;
 }
 
 .el-main {
   padding: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .el-header {
-  background: var(--el-bg-color);
-  border-bottom: solid 1px var(--el-border-color);
-  padding: 0 0 0 0;
+  height: 58px;
+  flex-shrink: 0;
+  background: var(--surface-primary);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0;
   @media (max-width: 767px) {
-    height: 50px;
+    height: 54px;
   }
 }
 
 .overlay-show {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.4);
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
   z-index: 99;
-  transition: all 0.3s;
+  transition: opacity 0.2s ease;
 }
 
 .overlay-hide {
-  display: flex;
+  display: none;
   pointer-events: none;
   opacity: 0;
 }

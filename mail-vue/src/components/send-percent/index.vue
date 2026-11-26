@@ -1,16 +1,18 @@
 <template>
   <div class="percent">
-    <Icon icon="line-md:loading-loop" width="18" height="18" />
-    <div>
-      <span>{{value}}%</span>
-      <span style="margin-left: 5px">{{desc}}</span>
+    <loading :size="16" />
+    <div class="percent-text">
+      <span class="percent-val">{{ value }}%</span>
+      <span class="percent-desc">{{ desc }}</span>
     </div>
   </div>
 </template>
+
 <script setup>
-import {Icon} from "@iconify/vue";
+import loading from "@/components/loading/index.vue";
+
 defineProps({
-  value: [Number,String],
+  value: [Number, String],
   desc: [String]
 })
 </script>
@@ -18,6 +20,20 @@ defineProps({
 <style scoped lang="scss">
 .percent {
   display: flex;
+  align-items: center;
   gap: 10px;
+}
+
+.percent-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.percent-val {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--brand-primary);
 }
 </style>
