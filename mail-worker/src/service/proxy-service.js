@@ -152,7 +152,7 @@ const proxyService = {
 				const cached = await cache.match(cacheKey);
 				if (cached) {
 					if (req?.method === 'HEAD') {
-						await cached.body?.cancel();
+						void cached.body?.cancel?.();
 						return new Response(null, { status: cached.status, headers: cached.headers });
 					}
 					return cached;

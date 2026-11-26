@@ -29,7 +29,7 @@ async function servePublicAsset(req, env, ctx, key) {
 		return new Response('Not Found', { status: 404 });
 	}
 	if (req.method === 'HEAD') {
-		await resp.body?.cancel();
+		void resp.body?.cancel?.();
 		return new Response(null, { status: resp.status, headers: resp.headers });
 	}
 	putEdgeCache(ctx, cacheKey, resp);
