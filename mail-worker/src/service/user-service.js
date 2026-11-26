@@ -81,6 +81,11 @@ const userService = {
 		await c.env.kv.put(KvConst.AUTH_INFO + userId, JSON.stringify(authInfo), { expirationTtl: constant.TOKEN_EXPIRE });
 	},
 
+	async hasAnyUser(c) {
+		const row = await orm(c).select({ total: count() }).from(user).get();
+		return Number(row?.total || 0) > 0;
+	},
+
 	selectByEmail(c, email) {
 		return orm(c).select().from(user).where(
 			and(

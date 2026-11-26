@@ -149,10 +149,6 @@
 
                 <div class="user-info" v-if="showUserInfo">
                   <div class="meta-chip">
-                    <Icon icon="lucide:users" width="12" height="12"/>
-                    <span v-html="item.userEmailHtml"></span>
-                  </div>
-                  <div class="meta-chip">
                     <Icon icon="lucide:mail" width="12" height="12"/>
                     <span v-html="item.accountEmailHtml"></span>
                   </div>
@@ -260,14 +256,6 @@
               <div class="right-dropdown-item">
                 <Icon icon="lucide:star" width="16" height="16"/>
                 <span>{{t('star')}}</span>
-              </div>
-            </template>
-          </el-dropdown-item>
-          <el-dropdown-item v-if="props.type === 'all-email'" @click="handleSearch('user', rightClickEmail.userEmail)">
-            <template #default>
-              <div class="right-dropdown-item">
-                <Icon icon="lucide:search" width="15" height="15" />
-                <span>{{t('searchUser')}}</span>
               </div>
             </template>
           </el-dropdown-item>

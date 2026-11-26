@@ -39,19 +39,19 @@
 
           <h1 class="hero-headline">
             <template v-if="settingStore.lang === 'zh'">
-              轻盈、优雅的<br/><span>Serverless 云端邮箱</span>
+              轻盈、优雅的<br/><span>个人云端邮箱</span>
             </template>
             <template v-else>
-              Modern, effortless<br/><span>Serverless Webmail</span>
+              Modern, effortless<br/><span>Personal Webmail</span>
             </template>
           </h1>
 
           <p class="hero-sub">
             <template v-if="settingStore.lang === 'zh'">
-              基于 Cloudflare 边缘网络构建，支持多域名收发、实时推送、AI 验证码识别与精细化权限管理。
+              基于 Cloudflare 边缘网络构建，支持多域名收发、无人收件、实时推送与 AI 验证码识别。
             </template>
             <template v-else>
-              Built on Cloudflare Workers &amp; D1. Multi-domain routing, real-time WebSocket sync, AI verification code extraction, and full RBAC.
+              Built on Cloudflare Workers &amp; D1. Multi-domain routing, catch-all inbox, real-time WebSocket sync, and AI verification code extraction.
             </template>
           </p>
 
@@ -99,11 +99,11 @@
             </div>
             <div class="card-brand-text">
               <div class="form-title">{{ settingStore.settings.title || 'Cloud Mail' }}</div>
-              <div class="form-desc">{{ show === 'login' ? $t('loginTitle') : $t('regTitle') }}</div>
+              <div class="form-desc">{{ show === 'login' ? $t('loginTitle') : $t('initAdminTitle') }}</div>
             </div>
           </div>
 
-          <div v-if="settingStore.settings.register === 0" class="mode-tabs" role="tablist">
+          <div v-if="allowInitialRegister" class="mode-tabs" role="tablist">
             <button
               type="button"
               role="tab"
@@ -122,7 +122,7 @@
               :class="{ active: show === 'register' }"
               @click="show = 'register'"
             >
-              {{ $t('regBtn') }}
+              {{ $t('initAdminBtn') }}
             </button>
           </div>
 
@@ -206,8 +206,8 @@
             </template>
           </div>
 
-          <!-- Register Form -->
-          <div v-show="show !== 'login'" class="auth-form">
+          <!-- Initial Admin Setup Form (only available before any user exists) -->
+          <div v-show="allowInitialRegister && show !== 'login'" class="auth-form">
             <div class="field-group">
               <el-input
                 :class="!hideLoginDomain ? 'email-input' : ''"
@@ -267,61 +267,14 @@
               />
             </div>
 
-            <div class="field-group" v-if="settingStore.settings.regKey === 0 || settingStore.settings.regKey === 2">
-              <el-input
-                v-if="settingStore.settings.regKey === 0"
-                v-model="registerForm.code"
-                size="large"
-                :placeholder="$t('regKey')"
-                type="text"
-                autocomplete="off"
-                @keyup.enter="submitRegister"
-              />
-              <el-input
-                v-if="settingStore.settings.regKey === 2"
-                v-model="registerForm.code"
-                size="large"
-                :placeholder="$t('regKeyOptional')"
-                type="text"
-                autocomplete="off"
-                @keyup.enter="submitRegister"
-              />
-            </div>
-
-            <div id="register-turnstile">
-              <div v-if="show === 'register' && verifyShow" class="auth-turnstile">
-                <div ref="registerTurnstileContainer" :key="turnstileContainerKey"></div>
-                <span class="turnstile-error" v-if="botJsError">{{ $t('verifyModuleFailed', {action: $t('regBtn')}) }}</span>
-              </div>
-            </div>
-
             <el-button class="submit-btn" size="large" type="primary" @click="submitRegister" :loading="registerLoading">
-              {{ $t('regBtn') }}
+              {{ $t('initAdminBtn') }}
             </el-button>
-
-            <template v-if="oauthProviders.length > 0">
-              <div class="oauth-divider">
-                <span>OAuth2</span>
-              </div>
-              <div class="oauth-grid">
-                <button
-                  v-for="p in oauthProviders"
-                  :key="p.key"
-                  type="button"
-                  class="oauth-btn"
-                  @click="oauthLogin(p.key)"
-                >
-                  <el-avatar v-if="p.iconType === 'image'" :src="p.icon" :size="18"/>
-                  <Icon v-else :icon="p.icon" width="18" height="18"/>
-                  <span>{{ p.label }}</span>
-                </button>
-              </div>
-            </template>
           </div>
 
-          <template v-if="settingStore.settings.register === 0">
+          <template v-if="allowInitialRegister">
             <div class="switch-row" v-if="show === 'login'" @click="show = 'register'">
-              {{ $t('noAccount') }} <span>{{ $t('regSwitch') }}</span>
+              {{ $t('noAccount') }} <span>{{ $t('initAdminBtn') }}</span>
             </div>
             <div class="switch-row" v-else @click="show = 'login'">
               {{ $t('hasAccount') }} <span>{{ $t('loginSwitch') }}</span>
@@ -427,6 +380,13 @@ const oauthLoading = ref(false);
 const showBindForm = ref(false);
 const show = ref('login')
 const logoUrl = `${import.meta.env.BASE_URL}mail.png`
+const allowInitialRegister = computed(() => settingStore.settings.allowAdminRegister === true)
+
+watch(allowInitialRegister, (allowed) => {
+  if (!allowed && show.value !== 'login') {
+    show.value = 'login'
+  }
+}, { immediate: true })
 
 const oauthKeys = ['linuxdo', 'github', 'google']
 
@@ -829,46 +789,35 @@ function submitRegister() {
     return
   }
 
-  if (settingStore.settings.regKey === 0) {
-    if (!registerForm.code) {
-      ElMessage({
-        message: t('emptyRegKeyMsg'),
-        type: 'error',
-        plain: true,
-      })
-      return
-    }
+  if (!allowInitialRegister.value) {
+    return
   }
-
-  const {registerVerify, regVerifyOpen} = settingStore.settings
-  if (needsTurnstile(registerVerify, regVerifyOpen)) return
 
   registerLoading.value = true
 
   const form = {
     email,
     password: registerForm.password,
-    token: verifyToken,
-    code: registerForm.code
+    token: '',
+    code: ''
   }
 
-  register(form).then(({regVerifyOpen}) => {
+  register(form).then(() => {
+    settingStore.settings.allowAdminRegister = false
+    settingStore.settings.register = 1
     show.value = 'login'
     registerForm.email = ''
     registerForm.password = ''
     registerForm.confirmPassword = ''
     registerForm.code = ''
     registerLoading.value = false
-    settingStore.settings.regVerifyOpen = regVerifyOpen
     ElMessage({
       message: t('regSuccessMsg'),
       type: 'success',
       plain: true,
     })
-  }).catch(res => {
+  }).catch(() => {
     registerLoading.value = false
-    if (res.code === 400) settingStore.settings.regVerifyOpen = true
-    if (show.value === 'register' && (form.token || res.code === 400)) showTurnstile()
   });
 }
 </script>

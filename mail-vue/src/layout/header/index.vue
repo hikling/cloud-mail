@@ -207,7 +207,7 @@
 
           <div
             class="drawer-group drawer-group--manage"
-            v-perm="['all-email:query','user:query','role:query','setting:query','analysis:query','reg-key:query']"
+            v-perm="['all-email:query','setting:query','analysis:query']"
           >
             <div class="drawer-group-label">{{ $t('manage') }}</div>
             <div class="drawer-grid">
@@ -223,17 +223,6 @@
               </button>
 
               <button
-                v-perm="'user:query'"
-                type="button"
-                class="drawer-nav-item"
-                :class="{ active: route.meta.name === 'user' }"
-                @click="navigateTo('user')"
-              >
-                <span class="drawer-icon"><Icon icon="lucide:users" width="16" height="16" /></span>
-                <span>{{ $t('allUsers') }}</span>
-              </button>
-
-              <button
                 v-perm="'all-email:query'"
                 type="button"
                 class="drawer-nav-item"
@@ -242,28 +231,6 @@
               >
                 <span class="drawer-icon"><Icon icon="lucide:mails" width="16" height="16" /></span>
                 <span>{{ $t('allMail') }}</span>
-              </button>
-
-              <button
-                v-perm="'role:query'"
-                type="button"
-                class="drawer-nav-item"
-                :class="{ active: route.meta.name === 'role' }"
-                @click="navigateTo('role')"
-              >
-                <span class="drawer-icon"><Icon icon="lucide:shield" width="16" height="16" /></span>
-                <span>{{ $t('permissions') }}</span>
-              </button>
-
-              <button
-                v-perm="'reg-key:query'"
-                type="button"
-                class="drawer-nav-item"
-                :class="{ active: route.meta.name === 'reg-key' }"
-                @click="navigateTo('reg-key')"
-              >
-                <span class="drawer-icon"><Icon icon="lucide:key-round" width="16" height="16" /></span>
-                <span>{{ $t('inviteCode') }}</span>
               </button>
 
               <button

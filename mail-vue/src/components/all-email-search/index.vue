@@ -101,7 +101,6 @@ const searchOptions = computed(() => [
   {label: t('subject'), type: 'subject'},
   {label: t('sender'), type: 'sender'},
   {label: t('searchSenderAddress'), type: 'senderAddress'},
-  {label: t('user'), type: 'user'},
   {label: t('selectEmail'), type: 'account'},
 ])
 

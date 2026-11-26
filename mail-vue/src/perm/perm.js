@@ -59,26 +59,6 @@ const routers = {
             }
         }
     ],
-    'user:query': [{
-        path: '/all-users',
-        name: 'user',
-        component: () => import('@/views/user/index.vue'),
-        meta: {
-            title: 'allUsers',
-            name: 'user',
-            menu: true
-        }
-    }],
-    'role:query': [{
-        path: '/role',
-        name: 'role',
-        component: () => import('@/views/role/index.vue'),
-        meta: {
-            title: 'permissions',
-            name: 'role',
-            menu: true
-        }
-    }],
     'setting:query': [{
         path: '/system-settings',
         name: 'sys-setting',
@@ -86,16 +66,6 @@ const routers = {
         meta: {
             title: 'SystemSettings',
             name: 'sys-setting',
-            menu: true
-        }
-    }],
-    'reg-key:query': [{
-        path: '/invite-code',
-        name: 'reg-key',
-        component: () => import('@/views/reg-key/index.vue'),
-        meta: {
-            title: 'inviteCode',
-            name: 'reg-key',
             menu: true
         }
     }],

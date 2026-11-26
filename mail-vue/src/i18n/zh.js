@@ -411,5 +411,14 @@ const zh = {
     sysRuleThreshold: '阈值 {count}/天',
     sysNotConfigured: '未配置',
     noRecipientInboxDesc: '未注册地址收到的邮件',
+    initAdminBtn: '初始化管理员',
+    initAdminTitle: '首次搭建，请创建管理员账户',
+    sysTabBasic: '基础外观',
+    sysTabMailPush: '邮件与推送',
+    sysSectionGeneral: '基本配置',
+    sysSectionAppearance: '登录外观',
+    sysSectionMailCore: '邮件收发',
+    sysSectionMailFilter: '发送与过滤',
+    sysSectionLinks: '项目与文档',
 }
 export default zh

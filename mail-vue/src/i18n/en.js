@@ -411,6 +411,15 @@ const en = {
     sysRuleThreshold: '{count}/day',
     sysNotConfigured: 'Not set',
     noRecipientInboxDesc: 'Catch-all mail for unregistered addresses',
+    initAdminBtn: 'Create Admin',
+    initAdminTitle: 'First-time setup: create the administrator account',
+    sysTabBasic: 'Appearance',
+    sysTabMailPush: 'Mail & Push',
+    sysSectionGeneral: 'General',
+    sysSectionAppearance: 'Sign-in Look',
+    sysSectionMailCore: 'Mail Delivery',
+    sysSectionMailFilter: 'Routing & Filters',
+    sysSectionLinks: 'Links & Docs',
 }
 
 export default en

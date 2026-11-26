@@ -26,16 +26,20 @@ const loginService = {
 
 		const { email, password, token, code } = params;
 
-		let { regKey, register, registerVerify, regVerifyCount, minEmailPrefix, emailPrefixFilter } = await settingService.query(c)
-
-		if (oauth) {
-			registerVerify = settingConst.registerVerify.CLOSE;
-			register = settingConst.register.OPEN;
-		}
-
-		if (register === settingConst.register.CLOSE) {
+		// 个人收件模式：仅首次搭建（尚无任何用户）允许注册管理员账号，之后彻底关闭公开注册
+		const hasUsers = await userService.hasAnyUser(c);
+		if (hasUsers) {
 			throw new BizError(t('regDisabled'));
 		}
+
+		if (c.env.admin && email && email.toLowerCase() !== String(c.env.admin).toLowerCase()) {
+			throw new BizError(t('regDisabled'));
+		}
+
+		let { minEmailPrefix, emailPrefixFilter } = await settingService.query(c)
+		const regKey = settingConst.regKey.CLOSE;
+		const registerVerify = settingConst.registerVerify.CLOSE;
+		const regVerifyCount = 1;
 
 		if (!verifyUtils.isEmail(email)) {
 			throw new BizError(t('notEmail'));

@@ -1,6 +1,8 @@
 import KvConst from '../const/kv-const';
 import setting from '../entity/setting';
+import user from '../entity/user';
 import orm from '../entity/orm';
+import { count } from 'drizzle-orm';
 import {settingConst, verifyRecordType} from '../const/entity-const';
 import fileUtils from '../utils/file-utils';
 import r2Service from './r2-service';
@@ -202,11 +204,16 @@ const settingService = {
 
 	async websiteConfig(c) {
 
-		const settingRow = await this.get(c);
+		const [settingRow, userCountRow] = await Promise.all([
+			this.get(c),
+			orm(c).select({ total: count() }).from(user).get()
+		]);
+		const hasUsers = Number(userCountRow?.total || 0) > 0;
 		const token = await userContext.getToken(c);
 
 		return {
-			register: settingRow.register,
+			register: hasUsers ? settingConst.register.CLOSE : settingConst.register.OPEN,
+			allowAdminRegister: !hasUsers,
 			title: settingRow.title,
 			manyEmail: settingRow.manyEmail,
 			addEmail: settingRow.addEmail,
@@ -220,7 +227,7 @@ const settingService = {
 			background: settingRow.background,
 			loginOpacity: settingRow.loginOpacity,
 			domainList: settingRow.loginDomain === 1 && !token ? [] : settingRow.domainList,
-			regKey: settingRow.regKey,
+			regKey: settingConst.regKey.CLOSE,
 			regVerifyOpen: settingRow.regVerifyOpen,
 			addVerifyOpen: settingRow.addVerifyOpen,
 			loginVerifyOpen: settingRow.loginVerifyOpen,

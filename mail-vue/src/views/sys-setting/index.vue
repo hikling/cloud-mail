@@ -5,14 +5,13 @@
     </div>
     <el-scrollbar class="scroll" v-if="!firstLoading">
       <div class="scroll-body">
-        <!-- Unified Page Header + 3-Tab Segmented Workspace Switcher -->
+        <!-- Calm Minimal Header + Segmented Tabs -->
         <header class="sys-header">
           <div class="sys-header-left">
             <h1 class="workspace-title">{{ $t('SystemSettings') }}</h1>
             <el-badge is-dot :hidden="!hasUpdate">
-              <button type="button" class="version-chip" @click="jump('https://github.com/maillab/cloud-mail/releases')">
-                <span>{{ currentVersion }}</span>
-                <Icon icon="lucide:external-link" width="12" height="12" />
+              <button type="button" class="version-text-btn" @click="jump('https://github.com/maillab/cloud-mail/releases')">
+                {{ currentVersion }}
               </button>
             </el-badge>
           </div>
@@ -27,158 +26,88 @@
               :class="{ active: activeTab === tab.id }"
               @click="activeTab = tab.id"
             >
-              <Icon :icon="tab.icon" width="15" height="15" />
               <span>{{ $t(tab.labelKey) }}</span>
             </button>
           </div>
         </header>
 
-        <!-- Live System Overview Strip -->
-        <section class="status-overview" aria-label="System status overview">
-          <button type="button" class="kpi-tile" :class="{ 'is-active': activeTab === 'mail' }" @click="activeTab = 'mail'">
-            <span class="kpi-icon card-icon--indigo"><Icon icon="lucide:mails" width="16" height="16" /></span>
-            <span class="kpi-body">
-              <span class="kpi-label">{{ $t('sysStatusMail') }}</span>
-              <span class="kpi-value">{{ mailStatusText }}</span>
-            </span>
-          </button>
-
-          <button type="button" class="kpi-tile" :class="{ 'is-active': activeTab === 'mail' }" @click="activeTab = 'mail'">
-            <span class="kpi-icon card-icon--amber"><Icon icon="lucide:bell" width="16" height="16" /></span>
-            <span class="kpi-body">
-              <span class="kpi-label">{{ $t('sysStatusPush') }}</span>
-              <span class="kpi-value">{{ $t('sysActiveChannels', { active: activePushCount, total: 3 }) }}</span>
-            </span>
-          </button>
-
-          <button type="button" class="kpi-tile" :class="{ 'is-active': activeTab === 'security' }" @click="activeTab = 'security'">
-            <span class="kpi-icon card-icon--blue"><Icon icon="lucide:key-round" width="16" height="16" /></span>
-            <span class="kpi-body">
-              <span class="kpi-label">{{ $t('sysStatusAuth') }}</span>
-              <span class="kpi-value">{{ $t('sysActiveChannels', { active: activeOauthCount, total: oauthPlatforms.length }) }}</span>
-            </span>
-          </button>
-
-          <button type="button" class="kpi-tile" :class="{ 'is-active': activeTab === 'security' }" @click="activeTab = 'security'">
-            <span class="kpi-icon card-icon--emerald"><Icon icon="lucide:database" width="16" height="16" /></span>
-            <span class="kpi-body">
-              <span class="kpi-label">{{ $t('sysStatusStorage') }}</span>
-              <span class="kpi-value">{{ setting.storageType || 'D1' }}</span>
-            </span>
-          </button>
-        </section>
-
-        <!-- Tab 1: General & Appearance -->
-        <div v-if="activeTab === 'general'" class="workspace-grid workspace-grid--asymmetric">
-          <section class="panel-card">
-            <div class="panel-head">
-              <span class="card-icon card-icon--blue"><Icon icon="lucide:globe" width="16" height="16"/></span>
-              <h2 class="panel-title">{{ $t('websiteSetting') }}</h2>
-            </div>
-            <div class="panel-rows">
-              <div class="sub-group-bar">{{ $t('sysGroupAccess') }}</div>
-              <div class="setting-row">
-                <div class="row-info">
-                  <div class="row-label">{{ $t('websiteReg') }}</div>
-                </div>
-                <div class="row-control">
-                  <el-switch @change="change" :before-change="beforeChange" :active-value="0" :inactive-value="1"
-                             v-model="setting.register"/>
-                </div>
-              </div>
-              <div class="setting-row">
-                <div class="row-info">
-                  <div class="row-label">{{ $t('loginDomain') }}</div>
-                </div>
-                <div class="row-control">
-                  <el-switch @change="change" :before-change="beforeChange" :active-value="1" :inactive-value="0"
-                             v-model="setting.loginDomain"/>
-                </div>
-              </div>
-              <div class="setting-row">
-                <div class="row-info">
-                  <div class="row-label">{{ $t('regKey') }}</div>
-                </div>
-                <div class="row-control">
-                  <el-select
-                      @change="change"
-                      :style="`width: ${ locale === 'en' ? 124 : 108 }px;`"
-                      v-model="setting.regKey"
-                      placeholder="Select"
-                  >
-                    <el-option
-                        v-for="item in regKeyOptions"
-                        :key="item.value"
-                        :label="item.label"
-                        :value="item.value"
-                    />
-                  </el-select>
-                </div>
-              </div>
-
-              <div class="sub-group-bar">{{ $t('sysGroupMailbox') }}</div>
-              <div class="setting-row">
-                <div class="row-info">
-                  <div class="row-label">{{ $t('addAccount') }}</div>
-                </div>
-                <div class="row-control">
-                  <el-switch @change="change" :before-change="beforeChange" :active-value="0" :inactive-value="1"
-                             v-model="setting.addEmail"/>
-                </div>
-              </div>
-              <div class="setting-row">
-                <div class="row-info">
-                  <div class="row-label">{{ $t('multipleEmail') }}</div>
-                  <div class="row-desc">{{ $t('multipleEmailDesc') }}</div>
-                </div>
-                <div class="row-control">
-                  <el-switch @change="change" :before-change="beforeChange" :active-value="0" :inactive-value="1"
-                             v-model="setting.manyEmail"/>
-                </div>
-              </div>
-              <div class="setting-row">
-                <div class="row-info">
-                  <div class="row-label">{{ $t('syncDelete') }}</div>
-                  <div class="row-desc">{{ $t('syncDeleteDesc') }}</div>
-                </div>
-                <div class="row-control">
-                  <el-switch @change="change" :before-change="beforeChange" :active-value="0" :inactive-value="1"
-                             v-model="setting.syncDelete"/>
-                </div>
-              </div>
-              <div class="setting-row">
-                <div class="row-info">
-                  <div class="row-label">{{ $t('emailPrefix') }}</div>
-                </div>
-                <div class="row-control">
-                  <button type="button" class="opt-pill opt-pill--text" @click="openEmailPrefix">
-                    <Icon icon="lucide:sliders" width="14" height="14"/>
-                    <span>{{ $t('sysConfigure') }}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <div class="stacked-col">
-            <section class="panel-card">
-              <div class="panel-head">
-                <span class="card-icon card-icon--violet"><Icon icon="lucide:palette" width="16" height="16"/></span>
-                <h2 class="panel-title">{{ $t('customization') }}</h2>
-              </div>
-              <div class="panel-rows">
+        <!-- Tab 1: Basic & Appearance -->
+        <div v-if="activeTab === 'general'" class="cols-2">
+          <div class="col-stack">
+            <section class="setting-group">
+              <h2 class="group-heading">{{ $t('sysSectionGeneral') }}</h2>
+              <div class="group-card">
                 <div class="setting-row">
                   <div class="row-info">
                     <div class="row-label">{{ $t('websiteTitle') }}</div>
                   </div>
                   <div class="row-control email-title">
                     <span class="value-ellipsis">{{ setting.title }}</span>
-                    <button type="button" class="opt-pill opt-pill--text" @click="editTitleShow = true">
-                      <Icon icon="lucide:square-pen" width="13" height="13"/>
-                      <span>{{ $t('change') }}</span>
+                    <button type="button" class="action-btn" @click="editTitleShow = true">
+                      {{ $t('change') }}
                     </button>
                   </div>
                 </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('multipleEmail') }}</div>
+                    <div class="row-desc">{{ $t('multipleEmailDesc') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <el-switch @change="change" :before-change="beforeChange" :active-value="0" :inactive-value="1"
+                               v-model="setting.manyEmail"/>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('loginDomain') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <el-switch @change="change" :before-change="beforeChange" :active-value="1" :inactive-value="0"
+                               v-model="setting.loginDomain"/>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('syncDelete') }}</div>
+                    <div class="row-desc">{{ $t('syncDeleteDesc') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <el-switch @change="change" :before-change="beforeChange" :active-value="0" :inactive-value="1"
+                               v-model="setting.syncDelete"/>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="setting-group">
+              <h2 class="group-heading">{{ $t('noticeTitle') }}</h2>
+              <div class="group-card">
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('noticePopup') }}</div>
+                    <div class="row-desc" v-if="setting.noticeTitle">{{ setting.noticeTitle }}</div>
+                  </div>
+                  <div class="row-control inline-controls">
+                    <span class="status-dot-label" :class="{ 'is-on': setting.notice === 0 }">
+                      <i></i>{{ setting.notice === 0 ? $t('enabled') : $t('disabled') }}
+                    </span>
+                    <button type="button" class="action-btn" @click="openNoticePopupSetting">
+                      {{ $t('sysConfigure') }}
+                    </button>
+                    <button type="button" class="action-btn" @click="openNoticePopup">
+                      {{ $t('preview') }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <div class="col-stack">
+            <section class="setting-group">
+              <h2 class="group-heading">{{ $t('sysSectionAppearance') }}</h2>
+              <div class="group-card">
                 <div class="setting-row">
                   <div class="row-info">
                     <div class="row-label">{{ $t('loginBoxOpacity') }}</div>
@@ -195,12 +124,11 @@
                       <div class="row-desc">{{ $t('backgroundWarning') }}</div>
                     </div>
                     <div class="btn-group">
-                      <button type="button" class="opt-pill opt-pill--text" @click="openSetBackground">
-                        <Icon icon="lucide:square-pen" width="13" height="13"/>
-                        <span>{{ $t('sysConfigure') }}</span>
+                      <button type="button" class="action-btn" @click="openSetBackground">
+                        {{ $t('sysConfigure') }}
                       </button>
-                      <button v-if="setting.background" type="button" class="opt-pill opt-pill--danger" @click="delBackground" :title="$t('delete')">
-                        <Icon icon="lucide:trash-2" width="14" height="14"/>
+                      <button v-if="setting.background" type="button" class="action-btn action-btn--danger" @click="delBackground">
+                        {{ $t('delete') }}
                       </button>
                     </div>
                   </div>
@@ -214,112 +142,83 @@
                   >
                     <template #error>
                       <div class="error-image" @click="openSetBackground">
-                        <Icon icon="lucide:image" width="22" height="22"/>
+                        <Icon icon="lucide:image" width="20" height="20"/>
                       </div>
                     </template>
                   </el-image>
                   <button v-else type="button" class="background-empty" @click="openSetBackground">
-                    <span class="bg-empty-icon"><Icon icon="lucide:image" width="20" height="20"/></span>
-                    <span class="bg-empty-title">{{ $t('sysSetBackgroundHint') }}</span>
+                    <Icon icon="lucide:image" width="18" height="18"/>
+                    <span>{{ $t('sysSetBackgroundHint') }}</span>
                   </button>
-                </div>
-              </div>
-            </section>
-
-            <section class="panel-card">
-              <div class="panel-head">
-                <span class="card-icon card-icon--amber"><Icon icon="lucide:sparkles" width="16" height="16"/></span>
-                <h2 class="panel-title">{{ $t('noticeTitle') }}</h2>
-                <span class="status-pill head-pill" :class="{ 'is-on': setting.notice === 0 }">
-                  {{ setting.notice === 0 ? $t('enabled') : $t('disabled') }}
-                </span>
-              </div>
-              <div class="panel-rows">
-                <div class="setting-row">
-                  <div class="row-info">
-                    <div class="row-label">{{ $t('noticePopup') }}</div>
-                    <div class="row-desc" v-if="setting.noticeTitle">{{ setting.noticeTitle }}</div>
-                  </div>
-                  <div class="row-control inline-controls">
-                    <button type="button" class="opt-pill opt-pill--text" @click="openNoticePopupSetting">
-                      <Icon icon="lucide:sliders" width="14" height="14"/>
-                      <span>{{ $t('sysConfigure') }}</span>
-                    </button>
-                    <button type="button" class="opt-pill opt-pill--text" @click="openNoticePopup">
-                      <Icon icon="lucide:eye" width="14" height="14"/>
-                      <span>{{ $t('preview') }}</span>
-                    </button>
-                  </div>
                 </div>
               </div>
             </section>
           </div>
         </div>
 
-        <!-- Tab 2: Mail, Integrations & Workers AI -->
-        <div v-else-if="activeTab === 'mail'" class="workspace-stack">
-          <div class="workspace-grid workspace-grid--mail">
-            <section class="panel-card">
-              <div class="panel-head">
-                <span class="card-icon card-icon--indigo"><Icon icon="lucide:mails" width="16" height="16"/></span>
-                <h2 class="panel-title">{{ $t('emailSetting') }}</h2>
-              </div>
-
-              <!-- 2x2 Tactile Switch Grid -->
-              <div class="toggle-tile-grid">
-                <div class="toggle-tile" :class="{ 'is-on': setting.receive === 0 }">
-                  <div class="toggle-tile-top">
-                    <span class="row-label">{{ $t('receiveEmail') }}</span>
+        <!-- Tab 2: Mail & Push -->
+        <div v-else-if="activeTab === 'mail'" class="cols-2">
+          <div class="col-stack">
+            <section class="setting-group">
+              <h2 class="group-heading">{{ $t('sysSectionMailCore') }}</h2>
+              <div class="group-card">
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('receiveEmail') }}</div>
+                  </div>
+                  <div class="row-control">
                     <el-switch @change="change" :before-change="beforeChange" :active-value="0" :inactive-value="1"
                                v-model="setting.receive"/>
                   </div>
-                  <div class="row-desc">{{ setting.receive === 0 ? $t('enabled') : $t('disabled') }}</div>
                 </div>
-
-                <div class="toggle-tile" :class="{ 'is-on': setting.autoRefresh === 2 }">
-                  <div class="toggle-tile-top">
-                    <span class="row-label">{{ $t('autoRefresh') }}</span>
-                    <el-switch @change="change" :before-change="beforeChange" :active-value="2" :inactive-value="1"
-                               v-model="setting.autoRefresh"/>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('sendEmail') }}</div>
                   </div>
-                  <div class="row-desc">{{ $t('autoRefreshDesc') }}</div>
-                </div>
-
-                <div class="toggle-tile" :class="{ 'is-on': setting.send === 0 }">
-                  <div class="toggle-tile-top">
-                    <span class="row-label">{{ $t('sendEmail') }}</span>
+                  <div class="row-control">
                     <el-switch @change="change" :before-change="beforeChange" :active-value="0" :inactive-value="1"
                                v-model="setting.send"/>
                   </div>
-                  <div class="row-desc">{{ setting.send === 0 ? $t('enabled') : $t('disabled') }}</div>
                 </div>
-
-                <div class="toggle-tile" :class="{ 'is-on': setting.noRecipient === 0 }">
-                  <div class="toggle-tile-top">
-                    <span class="row-label">{{ $t('noRecipientTitle') }}</span>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('autoRefresh') }}</div>
+                    <div class="row-desc">{{ $t('autoRefreshDesc') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <el-switch @change="change" :before-change="beforeChange" :active-value="2" :inactive-value="1"
+                               v-model="setting.autoRefresh"/>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('noRecipientTitle') }}</div>
+                    <div class="row-desc">{{ $t('noRecipientDesc') }}</div>
+                  </div>
+                  <div class="row-control">
                     <el-switch @change="change" :before-change="beforeChange" :active-value="0" :inactive-value="1"
                                v-model="setting.noRecipient"/>
                   </div>
-                  <div class="row-desc">{{ $t('noRecipientDesc') }}</div>
                 </div>
               </div>
+            </section>
 
-              <div class="panel-rows panel-rows--bordered-top">
+            <section class="setting-group">
+              <h2 class="group-heading">{{ $t('sysSectionMailFilter') }}</h2>
+              <div class="group-card">
                 <div class="setting-row">
                   <div class="row-info">
                     <div class="row-label">{{ setting.hasCfEmail ? $t('cloudflareEmailSending') : $t('resendToken') }}</div>
                   </div>
                   <div class="row-control" v-if="setting.hasCfEmail">
-                    <span class="status-pill is-on">{{ $t('enabled') }}</span>
+                    <span class="status-dot-label is-on"><i></i>{{ $t('enabled') }}</span>
                   </div>
                   <div class="row-control btn-group" v-else>
-                    <button type="button" class="opt-pill opt-pill--text" @click="openResendList">
-                      <Icon icon="lucide:list" width="14" height="14"/>
-                      <span>{{ $t('resendTokenList') }}</span>
+                    <button type="button" class="action-btn" @click="openResendList">
+                      {{ $t('resendTokenList') }}
                     </button>
-                    <button type="button" class="opt-pill opt-pill--primary opt-pill--text" @click="openResendForm">
-                      <Icon icon="lucide:plus" width="14" height="14"/>
-                      <span>{{ $t('add') }}</span>
+                    <button type="button" class="action-btn action-btn--primary" @click="openResendForm">
+                      {{ $t('add') }}
                     </button>
                   </div>
                 </div>
@@ -329,9 +228,8 @@
                     <div class="row-desc">{{ $t('blackListDesc') }}</div>
                   </div>
                   <div class="row-control">
-                    <button type="button" class="opt-pill opt-pill--text" @click="openBlackListForm">
-                      <Icon icon="lucide:sliders" width="14" height="14"/>
-                      <span>{{ $t('sysConfigure') }}</span>
+                    <button type="button" class="action-btn" @click="openBlackListForm">
+                      {{ $t('sysConfigure') }}
                     </button>
                   </div>
                 </div>
@@ -341,190 +239,127 @@
                     <div class="row-desc">{{ $t('autoCleanDesc') }}</div>
                   </div>
                   <div class="row-control inline-controls">
-                    <span class="status-pill" :class="{ 'is-on': setting.autoCleanDays > 0 }">
-                      {{ setting.autoCleanDays > 0 ? $t('autoCleanRetain', { days: setting.autoCleanDays }) : $t('disabled') }}
+                    <span class="status-dot-label" :class="{ 'is-on': setting.autoCleanDays > 0 }">
+                      <i></i>{{ setting.autoCleanDays > 0 ? $t('autoCleanRetain', { days: setting.autoCleanDays }) : $t('disabled') }}
                     </span>
-                    <button type="button" class="opt-pill opt-pill--text" @click="openAutoClean">
-                      <Icon icon="lucide:sliders" width="14" height="14"/>
-                      <span>{{ $t('sysConfigure') }}</span>
+                    <button type="button" class="action-btn" @click="openAutoClean">
+                      {{ $t('sysConfigure') }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <div class="col-stack">
+            <section class="setting-group">
+              <h2 class="group-heading">{{ $t('emailPush') }}</h2>
+              <div class="group-card">
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('tgBot') }}</div>
+                    <div class="row-desc">{{ $t('tgBotDesc') }}</div>
+                  </div>
+                  <div class="row-control inline-controls">
+                    <span class="status-dot-label" :class="{ 'is-on': setting.tgBotStatus === 0 }">
+                      <i></i>{{ setting.tgBotStatus === 0 ? $t('enabled') : $t('disabled') }}
+                    </span>
+                    <button type="button" class="action-btn" @click="openTgSetting">
+                      {{ $t('sysConfigure') }}
+                    </button>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('otherEmail') }}</div>
+                    <div class="row-desc">{{ $t('otherEmailDesc') }}</div>
+                  </div>
+                  <div class="row-control inline-controls">
+                    <span class="status-dot-label" :class="{ 'is-on': setting.forwardStatus === 0 }">
+                      <i></i>{{ setting.forwardStatus === 0 ? $t('enabled') : $t('disabled') }}
+                    </span>
+                    <button type="button" class="action-btn" @click="openThirdEmailSetting">
+                      {{ $t('sysConfigure') }}
+                    </button>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('webhook') }}</div>
+                    <div class="row-desc">{{ $t('webhookDesc') }}</div>
+                  </div>
+                  <div class="row-control inline-controls">
+                    <span class="status-dot-label" :class="{ 'is-on': setting.webhookStatus === 0 }">
+                      <i></i>{{ setting.webhookStatus === 0 ? $t('enabled') : $t('disabled') }}
+                    </span>
+                    <button type="button" class="action-btn" @click="openWebhookSetting">
+                      {{ $t('sysConfigure') }}
+                    </button>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('forwardingRules') }}</div>
+                    <div class="row-desc">{{ $t('forwardingRulesDesc') }}</div>
+                  </div>
+                  <div class="row-control inline-controls">
+                    <span class="muted-val">
+                      {{ setting.ruleType === 0 ? $t('forwardAll') : $t('rules') }}
+                    </span>
+                    <button type="button" class="action-btn" @click="openForwardRules">
+                      {{ $t('sysConfigure') }}
                     </button>
                   </div>
                 </div>
               </div>
             </section>
 
-            <div class="stacked-col">
-              <section class="panel-card">
-                <div class="panel-head">
-                  <span class="card-icon card-icon--violet"><Icon icon="lucide:bot" width="16" height="16"/></span>
-                  <h2 class="panel-title">Workers AI</h2>
-                  <span class="status-pill head-pill" :class="{ 'is-on': setting.aiCode === 0 }">
-                    {{ setting.aiCode === 0 ? $t('enabled') : $t('disabled') }}
-                  </span>
-                </div>
-                <div class="panel-rows">
-                  <div class="setting-row">
-                    <div class="row-info">
-                      <div class="row-label">{{ $t('codeRecognition') }}</div>
-                    </div>
-                    <div class="row-control">
-                      <el-switch @change="changeField('aiCode', $event)" :before-change="beforeChange" :active-value="0" :inactive-value="1"
-                                 v-model="setting.aiCode"/>
-                    </div>
-                  </div>
-                  <div class="setting-row">
-                    <div class="row-info">
-                      <div class="row-label">{{ $t('codeRecognitionRules') }}</div>
-                      <div class="row-desc">{{ $t('codeRecognitionRulesDesc') }}</div>
-                    </div>
-                    <div class="row-control">
-                      <button type="button" class="opt-pill opt-pill--text" @click="openAiCodeFilter">
-                        <Icon icon="lucide:sliders" width="14" height="14"/>
-                        <span>{{ $t('sysConfigure') }}</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <section class="panel-card">
-                <div class="panel-head">
-                  <span class="card-icon card-icon--blue"><Icon icon="lucide:layers" width="16" height="16"/></span>
-                  <h2 class="panel-title">{{ $t('forwardingRules') }}</h2>
-                  <span class="status-pill head-pill is-neutral">
-                    {{ setting.ruleType === 0 ? $t('forwardAll') : $t('rules') }}
-                  </span>
-                </div>
-                <div class="panel-rows">
-                  <div class="setting-row">
-                    <div class="row-info">
-                      <div class="row-desc" style="margin-top: 0">{{ $t('forwardingRulesDesc') }}</div>
-                    </div>
-                    <div class="row-control">
-                      <button type="button" class="opt-pill opt-pill--text" @click="openForwardRules">
-                        <Icon icon="lucide:sliders" width="14" height="14"/>
-                        <span>{{ $t('sysConfigure') }}</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </section>
-            </div>
-          </div>
-
-          <!-- 3-Column Push Channels Gallery -->
-          <section class="panel-card">
-            <div class="panel-head">
-              <span class="card-icon card-icon--amber"><Icon icon="lucide:bell" width="16" height="16"/></span>
-              <h2 class="panel-title">{{ $t('emailPush') }}</h2>
-              <span class="status-pill head-pill" :class="{ 'is-on': activePushCount > 0 }">
-                {{ $t('sysActiveChannels', { active: activePushCount, total: 3 }) }}
-              </span>
-            </div>
-            <div class="channel-gallery">
-              <div class="channel-card" :class="{ 'is-on': setting.tgBotStatus === 0 }">
-                <div class="channel-card-top">
-                  <span class="channel-icon channel-icon--sky">
-                    <Icon icon="logos:telegram" width="18" height="18"/>
-                  </span>
-                  <span class="status-pill" :class="{ 'is-on': setting.tgBotStatus === 0 }">
-                    {{ setting.tgBotStatus === 0 ? $t('enabled') : $t('disabled') }}
-                  </span>
-                </div>
-                <div class="channel-card-body">
-                  <div class="channel-title">{{ $t('tgBot') }}</div>
-                  <div class="row-desc">{{ $t('tgBotDesc') }}</div>
-                </div>
-                <button type="button" class="channel-action-btn" @click="openTgSetting">
-                  <Icon icon="lucide:sliders" width="14" height="14"/>
-                  <span>{{ $t('sysConfigure') }}</span>
-                </button>
-              </div>
-
-              <div class="channel-card" :class="{ 'is-on': setting.forwardStatus === 0 }">
-                <div class="channel-card-top">
-                  <span class="channel-icon channel-icon--indigo">
-                    <Icon icon="lucide:forward" width="17" height="17"/>
-                  </span>
-                  <span class="status-pill" :class="{ 'is-on': setting.forwardStatus === 0 }">
-                    {{ setting.forwardStatus === 0 ? $t('enabled') : $t('disabled') }}
-                  </span>
-                </div>
-                <div class="channel-card-body">
-                  <div class="channel-title">{{ $t('otherEmail') }}</div>
-                  <div class="row-desc">{{ $t('otherEmailDesc') }}</div>
-                </div>
-                <button type="button" class="channel-action-btn" @click="openThirdEmailSetting">
-                  <Icon icon="lucide:sliders" width="14" height="14"/>
-                  <span>{{ $t('sysConfigure') }}</span>
-                </button>
-              </div>
-
-              <div class="channel-card" :class="{ 'is-on': setting.webhookStatus === 0 }">
-                <div class="channel-card-top">
-                  <span class="channel-icon channel-icon--amber">
-                    <Icon icon="lucide:webhook" width="17" height="17"/>
-                  </span>
-                  <span class="status-pill" :class="{ 'is-on': setting.webhookStatus === 0 }">
-                    {{ setting.webhookStatus === 0 ? $t('enabled') : $t('disabled') }}
-                  </span>
-                </div>
-                <div class="channel-card-body">
-                  <div class="channel-title">{{ $t('webhook') }}</div>
-                  <div class="row-desc">{{ $t('webhookDesc') }}</div>
-                </div>
-                <button type="button" class="channel-action-btn" @click="openWebhookSetting">
-                  <Icon icon="lucide:sliders" width="14" height="14"/>
-                  <span>{{ $t('sysConfigure') }}</span>
-                </button>
-              </div>
-            </div>
-          </section>
-        </div>
-
-        <!-- Tab 3: Security, OAuth2, Storage & About -->
-        <div v-else-if="activeTab === 'security'" class="workspace-stack">
-          <div class="workspace-grid workspace-grid--asymmetric">
-            <section class="panel-card">
-              <div class="panel-head">
-                <span class="card-icon card-icon--blue"><Icon icon="lucide:shield-check" width="16" height="16"/></span>
-                <h2 class="panel-title">{{ $t('turnstileSetting') }}</h2>
-              </div>
-              <div class="panel-rows">
+            <section class="setting-group">
+              <h2 class="group-heading">Workers AI</h2>
+              <div class="group-card">
                 <div class="setting-row">
                   <div class="row-info">
-                    <div class="row-label">{{ $t('signUpVerification') }}</div>
+                    <div class="row-label">{{ $t('codeRecognition') }}</div>
                   </div>
-                  <div class="row-control inline-controls">
-                    <button type="button" class="opt-pill opt-pill--text" @click="openRegVerifyCount">
-                      <Icon icon="lucide:sliders" width="13" height="13"/>
-                      <span>{{ $t('sysRuleThreshold', { count: setting.regVerifyCount ?? regVerifyCount }) }}</span>
-                    </button>
-                    <el-select
-                        @change="change"
-                        :style="`width: ${ locale === 'en' ? 116 : 96 }px;`"
-                        v-model="setting.registerVerify"
-                        placeholder="Select"
-                    >
-                      <el-option key="0" :value="0" :label="$t('enable')"/>
-                      <el-option key="1" :value="1" :label="$t('disable')"/>
-                      <el-option key="2" :value="2" :label="$t('rulesVerify')"/>
-                    </el-select>
+                  <div class="row-control">
+                    <el-switch @change="changeField('aiCode', $event)" :before-change="beforeChange" :active-value="0" :inactive-value="1"
+                               v-model="setting.aiCode"/>
                   </div>
                 </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('codeRecognitionRules') }}</div>
+                    <div class="row-desc">{{ $t('codeRecognitionRulesDesc') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <button type="button" class="action-btn" @click="openAiCodeFilter">
+                      {{ $t('sysConfigure') }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <!-- Tab 3: Security & Storage -->
+        <div v-else-if="activeTab === 'security'" class="cols-2">
+          <div class="col-stack">
+            <section class="setting-group">
+              <h2 class="group-heading">{{ $t('turnstileSetting') }}</h2>
+              <div class="group-card">
                 <div class="setting-row">
                   <div class="row-info">
                     <div class="row-label">{{ $t('loginVerification') }}</div>
                   </div>
                   <div class="row-control inline-controls">
-                    <button type="button" class="opt-pill opt-pill--text" :aria-label="$t('rulesVerify')" @click="openLoginVerifyCount">
-                      <Icon icon="lucide:sliders" width="13" height="13"/>
-                      <span>{{ $t('sysRuleThreshold', { count: setting.loginVerifyCount ?? loginVerifyCount }) }}</span>
+                    <button type="button" class="action-btn" :aria-label="$t('rulesVerify')" @click="openLoginVerifyCount">
+                      {{ $t('sysRuleThreshold', { count: setting.loginVerifyCount ?? loginVerifyCount }) }}
                     </button>
                     <el-select
                         :model-value="setting.loginVerify"
                         @change="changeField('loginVerify', $event)"
-                        :style="`width: ${ locale === 'en' ? 116 : 96 }px;`"
+                        :style="`width: ${ locale === 'en' ? 110 : 92 }px;`"
                     >
                       <el-option :value="0" :label="$t('enable')"/>
                       <el-option :value="1" :label="$t('disable')"/>
@@ -534,129 +369,105 @@
                 </div>
                 <div class="setting-row">
                   <div class="row-info">
-                    <div class="row-label">{{ $t('addEmailVerification') }}</div>
+                    <div class="row-label">Site key</div>
                   </div>
-                  <div class="row-control inline-controls">
-                    <button type="button" class="opt-pill opt-pill--text" @click="openAddVerifyCount">
-                      <Icon icon="lucide:sliders" width="13" height="13"/>
-                      <span>{{ $t('sysRuleThreshold', { count: setting.addVerifyCount ?? addVerifyCount }) }}</span>
-                    </button>
-                    <el-select
-                        @change="change"
-                        :style="`width: ${ locale === 'en' ? 116 : 96 }px;`"
-                        v-model="setting.addEmailVerify"
-                        placeholder="Select"
-                    >
-                      <el-option key="0" :value="0" :label="$t('enable')"/>
-                      <el-option key="1" :value="1" :label="$t('disable')"/>
-                      <el-option key="2" :value="2" :label="$t('rulesVerify')"/>
-                    </el-select>
-                  </div>
-                </div>
-              </div>
-
-              <div class="key-strip">
-                <div class="key-strip-items">
-                  <div class="key-item">
-                    <span class="key-label">Site key</span>
+                  <div class="row-control bot-verify">
                     <span class="mono-ellipsis">{{ maskSiteKey(setting.siteKey) || $t('sysNotConfigured') }}</span>
+                    <button type="button" class="action-btn" @click="turnstileShow = true">
+                      {{ $t('sysConfigure') }}
+                    </button>
                   </div>
-                  <div class="key-item">
-                    <span class="key-label">Secret key</span>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">Secret key</div>
+                  </div>
+                  <div class="row-control bot-verify">
                     <span class="mono-ellipsis">{{ setting.secretKey || $t('sysNotConfigured') }}</span>
+                    <button type="button" class="action-btn" @click="turnstileShow = true">
+                      {{ $t('sysConfigure') }}
+                    </button>
                   </div>
                 </div>
-                <button type="button" class="opt-pill opt-pill--text opt-pill--primary" @click="turnstileShow = true">
-                  <Icon icon="lucide:key-round" width="13" height="13"/>
-                  <span>{{ $t('sysEditKeys') }}</span>
-                </button>
               </div>
             </section>
 
-            <section class="panel-card">
-              <div class="panel-head">
-                <span class="card-icon card-icon--indigo"><Icon icon="lucide:key-round" width="16" height="16"/></span>
-                <h2 class="panel-title">{{ $t('oauthLogin') }}</h2>
-                <span class="status-pill head-pill" :class="{ 'is-on': activeOauthCount > 0 }">
-                  {{ $t('sysActiveChannels', { active: activeOauthCount, total: oauthPlatforms.length }) }}
-                </span>
-              </div>
-              <div class="oauth-list">
-                <div class="oauth-tile" v-for="p in oauthPlatforms" :key="p.key">
-                  <div class="oauth-tile-left">
-                    <span class="oauth-logo-box">
-                      <el-avatar v-if="p.iconType === 'image'" :src="p.icon" :size="24" class="oauth-icon"/>
-                      <Icon v-else :icon="p.icon" width="22" height="22" class="oauth-icon"/>
-                    </span>
-                    <div class="oauth-tile-info">
-                      <div class="row-label">{{ p.label }}</div>
-                      <span class="status-pill" :class="{ 'is-on': setting[p.key + 'Switch'] === 0 }">
-                        {{ setting[p.key + 'Switch'] === 0 ? $t('enabled') : $t('disabled') }}
-                      </span>
-                    </div>
-                  </div>
-                  <button type="button" class="opt-pill opt-pill--text" @click="openOauthSetting(p)">
-                    <Icon icon="lucide:sliders" width="14" height="14"/>
-                    <span>{{ $t('sysConfigure') }}</span>
-                  </button>
-                </div>
-              </div>
-            </section>
-          </div>
-
-          <!-- Bottom Row: Object Storage + About & Resources -->
-          <div class="workspace-grid workspace-grid--equal">
-            <section class="panel-card">
-              <div class="panel-head">
-                <span class="card-icon card-icon--emerald"><Icon icon="lucide:database" width="16" height="16"/></span>
-                <h2 class="panel-title">{{ $t('oss') }}</h2>
-                <el-tag class="head-pill" size="small" effect="light">{{ setting.storageType }}</el-tag>
-              </div>
-              <div class="panel-rows">
+            <section class="setting-group">
+              <h2 class="group-heading">{{ $t('oss') }}</h2>
+              <div class="group-card">
                 <div class="setting-row">
                   <div class="row-info">
                     <div class="row-label">{{ $t('storageType') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <span class="driver-badge">{{ setting.storageType || 'D1' }}</span>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('s3Configuration') }}</div>
                     <div class="row-desc" v-if="setting.bucket || setting.endpoint">
                       {{ [setting.bucket, setting.endpoint].filter(Boolean).join(' · ') }}
                     </div>
                   </div>
                   <div class="row-control">
-                    <button type="button" class="opt-pill opt-pill--text opt-pill--primary" @click="addS3Show = true">
-                      <Icon icon="lucide:sliders" width="14" height="14"/>
-                      <span>{{ $t('s3Configuration') }}</span>
+                    <button type="button" class="action-btn" @click="addS3Show = true">
+                      {{ $t('sysConfigure') }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <div class="col-stack">
+            <section class="setting-group">
+              <h2 class="group-heading">{{ $t('oauthLogin') }}</h2>
+              <div class="group-card">
+                <div class="setting-row" v-for="p in oauthPlatforms" :key="p.key">
+                  <div class="row-info oauth-row-left">
+                    <el-avatar v-if="p.iconType === 'image'" :src="p.icon" :size="20" class="oauth-icon-sm"/>
+                    <Icon v-else :icon="p.icon" width="18" height="18" class="oauth-icon-sm"/>
+                    <span class="row-label">{{ p.label }}</span>
+                  </div>
+                  <div class="row-control inline-controls">
+                    <span class="status-dot-label" :class="{ 'is-on': setting[p.key + 'Switch'] === 0 }">
+                      <i></i>{{ setting[p.key + 'Switch'] === 0 ? $t('enabled') : $t('disabled') }}
+                    </span>
+                    <button type="button" class="action-btn" @click="openOauthSetting(p)">
+                      {{ $t('sysConfigure') }}
                     </button>
                   </div>
                 </div>
               </div>
             </section>
 
-            <section class="panel-card">
-              <div class="panel-head">
-                <span class="card-icon card-icon--slate"><Icon icon="lucide:info" width="16" height="16"/></span>
-                <h2 class="panel-title">{{ $t('about') }}</h2>
-                <el-badge class="head-pill" is-dot :hidden="!hasUpdate">
-                  <button type="button" class="version-chip" @click="jump('https://github.com/maillab/cloud-mail/releases')">
-                    <span>{{ currentVersion }}</span>
-                  </button>
-                </el-badge>
-              </div>
-              <div class="about-link-grid">
-                <button type="button" class="about-link-tile" @click="jump('https://github.com/maillab/cloud-mail')">
-                  <Icon icon="codicon:github-inverted" width="16" height="16"/>
-                  <span>GitHub</span>
-                </button>
-                <button type="button" class="about-link-tile" @click="jump('https://t.me/cloud_mail_tg')">
-                  <Icon icon="logos:telegram" width="16" height="16"/>
-                  <span>Telegram</span>
-                </button>
-                <button type="button" class="about-link-tile" @click="jump('https://docs.skymail.ink')">
-                  <Icon icon="fluent-color:document-32" width="16" height="16"/>
-                  <span>{{ t('document') }}</span>
-                </button>
-                <button type="button" class="about-link-tile" @click="jump('https://docs.skymail.ink/support.html')">
-                  <Icon color="#79D6B5" icon="simple-icons:buymeacoffee" width="15" height="15"/>
-                  <span>{{ t('supportDesc') }}</span>
-                </button>
+            <section class="setting-group">
+              <h2 class="group-heading">{{ $t('about') }}</h2>
+              <div class="group-card">
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('version') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <el-badge is-dot :hidden="!hasUpdate">
+                      <button type="button" class="action-btn" @click="jump('https://github.com/maillab/cloud-mail/releases')">
+                        {{ currentVersion }}
+                      </button>
+                    </el-badge>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('sysSectionLinks') }}</div>
+                  </div>
+                  <div class="row-control link-row">
+                    <button type="button" class="action-btn" @click="jump('https://github.com/maillab/cloud-mail')">GitHub</button>
+                    <button type="button" class="action-btn" @click="jump('https://t.me/cloud_mail_tg')">Telegram</button>
+                    <button type="button" class="action-btn" @click="jump('https://docs.skymail.ink')">{{ t('document') }}</button>
+                    <button type="button" class="action-btn" @click="jump('https://docs.skymail.ink/support.html')">{{ t('support') }}</button>
+                  </div>
+                </div>
               </div>
             </section>
           </div>
@@ -1122,28 +933,10 @@ defineOptions({
 
 const activeTab = ref('general')
 const workspaceTabs = [
-  { id: 'general', labelKey: 'sysTabGeneral', icon: 'lucide:globe' },
-  { id: 'mail', labelKey: 'sysTabMail', icon: 'lucide:mails' },
-  { id: 'security', labelKey: 'sysTabSecurity', icon: 'lucide:shield-check' },
+  { id: 'general', labelKey: 'sysTabBasic' },
+  { id: 'mail', labelKey: 'sysTabMailPush' },
+  { id: 'security', labelKey: 'sysTabSecurity' },
 ]
-
-const activePushCount = computed(() => {
-  let n = 0
-  if (setting.value.tgBotStatus === 0) n++
-  if (setting.value.forwardStatus === 0) n++
-  if (setting.value.webhookStatus === 0) n++
-  return n
-})
-
-const activeOauthCount = computed(() => {
-  return oauthPlatforms.reduce((sum, p) => sum + (setting.value[p.key + 'Switch'] === 0 ? 1 : 0), 0)
-})
-
-const mailStatusText = computed(() => {
-  const rx = setting.value.receive === 0 ? t('enabled') : t('disabled')
-  const tx = setting.value.send === 0 ? t('enabled') : t('disabled')
-  return `${t('emailReceived')} ${rx} · ${t('emailSent')} ${tx}`
-})
 
 const currentVersion = 'v3.6.0'
 const hasUpdate = ref(false)
@@ -1987,16 +1780,16 @@ function editSetting(settingForm, refreshStatus = true) {
   }
 
   .scroll-body {
-    max-width: 1280px;
+    max-width: 1120px;
     margin: 0 auto;
-    padding: 28px 32px 56px;
+    padding: 32px 32px 60px;
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 28px;
 
     @media (max-width: 860px) {
       padding: 18px 14px 36px;
-      gap: 18px;
+      gap: 20px;
     }
   }
 }
@@ -2007,33 +1800,31 @@ function editSetting(settingForm, refreshStatus = true) {
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .sys-header-left {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: 10px;
 }
 
-.version-chip {
-  height: 26px;
-  padding: 0 9px;
-  border-radius: 999px;
-  border: 1px solid var(--border-subtle);
-  background: var(--surface-elevated);
-  color: var(--text-secondary);
+.version-text-btn {
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: none;
+  background: var(--surface-subtle);
+  color: var(--text-muted);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
   cursor: pointer;
-  transition: border-color 150ms ease, color 150ms ease;
+  transition: color 140ms ease, background-color 140ms ease;
 
   &:hover {
-    border-color: var(--brand-primary);
-    color: var(--brand-primary);
+    color: var(--text-primary);
+    background: var(--surface-hover);
   }
 }
 
@@ -2048,19 +1839,12 @@ function editSetting(settingForm, refreshStatus = true) {
 .tab-switcher {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 12px;
-  background: var(--surface-elevated);
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--surface-subtle);
   border: 1px solid var(--border-subtle);
-  box-shadow: var(--shadow-xs);
   max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
 
   @media (max-width: 540px) {
     width: 100%;
@@ -2070,9 +1854,9 @@ function editSetting(settingForm, refreshStatus = true) {
 }
 
 .tab-btn {
-  height: 34px;
-  padding: 0 15px;
-  border-radius: 9px;
+  height: 32px;
+  padding: 0 16px;
+  border-radius: 7px;
   border: none;
   background: transparent;
   color: var(--text-secondary);
@@ -2081,422 +1865,187 @@ function editSetting(settingForm, refreshStatus = true) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
   cursor: pointer;
   white-space: nowrap;
-  transition: background-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
+  transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
 
   @media (max-width: 540px) {
-    padding: 0 6px;
-    gap: 4px;
+    padding: 0 8px;
     font-size: 12.5px;
   }
 
   &:hover {
     color: var(--text-primary);
-    background: var(--surface-hover);
   }
 
   &.active {
-    background: var(--brand-primary);
-    color: #ffffff;
+    background: var(--surface-elevated);
+    color: var(--text-primary);
     font-weight: 600;
-    box-shadow: 0 1px 4px rgba(37, 99, 235, 0.3);
+    box-shadow: var(--shadow-xs);
   }
 }
 
-.status-overview {
+.cols-2 {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-
-  @media (max-width: 960px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  @media (max-width: 540px) {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 10px;
-  }
-}
-
-.kpi-tile {
-  padding: 13px 16px;
-  border-radius: 14px;
-  background: var(--surface-elevated);
-  border: 1px solid var(--border-subtle);
-  box-shadow: var(--shadow-xs);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  text-align: left;
-  cursor: pointer;
-  min-width: 0;
-  transition: border-color 150ms ease, transform 150ms ease, box-shadow 150ms ease;
-
-  &:hover {
-    border-color: var(--border-strong);
-    box-shadow: var(--shadow-sm);
-  }
-
-  &.is-active {
-    border-color: rgba(37, 99, 235, 0.35);
-  }
-}
-
-.kpi-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.kpi-body {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.kpi-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-muted);
-}
-
-.kpi-value {
-  font-size: 13.5px;
-  font-weight: 600;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.workspace-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  width: 100%;
-  min-width: 0;
-}
-
-.workspace-grid {
-  display: grid;
-  gap: 20px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 28px;
   align-items: start;
   width: 100%;
   min-width: 0;
 
-  &--asymmetric {
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
-  }
-
-  &--mail {
-    grid-template-columns: minmax(0, 1.32fr) minmax(0, 0.88fr);
-  }
-
-  &--equal {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  @media (max-width: 960px) {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 18px;
-  }
-}
-
-.stacked-col {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  min-width: 0;
-}
-
-.panel-card {
-  background-color: var(--surface-elevated);
-  border-radius: 16px;
-  border: 1px solid var(--border-subtle);
-  box-shadow: var(--shadow-xs);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.panel-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 15px 20px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.head-pill {
-  margin-left: auto;
-}
-
-.panel-title {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.sub-group-bar {
-  padding: 10px 20px 6px;
-  font-size: 11.5px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  color: var(--text-muted);
-  background: var(--surface-subtle);
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.toggle-tile-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  padding: 16px 20px;
-
-  @media (max-width: 600px) {
-    grid-template-columns: minmax(0, 1fr);
-    padding: 14px 16px;
-  }
-}
-
-.toggle-tile {
-  padding: 13px 14px;
-  border-radius: 12px;
-  background: var(--surface-subtle);
-  border: 1px solid var(--border-subtle);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  transition: border-color 150ms ease, background-color 150ms ease;
-
-  &.is-on {
-    border-color: rgba(37, 99, 235, 0.25);
-    background: var(--surface-primary);
-  }
-}
-
-.toggle-tile-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.panel-rows--bordered-top {
-  border-top: 1px solid var(--border-subtle);
-}
-
-.channel-gallery {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-  padding: 16px 20px 20px;
-
   @media (max-width: 900px) {
     grid-template-columns: minmax(0, 1fr);
-    padding: 14px 16px 16px;
+    gap: 22px;
   }
 }
 
-.channel-card {
-  padding: 16px;
-  border-radius: 14px;
-  background: var(--surface-subtle);
-  border: 1px solid var(--border-subtle);
+.col-stack {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  transition: border-color 150ms ease, box-shadow 150ms ease;
-
-  &:hover {
-    border-color: var(--border-strong);
-  }
-
-  &.is-on {
-    border-color: rgba(16, 185, 129, 0.35);
-    background: var(--surface-primary);
-  }
+  gap: 24px;
+  min-width: 0;
 }
 
-.channel-card-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.channel-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--surface-elevated);
-  border: 1px solid var(--border-subtle);
-
-  &--indigo {
-    color: #4f46e5;
-  }
-
-  &--amber {
-    color: #d97706;
-  }
-}
-
-.channel-card-body {
-  flex: 1;
+.setting-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 9px;
+  min-width: 0;
 }
 
-.channel-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.channel-action-btn {
-  width: 100%;
-  height: 34px;
-  border-radius: 9px;
-  border: 1px solid var(--border-subtle);
-  background: var(--surface-elevated);
-  color: var(--text-primary);
+.group-heading {
+  margin: 0;
+  padding-left: 4px;
   font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text-secondary);
+}
+
+.group-card {
+  background-color: var(--surface-elevated);
+  border-radius: 14px;
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+  min-width: 0;
+}
+
+.action-btn {
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-primary);
+  color: var(--text-primary);
+  font-size: 12.5px;
   font-weight: 500;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  white-space: nowrap;
   cursor: pointer;
-  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+  flex-shrink: 0;
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
 
   &:hover {
+    background: var(--surface-hover);
+    border-color: var(--border-strong);
+  }
+
+  &--primary {
     background: var(--brand-primary);
     border-color: var(--brand-primary);
     color: #ffffff;
+
+    &:hover {
+      background: var(--brand-primary-hover);
+      border-color: var(--brand-primary-hover);
+    }
+  }
+
+  &--danger:hover {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: rgba(239, 68, 68, 0.32);
+    color: #ef4444;
   }
 }
 
-.background-empty {
-  width: 100%;
-  height: 132px;
-  border-radius: 12px;
-  border: 1.5px dashed var(--border-strong);
-  background: linear-gradient(135deg, var(--surface-subtle), var(--surface-primary));
-  display: flex;
-  flex-direction: column;
+.status-dot-label {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  cursor: pointer;
-  color: var(--text-secondary);
-  transition: border-color 150ms ease, color 150ms ease, background-color 150ms ease;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
 
-  &:hover {
-    border-color: var(--brand-primary);
-    color: var(--brand-primary);
+  i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    opacity: 0.55;
+  }
 
-    .bg-empty-icon {
-      background: var(--brand-primary-soft);
-      color: var(--brand-primary);
+  &.is-on {
+    color: var(--text-secondary);
+
+    i {
+      background: #10b981;
+      opacity: 1;
     }
   }
 }
 
-.bg-empty-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  background: var(--surface-elevated);
+.muted-val {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.driver-badge {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: var(--surface-subtle);
   border: 1px solid var(--border-subtle);
-  display: inline-flex;
+  color: var(--text-primary);
+}
+
+.oauth-row-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.oauth-icon-sm {
+  flex-shrink: 0;
+}
+
+.link-row {
+  flex-wrap: wrap;
+}
+
+.background-empty {
+  width: 100%;
+  height: 156px;
+  border-radius: 10px;
+  border: 1px dashed var(--border-strong);
+  background: var(--surface-subtle);
+  display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--text-muted);
-  transition: background-color 150ms ease, color 150ms ease;
-}
-
-.bg-empty-title {
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.key-strip {
-  padding: 14px 20px;
-  background: var(--surface-subtle);
-  border-top: 1px solid var(--border-subtle);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  flex-wrap: wrap;
-}
-
-.key-strip-items {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  min-width: 0;
-  flex-wrap: wrap;
-}
-
-.key-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  max-width: 220px;
-}
-
-.key-label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--text-muted);
-}
-
-.about-link-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  padding: 16px 20px;
-
-  @media (max-width: 540px) {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-.about-link-tile {
-  height: 40px;
-  padding: 0 14px;
-  border-radius: 10px;
-  border: 1px solid var(--border-subtle);
-  background: var(--surface-subtle);
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 500;
-  display: inline-flex;
-  align-items: center;
   gap: 8px;
   cursor: pointer;
-  transition: border-color 150ms ease, background-color 150ms ease;
+  font-size: 13px;
+  color: var(--text-muted);
+  transition: border-color 140ms ease, color 140ms ease;
 
   &:hover {
-    border-color: var(--border-strong);
-    background: var(--surface-hover);
+    border-color: var(--brand-primary);
+    color: var(--brand-primary);
   }
 }
 

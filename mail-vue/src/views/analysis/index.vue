@@ -70,28 +70,6 @@
             </span>
           </div>
         </div>
-
-        <div class="number-item">
-          <div class="top">
-            <div class="left">
-              <div class="metric-label">{{ $t('totalUsers') }}</div>
-              <div class="metric-val">
-                <el-statistic :formatter="value => Math.round(value)" :value="userData"/>
-              </div>
-            </div>
-            <div class="count-icon tone-amber">
-              <Icon icon="lucide:users" width="20" height="20"></Icon>
-            </div>
-          </div>
-          <div class="delete-ratio">
-            <span class="ratio-pill active">
-              <i></i>{{ $t('active') }} <b>{{ numberCount.normalUserTotal }}</b>
-            </span>
-            <span class="ratio-pill deleted">
-              <i></i>{{ $t('deleted') }} <b>{{ numberCount.delUserTotal }}</b>
-            </span>
-          </div>
-        </div>
       </div>
 
       <div class="picture">
@@ -109,24 +87,18 @@
         </div>
         <div class="chart-card">
           <div class="card-head">
-            <span class="title">{{ $t('userGrowth') }}</span>
+            <span class="title">{{ $t('sentToday') }}</span>
           </div>
-          <div class="increase-line"></div>
+          <div class="send-count"></div>
         </div>
       </div>
 
-      <div class="picture-cs">
+      <div class="picture-full">
         <div class="chart-card">
           <div class="card-head">
             <span class="title">{{ $t('emailGrowth') }}</span>
           </div>
           <div class="email-column"></div>
-        </div>
-        <div class="chart-card">
-          <div class="card-head">
-            <span class="title">{{ $t('sentToday') }}</span>
-          </div>
-          <div class="send-count"></div>
         </div>
       </div>
     </div>
@@ -295,7 +267,6 @@ function initPicture() {
   boxKey.value++
   setTimeout(() => {
     createSenderPie()
-    createIncreaseLine()
     createEmailColumnChart();
     createSendGauge();
   })
@@ -607,10 +578,10 @@ function createSendGauge() {
 
 .number {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
 
-  @media (max-width: 1366px) {
+  @media (max-width: 960px) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px;
   }
@@ -713,22 +684,17 @@ function createSendGauge() {
 
 .picture {
   display: grid;
-  grid-template-columns: minmax(360px, 0.9fr) 1.4fr;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.85fr);
   gap: 16px;
 
-  @media (max-width: 1280px) {
+  @media (max-width: 1024px) {
     grid-template-columns: 1fr;
   }
 }
 
-.picture-cs {
+.picture-full {
   display: grid;
-  grid-template-columns: 1.4fr minmax(340px, 0.9fr);
-  gap: 16px;
-
-  @media (max-width: 1280px) {
-    grid-template-columns: 1fr;
-  }
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .chart-card {
