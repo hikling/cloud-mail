@@ -87,11 +87,18 @@
               <h2 class="group-heading">{{ $t('sysSectionWorkspace') }}</h2>
               <div class="group-card">
                 <div class="setting-row setting-row--stack setting-row--fixed">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('auroraThemeTitle') }}</div>
+                    <div class="row-desc">{{ $t('auroraThemeDesc') }}</div>
+                  </div>
+                  <AuroraPicker />
+                </div>
+                <div class="setting-row setting-row--stack setting-row--fixed">
                   <div class="bg-row-head">
                     <div class="row-info">
                       <div class="row-label-inline">
                         <span class="row-label">{{ $t('workspaceOpacity') }}</span>
-                        <span class="opacity-readout">{{ Math.round((loginOpacity ?? 0.88) * 100) }}%</span>
+                        <span class="opacity-readout">{{ Math.round((loginOpacity ?? 0.85) * 100) }}%</span>
                       </div>
                       <div class="row-desc">{{ $t('workspaceOpacityDesc') }}</div>
                     </div>
@@ -101,7 +108,7 @@
                         :key="preset.value"
                         type="button"
                         class="preset-chip"
-                        :class="{ active: Math.abs((loginOpacity ?? 0.88) - preset.value) < 0.015 }"
+                        :class="{ active: Math.abs((loginOpacity ?? 0.85) - preset.value) < 0.015 }"
                         @click="applyOpacityPreset(preset.value)"
                       >
                         {{ $t(preset.labelKey) }}
@@ -120,39 +127,27 @@
                     />
                   </div>
                 </div>
-                <div class="setting-row setting-row--stack setting-row--grow">
-                  <div class="bg-row-head">
-                    <div class="row-info">
-                      <div class="row-label">{{ $t('workspaceBackground') }}</div>
-                      <div class="row-desc">{{ $t('workspaceBackgroundDesc') }}</div>
-                    </div>
-                    <div class="btn-group">
-                      <button type="button" class="action-btn" @click="openSetBackground">
-                        {{ $t('sysConfigure') }}
-                      </button>
-                      <button v-if="setting.background" type="button" class="action-btn action-btn--danger" @click="delBackground">
-                        {{ $t('delete') }}
-                      </button>
-                    </div>
+                <div class="setting-row setting-row--grow">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('workspaceBackground') }}</div>
+                    <div class="row-desc">{{ $t('workspaceBackgroundDesc') }}</div>
                   </div>
-                  <el-image
-                      v-if="setting.background"
-                      class="background-banner"
-                      :src="cvtR2Url(setting.background)"
-                      :preview-src-list="[cvtR2Url(setting.background)]"
-                      show-progress
-                      fit="cover"
-                  >
-                    <template #error>
-                      <div class="error-image" @click="openSetBackground">
-                        <Icon icon="lucide:image" width="20" height="20"/>
-                      </div>
-                    </template>
-                  </el-image>
-                  <button v-else type="button" class="background-empty" @click="openSetBackground">
-                    <Icon icon="lucide:sparkles" width="18" height="18"/>
-                    <span>{{ $t('sysSetWorkspaceBgHint') }}</span>
-                  </button>
+                  <div class="row-control btn-group">
+                    <el-image
+                        v-if="setting.background"
+                        class="background-thumb"
+                        :src="cvtR2Url(setting.background)"
+                        :preview-src-list="[cvtR2Url(setting.background)]"
+                        show-progress
+                        fit="cover"
+                    />
+                    <button type="button" class="action-btn" @click="openSetBackground">
+                      {{ $t('sysConfigure') }}
+                    </button>
+                    <button v-if="setting.background" type="button" class="action-btn action-btn--danger" @click="delBackground">
+                      {{ $t('delete') }}
+                    </button>
+                  </div>
                 </div>
               </div>
             </section>
@@ -849,6 +844,7 @@ import {getTextWidth} from "@/utils/text.js";
 import {fileToBase64} from "@/utils/file-utils.js"
 import {useI18n} from 'vue-i18n';
 import axios from "axios";
+import AuroraPicker from "@/components/aurora-picker/index.vue";
 
 defineOptions({
   name: 'sys-setting'
@@ -902,10 +898,10 @@ const {settings: setting} = storeToRefs(settingStore);
 const editTitle = ref('')
 const settingLoading = ref(false)
 const clearS3Loading = ref(false)
-const loginOpacity = ref(0.88)
+const loginOpacity = ref(0.85)
 const opacityPresets = [
-  { labelKey: 'opacityPresetGlass', value: 0.72 },
-  { labelKey: 'opacityPresetBalanced', value: 0.88 },
+  { labelKey: 'opacityPresetGlass', value: 0.65 },
+  { labelKey: 'opacityPresetBalanced', value: 0.85 },
   { labelKey: 'opacityPresetSolid', value: 1.0 },
 ]
 const minEmailPrefix = ref(0)
@@ -1863,8 +1859,8 @@ function editSetting(settingForm, refreshStatus = true) {
   display: flex;
   flex-direction: column;
   background-color: var(--surface-elevated);
-  backdrop-filter: blur(18px) saturate(165%);
-  -webkit-backdrop-filter: blur(18px) saturate(165%);
+  backdrop-filter: blur(var(--ws-blur, 20px)) saturate(175%);
+  -webkit-backdrop-filter: blur(var(--ws-blur, 20px)) saturate(175%);
   border-radius: 14px;
   border: 1px solid var(--border-subtle);
   box-shadow: var(--card-shadow);
@@ -1875,6 +1871,15 @@ function editSetting(settingForm, refreshStatus = true) {
   &:hover {
     border-color: var(--border-strong);
   }
+}
+
+.background-thumb {
+  width: 44px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
 .row-label-inline {

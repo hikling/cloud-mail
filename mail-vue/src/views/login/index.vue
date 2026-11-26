@@ -11,16 +11,8 @@
       <loading/>
     </div>
 
-    <!-- Cinematic Aurora Backdrop -->
-    <div class="ambient-bg" aria-hidden="true">
-      <div class="ambient-orb orb-1"></div>
-      <div class="ambient-orb orb-2"></div>
-      <div class="ambient-orb orb-3"></div>
-      <div class="ambient-orb orb-4"></div>
-      <div class="ambient-beam"></div>
-      <div class="ambient-grid"></div>
-      <div class="cursor-spotlight"></div>
-    </div>
+    <!-- Cinematic Multi-Theme Aurora Backdrop -->
+    <AuroraBackdrop :theme-id="uiStore.auroraTheme" :dark="uiStore.dark" interactive />
 
     <!-- Top Floating Controls -->
     <div class="top-controls">
@@ -458,6 +450,7 @@ import {oauthBindUser, oauthLinuxDoLogin, oauthGithubLogin, oauthGoogleLogin} fr
 import {reloadTurnstileScript} from "@/utils/turnstile-script.js";
 import {setExtend} from "@/utils/day.js";
 import loading from "@/components/loading/index.vue";
+import AuroraBackdrop from "@/components/aurora-backdrop/index.vue";
 
 const {t} = useI18n();
 const accountStore = useAccountStore();
@@ -981,15 +974,10 @@ function submitRegister() {
   height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
-  background: linear-gradient(145deg, #eaf0ff 0%, #f4f7ff 46%, #e7f3ff 100%);
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.3s ease;
-
-  &.is-dark {
-    background: radial-gradient(circle at 20% 20%, #0d1630 0%, #070b16 55%, #050811 100%);
-  }
 }
 
 /* Living Aurora Backdrop */

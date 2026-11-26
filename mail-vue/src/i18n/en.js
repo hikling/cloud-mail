@@ -439,6 +439,14 @@ const en = {
     opacityPresetGlass: 'Glassy',
     opacityPresetBalanced: 'Balanced',
     opacityPresetSolid: 'Solid',
+    auroraThemeTitle: 'Aurora Backdrop',
+    auroraThemeDesc: '6 curated dynamic aurora themes tuned for both Light and Dark modes',
+    auroraArctic: 'Arctic Prism',
+    auroraNebula: 'Nebula Violet',
+    auroraBorealis: 'Borealis Mint',
+    auroraSunset: 'Sunset Glow',
+    auroraSakura: 'Sakura Mist',
+    auroraSlate: 'Minimal Mist',
 }
 
 export default en

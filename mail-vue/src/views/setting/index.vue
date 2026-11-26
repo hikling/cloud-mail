@@ -177,12 +177,22 @@
                     <ThemeSelector />
                   </div>
                 </div>
+
+                <div class="setting-row setting-row--vertical">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('auroraThemeTitle') }}</div>
+                    <div class="row-desc">{{ $t('auroraThemeDesc') }}</div>
+                  </div>
+                  <div class="row-control row-control--full">
+                    <AuroraPicker />
+                  </div>
+                </div>
               </div>
             </section>
           </main>
         </div>
 
-        <el-dialog v-model="pwdShow" :title="$t('changePassword')" width="380">
+        <el-dialog v-model="pwdShow" :title="$t('changePassword')" width="380" append-to-body align-center>
           <div class="update-pwd">
             <el-input
               type="password"
@@ -223,6 +233,7 @@ import {useSettingStore} from "@/store/setting.js";
 import {useUiStore} from "@/store/ui.js";
 import {hasPerm} from "@/perm/perm.js";
 import ThemeSelector from "@/components/theme-selector/index.vue";
+import AuroraPicker from "@/components/aurora-picker/index.vue";
 
 const { t } = useI18n()
 const accountStore = useAccountStore()
@@ -455,8 +466,8 @@ function submitPwd() {
 /* Profile Hero Card */
 .profile-hero-card {
   background: var(--surface-elevated);
-  backdrop-filter: blur(18px) saturate(165%);
-  -webkit-backdrop-filter: blur(18px) saturate(165%);
+  backdrop-filter: blur(var(--ws-blur, 20px)) saturate(175%);
+  -webkit-backdrop-filter: blur(var(--ws-blur, 20px)) saturate(175%);
   border: 1px solid var(--border-subtle);
   border-radius: 16px;
   box-shadow: var(--card-shadow);
@@ -587,8 +598,8 @@ function submitPwd() {
 /* Danger Zone Card */
 .danger-card {
   background: var(--surface-elevated);
-  backdrop-filter: blur(18px) saturate(165%);
-  -webkit-backdrop-filter: blur(18px) saturate(165%);
+  backdrop-filter: blur(var(--ws-blur, 20px)) saturate(175%);
+  -webkit-backdrop-filter: blur(var(--ws-blur, 20px)) saturate(175%);
   border: 1px solid rgba(239, 68, 68, 0.28);
   border-radius: 16px;
   padding: 18px 20px;
@@ -624,8 +635,8 @@ function submitPwd() {
 /* Main Right Cards */
 .panel-card {
   background: var(--surface-elevated);
-  backdrop-filter: blur(18px) saturate(165%);
-  -webkit-backdrop-filter: blur(18px) saturate(165%);
+  backdrop-filter: blur(var(--ws-blur, 20px)) saturate(175%);
+  -webkit-backdrop-filter: blur(var(--ws-blur, 20px)) saturate(175%);
   border: 1px solid var(--border-subtle);
   border-radius: 16px;
   box-shadow: var(--card-shadow);

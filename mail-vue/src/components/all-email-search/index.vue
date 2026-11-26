@@ -436,9 +436,11 @@ onBeforeUnmount(() => {
 
 .search-panel {
   width: 100%;
-  background: var(--surface-elevated);
+  background: var(--surface-popover);
+  backdrop-filter: blur(28px) saturate(185%);
+  -webkit-backdrop-filter: blur(28px) saturate(185%);
   border-radius: 14px;
-  border: 1px solid var(--border-subtle);
+  border: 1px solid var(--border-strong);
   box-shadow: var(--shadow-lg);
   overflow: hidden;
 }

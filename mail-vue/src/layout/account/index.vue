@@ -1,5 +1,5 @@
 <template>
-  <div class="account-box">
+  <div class="account-box" :class="{ 'is-dark': uiStore.dark }">
     <div class="head-opt">
       <div class="head-title">
         <span class="head-title-icon">
@@ -185,7 +185,7 @@
       </div>
     </el-scrollbar>
 
-    <el-dialog v-model="showAdd" :title="$t('addAccount')">
+    <el-dialog v-model="showAdd" :title="$t('addAccount')" append-to-body align-center class="account-modal-dialog">
       <div class="container">
         <el-input v-model="addForm.email" ref="addRef" size="large" type="text" :placeholder="$t('emailAccount')" autocomplete="off" @keyup.enter="submit">
           <template #append>
@@ -227,7 +227,7 @@
       </div>
     </el-dialog>
 
-    <el-dialog v-model="setNameShow" :title="$t('changeUserName')">
+    <el-dialog v-model="setNameShow" :title="$t('changeUserName')" append-to-body align-center class="account-modal-dialog">
       <div class="container">
         <el-input v-model="accountName" size="large" type="text" :placeholder="$t('username')" autocomplete="off" @keyup.enter="setName" />
         <el-button class="btn" size="large" type="primary" @click="setName" :loading="setNameLoading">
@@ -276,12 +276,20 @@ const showNooneShortcut = computed(() => {
   return route.meta.name === 'email' || (route.meta.name === 'content' && route.params.mailbox === 'inbox')
 })
 
-const AVATAR_TONES = [
-  { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563EB' },
-  { bg: 'rgba(14, 165, 233, 0.13)', fg: '#0284C7' },
-  { bg: 'rgba(16, 185, 129, 0.12)', fg: '#059669' },
-  { bg: 'rgba(139, 92, 246, 0.12)', fg: '#7C3AED' },
-  { bg: 'rgba(236, 72, 153, 0.12)', fg: '#DB2777' },
+const AVATAR_TONES_LIGHT = [
+  { bg: 'rgba(37, 99, 235, 0.13)', fg: '#2563EB' },
+  { bg: 'rgba(14, 165, 233, 0.14)', fg: '#0284C7' },
+  { bg: 'rgba(16, 185, 129, 0.13)', fg: '#059669' },
+  { bg: 'rgba(139, 92, 246, 0.13)', fg: '#7C3AED' },
+  { bg: 'rgba(236, 72, 153, 0.13)', fg: '#DB2777' },
+]
+
+const AVATAR_TONES_DARK = [
+  { bg: 'rgba(59, 130, 246, 0.26)', fg: '#93C5FD' },
+  { bg: 'rgba(14, 165, 233, 0.26)', fg: '#7DD3FC' },
+  { bg: 'rgba(16, 185, 129, 0.26)', fg: '#6EE7B7' },
+  { bg: 'rgba(139, 92, 246, 0.26)', fg: '#D8B4FE' },
+  { bg: 'rgba(236, 72, 153, 0.26)', fg: '#F9A8D4' },
 ]
 
 function avatarStyle(seed) {
@@ -290,7 +298,8 @@ function avatarStyle(seed) {
   for (let i = 0; i < str.length; i++) {
     hash = (hash * 31 + str.charCodeAt(i)) >>> 0
   }
-  const tone = AVATAR_TONES[hash % AVATAR_TONES.length]
+  const tones = uiStore.dark ? AVATAR_TONES_DARK : AVATAR_TONES_LIGHT
+  const tone = tones[hash % tones.length]
   return { backgroundColor: tone.bg, color: tone.fg }
 }
 
@@ -699,8 +708,8 @@ function submit() {
   flex-direction: column;
   border-right: 1px solid var(--border-subtle);
   background-color: var(--surface-subtle);
-  backdrop-filter: blur(18px) saturate(165%);
-  -webkit-backdrop-filter: blur(18px) saturate(165%);
+  backdrop-filter: blur(var(--ws-blur, 20px)) saturate(165%);
+  -webkit-backdrop-filter: blur(var(--ws-blur, 20px)) saturate(165%);
   height: 100%;
   min-height: 0;
   overflow: hidden;
@@ -845,7 +854,7 @@ function submit() {
   text-align: left;
   padding: 12px 13px;
   border-radius: 13px;
-  background: var(--surface-primary);
+  background: var(--surface-elevated);
   border: 1px solid var(--border-subtle);
   box-shadow: var(--card-shadow);
   display: flex;
@@ -869,7 +878,7 @@ function submit() {
   }
 
   &:hover {
-    border-color: rgba(245, 158, 11, 0.42);
+    border-color: rgba(245, 158, 11, 0.45);
     box-shadow: var(--card-shadow-hover);
     transform: translateY(-1px);
 
@@ -884,14 +893,9 @@ function submit() {
   }
 
   &.item-choose {
-    background: linear-gradient(135deg, rgba(245, 158, 11, 0.09) 0%, var(--surface-elevated) 72%);
-    border-color: rgba(245, 158, 11, 0.46);
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.10) 0%, var(--surface-elevated) 72%);
+    border-color: rgba(245, 158, 11, 0.50);
     box-shadow: var(--card-shadow-hover);
-
-    :global(.dark) & {
-      background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, var(--surface-elevated) 75%);
-      border-color: rgba(251, 191, 36, 0.42);
-    }
 
     &::before {
       opacity: 1;
@@ -905,9 +909,6 @@ function submit() {
 
     .noone-shortcut-arrow {
       color: #d97706;
-      :global(.dark) & {
-        color: #fbbf24;
-      }
     }
   }
 }
@@ -965,7 +966,7 @@ function submit() {
   position: relative;
   padding: 13px 14px 11px;
   border-radius: 14px;
-  background: var(--surface-primary);
+  background: var(--surface-elevated);
   border: 1px solid var(--border-subtle);
   box-shadow: var(--card-shadow);
   cursor: pointer;
@@ -1001,15 +1002,9 @@ function submit() {
   }
 
   &.item-choose {
-    background: linear-gradient(145deg, rgba(37, 99, 235, 0.05) 0%, var(--surface-elevated) 62%);
-    border-color: rgba(37, 99, 235, 0.34);
-    box-shadow: 0 4px 14px -4px rgba(37, 99, 235, 0.14), var(--card-shadow);
-
-    :global(.dark) & {
-      background: linear-gradient(145deg, rgba(59, 130, 246, 0.14) 0%, var(--surface-elevated) 68%);
-      border-color: rgba(96, 165, 250, 0.36);
-      box-shadow: 0 4px 16px -4px rgba(37, 99, 235, 0.28), var(--card-shadow);
-    }
+    background: linear-gradient(145deg, rgba(37, 99, 235, 0.06) 0%, var(--surface-elevated) 62%);
+    border-color: rgba(37, 99, 235, 0.38);
+    box-shadow: 0 4px 14px -4px rgba(37, 99, 235, 0.16), var(--card-shadow);
 
     &::before {
       opacity: 1;
@@ -1334,5 +1329,84 @@ function submit() {
   opacity: 0;
   pointer-events: none;
   position: fixed;
+}
+
+.account-box.is-dark {
+  .noone-shortcut-icon {
+    background: rgba(245, 158, 11, 0.22);
+    color: #fbbf24;
+  }
+
+  .noone-shortcut-card.item-choose {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.22) 0%, var(--surface-elevated) 75%);
+    border-color: rgba(251, 191, 36, 0.52);
+
+    .noone-shortcut-arrow {
+      color: #fbbf24;
+    }
+  }
+
+  .account-card.item-choose {
+    background: linear-gradient(145deg, rgba(59, 130, 246, 0.22) 0%, var(--surface-elevated) 70%);
+    border-color: rgba(96, 165, 250, 0.52);
+    box-shadow: 0 6px 20px -6px rgba(37, 99, 235, 0.35), var(--card-shadow);
+  }
+
+  .primary-badge {
+    background: rgba(59, 130, 246, 0.24);
+    border-color: rgba(96, 165, 250, 0.32);
+    color: #93c5fd;
+  }
+
+  .card-footer {
+    border-top-color: rgba(148, 163, 184, 0.14);
+  }
+
+  .scope-pill {
+    background: rgba(38, 52, 82, 0.65);
+    color: #cbd5e1;
+
+    &.enabled {
+      background: rgba(59, 130, 246, 0.24);
+      border-color: rgba(96, 165, 250, 0.35);
+      color: #93c5fd;
+    }
+  }
+
+  .copy-pill-btn {
+    color: #cbd5e1;
+    border-color: rgba(148, 163, 184, 0.24);
+
+    &:hover {
+      background: rgba(51, 65, 95, 0.72);
+      border-color: rgba(148, 163, 184, 0.42);
+      color: #f8fafc;
+    }
+
+    &.copied {
+      background: rgba(16, 185, 129, 0.22);
+      border-color: rgba(52, 211, 153, 0.42);
+      color: #6ee7b7;
+    }
+  }
+
+  .corner-more-btn {
+    color: #94a3b8;
+    opacity: 0.85;
+
+    &:hover {
+      color: #f8fafc;
+      background: rgba(51, 65, 95, 0.72);
+    }
+  }
+}
+</style>
+
+<style lang="scss">
+.account-modal-dialog {
+  .el-input-group__append {
+    padding: 0 12px !important;
+    background: var(--surface-muted) !important;
+  }
 }
 </style>

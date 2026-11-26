@@ -458,13 +458,22 @@ defineExpose({
   total
 })
 
-const AVATAR_TONES = [
-  { bg: 'rgba(37, 99, 235, 0.12)', fg: '#2563EB' },
-  { bg: 'rgba(14, 165, 233, 0.13)', fg: '#0284C7' },
-  { bg: 'rgba(16, 185, 129, 0.12)', fg: '#059669' },
-  { bg: 'rgba(139, 92, 246, 0.12)', fg: '#7C3AED' },
-  { bg: 'rgba(245, 158, 11, 0.14)', fg: '#D97706' },
-  { bg: 'rgba(236, 72, 153, 0.12)', fg: '#DB2777' },
+const AVATAR_TONES_LIGHT = [
+  { bg: 'rgba(37, 99, 235, 0.13)', fg: '#2563EB' },
+  { bg: 'rgba(14, 165, 233, 0.14)', fg: '#0284C7' },
+  { bg: 'rgba(16, 185, 129, 0.13)', fg: '#059669' },
+  { bg: 'rgba(139, 92, 246, 0.13)', fg: '#7C3AED' },
+  { bg: 'rgba(245, 158, 11, 0.15)', fg: '#D97706' },
+  { bg: 'rgba(236, 72, 153, 0.13)', fg: '#DB2777' },
+];
+
+const AVATAR_TONES_DARK = [
+  { bg: 'rgba(59, 130, 246, 0.24)', fg: '#93C5FD' },
+  { bg: 'rgba(14, 165, 233, 0.24)', fg: '#7DD3FC' },
+  { bg: 'rgba(16, 185, 129, 0.24)', fg: '#6EE7B7' },
+  { bg: 'rgba(139, 92, 246, 0.25)', fg: '#D8B4FE' },
+  { bg: 'rgba(245, 158, 11, 0.24)', fg: '#FCD34D' },
+  { bg: 'rgba(236, 72, 153, 0.24)', fg: '#F9A8D4' },
 ];
 
 function avatarStyle(seed) {
@@ -473,7 +482,8 @@ function avatarStyle(seed) {
   for (let i = 0; i < str.length; i++) {
     hash = (hash * 31 + str.charCodeAt(i)) >>> 0
   }
-  const tone = AVATAR_TONES[hash % AVATAR_TONES.length]
+  const tones = uiStore.dark ? AVATAR_TONES_DARK : AVATAR_TONES_LIGHT
+  const tone = tones[hash % tones.length]
   return { backgroundColor: tone.bg, color: tone.fg }
 }
 
@@ -1092,8 +1102,8 @@ function renderHighlight(value) {
   overflow: hidden;
   height: 100%;
   background: var(--surface-primary);
-  backdrop-filter: blur(16px) saturate(155%);
-  -webkit-backdrop-filter: blur(16px) saturate(155%);
+  backdrop-filter: blur(var(--ws-blur, 20px)) saturate(165%);
+  -webkit-backdrop-filter: blur(var(--ws-blur, 20px)) saturate(165%);
 }
 
 .header-actions {

@@ -1,5 +1,8 @@
 <template>
   <div class="top-chrome" ref="chromeRef">
+    <!-- Dedicated glass backdrop layer so child popovers/drawers keep independent GPU backdrop-filter -->
+    <div class="header-glass-layer" aria-hidden="true"></div>
+
     <!-- Single-Row Top Bar -->
     <div class="header-bar">
       <div class="header-left">
@@ -501,11 +504,20 @@ onBeforeUnmount(() => {
 <style lang="scss" scoped>
 .top-chrome {
   position: relative;
-  background: var(--header-glass);
-  backdrop-filter: saturate(180%) blur(12px);
-  border-bottom: 1px solid var(--border-subtle);
+  background: transparent;
   user-select: none;
   z-index: 80;
+}
+
+.header-glass-layer {
+  position: absolute;
+  inset: 0;
+  background: var(--header-glass);
+  backdrop-filter: saturate(185%) blur(var(--ws-blur, 18px));
+  -webkit-backdrop-filter: saturate(185%) blur(var(--ws-blur, 18px));
+  border-bottom: 1px solid var(--border-subtle);
+  pointer-events: none;
+  z-index: 81;
 }
 
 .header-bar {
@@ -804,9 +816,10 @@ onBeforeUnmount(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(15, 23, 42, 0.24);
-  backdrop-filter: blur(2px);
-  z-index: 80;
+  background: rgba(15, 23, 42, 0.28);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 79;
 
   @media (max-width: 767px) {
     top: 52px;
@@ -818,10 +831,12 @@ onBeforeUnmount(() => {
   top: 100%;
   left: 0;
   right: 0;
-  background: var(--surface-elevated);
-  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-popover);
+  backdrop-filter: blur(32px) saturate(190%);
+  -webkit-backdrop-filter: blur(32px) saturate(190%);
+  border-bottom: 1px solid var(--border-strong);
   box-shadow: var(--shadow-lg);
-  z-index: 81;
+  z-index: 80;
 }
 
 .drawer-inner {
@@ -869,7 +884,7 @@ onBeforeUnmount(() => {
   padding: 0 14px 0 11px;
   border-radius: 10px;
   border: 1px solid var(--border-subtle);
-  background: var(--surface-subtle);
+  background: var(--surface-elevated);
   color: var(--text-secondary);
   font-size: 13.5px;
   font-weight: 500;
@@ -932,7 +947,7 @@ onBeforeUnmount(() => {
 
 .nav-drawer-drop-enter-active,
 .nav-drawer-drop-leave-active {
-  transition: opacity 180ms ease, transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 110ms ease-out, transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .nav-drawer-drop-enter-from,
@@ -1022,7 +1037,7 @@ onBeforeUnmount(() => {
 .quota-card {
   padding: 10px;
   border-radius: 10px;
-  background: var(--surface-subtle);
+  background: var(--surface-muted);
   border: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;

@@ -439,5 +439,13 @@ const zh = {
     opacityPresetGlass: '通透',
     opacityPresetBalanced: '均衡',
     opacityPresetSolid: '纯净',
+    auroraThemeTitle: '极光背景主题',
+    auroraThemeDesc: '提供 6 套动态极光风格，浅色与暗黑模式均独立调校',
+    auroraArctic: '冰川极光',
+    auroraNebula: '紫罗兰星云',
+    auroraBorealis: '翡翠极光',
+    auroraSunset: '晚霞琥珀',
+    auroraSakura: '樱雾流光',
+    auroraSlate: '极简云雾',
 }
 export default zh

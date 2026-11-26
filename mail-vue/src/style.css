@@ -83,8 +83,10 @@ button, input, select, textarea {
     --shadow-lg: 0 24px 56px -12px rgba(15, 23, 42, 0.18), 0 6px 18px -4px rgba(15, 23, 42, 0.08);
     --card-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 4px 14px -4px rgba(15, 23, 42, 0.05);
     --card-shadow-hover: 0 2px 6px rgba(15, 23, 42, 0.05), 0 10px 24px -8px rgba(15, 23, 42, 0.09);
-    --row-hover-tint: rgba(15, 23, 42, 0.02);
+    --row-hover-tint: rgba(15, 23, 42, 0.025);
     --header-glass: rgba(255, 255, 255, 0.86);
+    --surface-popover: rgba(255, 255, 255, 0.97);
+    --ws-blur: 20px;
 
     --radius-sm: 6px;
     --radius-md: 8px;
@@ -149,60 +151,62 @@ button, input, select, textarea {
    Design Tokens — Dark Mode
    =========================== */
 .dark {
-    --app-canvas: #0B0D12;
-    --surface-primary: #11141B;
-    --surface-elevated: #171B24;
-    --surface-subtle: #141821;
-    --surface-muted: #1D222D;
-    --surface-hover: #1A1F2B;
-    --surface-active: rgba(59, 130, 246, 0.14);
+    --app-canvas: #11192C;
+    --surface-primary: #182238;
+    --surface-elevated: #1E2942;
+    --surface-subtle: #151E33;
+    --surface-muted: #24324F;
+    --surface-hover: #253352;
+    --surface-active: rgba(59, 130, 246, 0.22);
 
-    --aside-bg: #0E1117;
-    --aside-item-hover: rgba(255, 255, 255, 0.05);
-    --aside-item-active: #1A1F2B;
-    --aside-item-active-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 0 1px rgba(255, 255, 255, 0.08);
+    --aside-bg: #141C30;
+    --aside-item-hover: rgba(148, 163, 184, 0.09);
+    --aside-item-active: #24324F;
+    --aside-item-active-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 0 1px rgba(148, 163, 184, 0.16);
 
-    --border-subtle: rgba(255, 255, 255, 0.08);
-    --border-strong: rgba(255, 255, 255, 0.14);
-    --border-hairline: inset 0 -1px 0 0 rgba(255, 255, 255, 0.06);
+    --border-subtle: rgba(148, 163, 184, 0.17);
+    --border-strong: rgba(148, 163, 184, 0.30);
+    --border-hairline: inset 0 -1px 0 0 rgba(148, 163, 184, 0.12);
 
-    --text-primary: #F1F5F9;
-    --text-secondary: #94A3B8;
-    --text-muted: #64748B;
+    --text-primary: #F8FAFC;
+    --text-secondary: #CBD5E1;
+    --text-muted: #94A3B8;
 
     --brand-primary: #3B82F6;
     --brand-primary-hover: #60A5FA;
-    --brand-primary-soft: rgba(59, 130, 246, 0.15);
-    --brand-primary-ring: 0 0 0 3px rgba(59, 130, 246, 0.22);
+    --brand-primary-soft: rgba(59, 130, 246, 0.20);
+    --brand-primary-ring: 0 0 0 3px rgba(59, 130, 246, 0.28);
 
-    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
-    --shadow-sm: 0 2px 10px -2px rgba(0, 0, 0, 0.45);
-    --shadow-md: 0 12px 32px -6px rgba(0, 0, 0, 0.65);
-    --shadow-lg: 0 24px 60px -12px rgba(0, 0, 0, 0.8);
-    --card-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045), 0 2px 10px -2px rgba(0, 0, 0, 0.35);
-    --card-shadow-hover: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 10px 26px -6px rgba(0, 0, 0, 0.55);
-    --row-hover-tint: rgba(255, 255, 255, 0.025);
-    --header-glass: rgba(17, 20, 27, 0.84);
+    --shadow-xs: 0 1px 3px rgba(0, 0, 0, 0.35);
+    --shadow-sm: 0 3px 12px -2px rgba(0, 0, 0, 0.45);
+    --shadow-md: 0 12px 32px -6px rgba(0, 0, 0, 0.6);
+    --shadow-lg: 0 24px 60px -12px rgba(0, 0, 0, 0.72);
+    --card-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 4px 16px -4px rgba(0, 0, 0, 0.36);
+    --card-shadow-hover: inset 0 1px 0 rgba(255, 255, 255, 0.11), 0 10px 26px -6px rgba(0, 0, 0, 0.5);
+    --row-hover-tint: rgba(148, 163, 184, 0.06);
+    --header-glass: rgba(20, 29, 50, 0.86);
+    --surface-popover: rgba(24, 34, 58, 0.97);
 
-    --scrollbar-thumb: rgba(255, 255, 255, 0.15);
+    --scrollbar-thumb: rgba(148, 163, 184, 0.28);
 
     --el-color-primary: #3B82F6;
     --el-color-primary-dark-2: #2563EB;
     --el-color-primary-light-3: #60A5FA;
     --el-color-primary-light-5: #93C5FD;
     --el-color-primary-light-7: #1E3A8A;
-    --el-color-primary-light-8: rgba(59, 130, 246, 0.16);
-    --el-color-primary-light-9: rgba(59, 130, 246, 0.12);
-    --el-bg-color: #11141B;
-    --el-bg-color-overlay: #171B24;
-    --el-fill-color-light: #1A1F2A;
-    --el-fill-color-lighter: #151922;
-    --el-text-color-primary: #F1F5F9;
-    --el-text-color-regular: #CBD5E1;
-    --el-text-color-secondary: #94A3B8;
-    --el-border-color: rgba(255, 255, 255, 0.09) !important;
-    --el-border-color-light: rgba(255, 255, 255, 0.08);
-    --el-border-color-lighter: rgba(255, 255, 255, 0.06);
+    --el-color-primary-light-8: rgba(59, 130, 246, 0.22);
+    --el-color-primary-light-9: rgba(59, 130, 246, 0.16);
+    --el-bg-color: #1A243B;
+    --el-bg-color-overlay: #202C47;
+    --el-fill-color-light: #22304D;
+    --el-fill-color-lighter: #1C2740;
+    --el-text-color-primary: #F8FAFC;
+    --el-text-color-regular: #E2E8F0;
+    --el-text-color-secondary: #CBD5E1;
+    --el-text-color-placeholder: #94A3B8;
+    --el-border-color: rgba(148, 163, 184, 0.22) !important;
+    --el-border-color-light: rgba(148, 163, 184, 0.16);
+    --el-border-color-lighter: rgba(148, 163, 184, 0.12);
     --el-box-shadow-light: var(--shadow-md);
 
     --extra-light-fill: var(--surface-subtle);
@@ -212,24 +216,24 @@ button, input, select, textarea {
     --header-actions-border: var(--border-hairline);
     --aside-backgound: var(--aside-bg);
     --aside-menu-active-background: var(--aside-item-active);
-    --loadding-background: rgba(11, 13, 18, 0.72);
+    --loadding-background: rgba(17, 25, 44, 0.72);
     --dark-border: var(--border-strong);
     --base-fill: var(--surface-muted);
     --regular-text-color: var(--text-secondary);
     --light-border-color: var(--border-subtle);
-    --aside-right-border: 4px 0 28px rgba(0, 0, 0, 0.55);
+    --aside-right-border: 4px 0 28px rgba(0, 0, 0, 0.5);
     --choose-account-background: var(--surface-active);
     --email-scroll-content-color: var(--text-muted);
-    --search-hit-background: rgba(234, 179, 8, 0.30);
-    --email-hover-background: rgba(255, 255, 255, 0.035);
-    --email-right-click-background: rgba(59, 130, 246, 0.12);
-    --login-border: rgba(255, 255, 255, 0.09);
-    --form-desc-color: #94A3B8;
+    --search-hit-background: rgba(234, 179, 8, 0.34);
+    --email-hover-background: rgba(148, 163, 184, 0.08);
+    --email-right-click-background: rgba(59, 130, 246, 0.18);
+    --login-border: rgba(148, 163, 184, 0.18);
+    --form-desc-color: #CBD5E1;
     --login-switch-color: #60A5FA;
     --scrollbar-track-color: transparent;
     --base-border-color: var(--border-subtle);
     --secondary-text-color: var(--text-muted);
-    --message-block-color: rgba(17, 20, 27, 0.12);
+    --message-block-color: rgba(17, 25, 44, 0.1);
 }
 
 /* ===========================
@@ -358,10 +362,37 @@ button, input, select, textarea {
 
 .el-dialog {
     border-radius: 16px !important;
-    background: var(--surface-elevated) !important;
-    border: 1px solid var(--border-subtle) !important;
+    background: var(--surface-popover) !important;
+    backdrop-filter: blur(28px) saturate(185%);
+    -webkit-backdrop-filter: blur(28px) saturate(185%);
+    border: 1px solid var(--border-strong) !important;
     box-shadow: var(--shadow-lg) !important;
     padding: 20px 22px !important;
+}
+
+.account-modal-dialog.el-dialog {
+    width: 420px !important;
+    max-width: calc(100vw - 32px) !important;
+}
+
+.dark .el-checkbox__inner {
+    background-color: rgba(30, 41, 66, 0.9) !important;
+    border-color: rgba(148, 163, 184, 0.45) !important;
+}
+
+.dark .el-checkbox__inner:hover {
+    border-color: var(--brand-primary-hover) !important;
+}
+
+.dark .el-checkbox__input.is-checked .el-checkbox__inner,
+.dark .el-checkbox__input.is-indeterminate .el-checkbox__inner {
+    background-color: var(--brand-primary) !important;
+    border-color: var(--brand-primary) !important;
+}
+
+.dark .el-switch:not(.is-checked) .el-switch__core {
+    background-color: rgba(148, 163, 184, 0.3) !important;
+    border-color: rgba(148, 163, 184, 0.34) !important;
 }
 
 .el-dialog__header {
@@ -388,9 +419,16 @@ button, input, select, textarea {
 .el-popper.is-light,
 .el-dropdown__popper.el-popper {
     border-radius: 12px !important;
-    background: var(--surface-elevated) !important;
-    border: 1px solid var(--border-subtle) !important;
-    box-shadow: var(--shadow-md) !important;
+    background: var(--surface-popover) !important;
+    backdrop-filter: blur(28px) saturate(185%) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(185%) !important;
+    border: 1px solid var(--border-strong) !important;
+    box-shadow: var(--shadow-lg) !important;
+}
+
+.el-popper.is-light .el-popper__arrow::before {
+    background: var(--surface-popover) !important;
+    border-color: var(--border-strong) !important;
 }
 
 .el-dropdown-menu {
