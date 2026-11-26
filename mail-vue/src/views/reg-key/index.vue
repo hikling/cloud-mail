@@ -564,10 +564,12 @@ function openAdd() {
   background: var(--app-canvas);
 
   .code-box {
-    padding: 18px 20px 28px;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 20px 24px 36px;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 14px;
+    gap: 16px;
 
     @media (max-width: 767px) {
       padding: 14px 12px 24px;

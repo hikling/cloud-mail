@@ -103,7 +103,10 @@ const handleResize = () => {
   position: fixed;
   @media (max-width: 767px) {
     position: fixed;
-    inset: 0;
+    top: 92px;
+    left: 0;
+    right: 0;
+    bottom: 0;
     background: rgba(15, 23, 42, 0.45);
     backdrop-filter: blur(3px);
     z-index: 95;
@@ -120,9 +123,9 @@ const handleResize = () => {
   transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
   @media (max-width: 767px) {
     position: fixed;
-    top: 54px;
+    top: 92px;
     left: 0;
-    height: calc(100% - 54px);
+    height: calc(100% - 92px);
     z-index: 100;
     width: 272px;
     box-shadow: var(--shadow-lg);

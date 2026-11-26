@@ -592,9 +592,9 @@ function createSendGauge() {
 }
 
 .analysis {
-  max-width: 1480px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 22px 24px 36px;
+  padding: 24px 28px 40px;
   gap: 18px;
   display: grid;
   grid-auto-rows: min-content;

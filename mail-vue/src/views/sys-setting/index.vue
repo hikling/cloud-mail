@@ -5,534 +5,612 @@
     </div>
     <el-scrollbar class="scroll" v-if="!firstLoading">
       <div class="scroll-body">
-        <div class="page-head">
-          <div class="page-title">{{ $t('SystemSettings') }}</div>
-        </div>
+        <div class="settings-workspace">
+          <!-- Left Sticky Category Navigation -->
+          <aside class="settings-nav" aria-label="Settings sections">
+            <h1 class="workspace-title">{{ $t('SystemSettings') }}</h1>
+            <div class="nav-items">
+              <button
+                v-for="sec in settingSections"
+                :key="sec.id"
+                type="button"
+                class="sec-nav-btn"
+                :class="{ active: activeSection === sec.id }"
+                @click="activeSection = sec.id"
+              >
+                <Icon :icon="sec.icon" width="16" height="16" class="sec-nav-icon" />
+                <span>{{ sec.labelKey ? $t(sec.labelKey) : sec.rawLabel }}</span>
+              </button>
+            </div>
+          </aside>
 
-        <div class="card-grid">
-          <!-- Basic Settings Card -->
-          <div class="settings-card">
-            <div class="card-head">
-              <span class="card-icon card-icon--blue"><Icon icon="lucide:globe" width="16" height="16"/></span>
-              <span class="card-title">{{ $t('websiteSetting') }}</span>
-            </div>
-            <div class="card-content">
-              <div class="setting-item">
-                <div class="item-label"><span>{{ $t('websiteReg') }}</span></div>
-                <div class="item-control">
-                  <el-switch @change="change" :before-change="beforeChange" :active-value="0" :inactive-value="1"
-                             v-model="setting.register"/>
-                </div>
+          <!-- Right Single-Column Focused Settings Panel -->
+          <main class="settings-stage">
+            <!-- 1. Basic Settings -->
+            <section v-if="activeSection === 'website'" class="settings-section">
+              <div class="section-head">
+                <span class="card-icon card-icon--blue"><Icon icon="lucide:globe" width="17" height="17"/></span>
+                <h2 class="section-title">{{ $t('websiteSetting') }}</h2>
               </div>
-              <div class="setting-item">
-                <div class="item-label"><span>{{ $t('loginDomain') }}</span></div>
-                <div class="item-control">
-                  <el-switch @change="change" :before-change="beforeChange" :active-value="1" :inactive-value="0"
-                             v-model="setting.loginDomain"/>
+              <div class="setting-sheet">
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('websiteReg') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <el-switch @change="change" :before-change="beforeChange" :active-value="0" :inactive-value="1"
+                               v-model="setting.register"/>
+                  </div>
                 </div>
-              </div>
-              <div class="setting-item">
-                <div class="item-label"><span>{{ $t('regKey') }}</span></div>
-                <div class="item-control">
-                  <el-select
-                      @change="change"
-                      :style="`width: ${ locale === 'en' ? 112 : 96 }px;`"
-                      v-model="setting.regKey"
-                      placeholder="Select"
-                  >
-                    <el-option
-                        v-for="item in regKeyOptions"
-                        :key="item.value"
-                        :label="item.label"
-                        :value="item.value"
-                    />
-                  </el-select>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('loginDomain') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <el-switch @change="change" :before-change="beforeChange" :active-value="1" :inactive-value="0"
+                               v-model="setting.loginDomain"/>
+                  </div>
                 </div>
-              </div>
-              <div class="setting-item">
-                <div class="item-label"><span>{{ $t('addAccount') }}</span></div>
-                <div class="item-control">
-                  <el-switch @change="change" :before-change="beforeChange" :active-value="0" :inactive-value="1"
-                             v-model="setting.addEmail"/>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('regKey') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <el-select
+                        @change="change"
+                        :style="`width: ${ locale === 'en' ? 124 : 108 }px;`"
+                        v-model="setting.regKey"
+                        placeholder="Select"
+                    >
+                      <el-option
+                          v-for="item in regKeyOptions"
+                          :key="item.value"
+                          :label="item.label"
+                          :value="item.value"
+                      />
+                    </el-select>
+                  </div>
                 </div>
-              </div>
-              <div class="setting-item">
-                <div class="item-label">
-                  <span>{{ $t('multipleEmail') }}</span>
-                  <el-tooltip effect="dark" :content="$t('multipleEmailDesc')">
-                    <span class="tip-trigger"><Icon class="warning" icon="lucide:help-circle" width="15" height="15"/></span>
-                  </el-tooltip>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('addAccount') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <el-switch @change="change" :before-change="beforeChange" :active-value="0" :inactive-value="1"
+                               v-model="setting.addEmail"/>
+                  </div>
                 </div>
-                <div class="item-control">
-                  <el-switch @change="change" :before-change="beforeChange" :active-value="0" :inactive-value="1"
-                             v-model="setting.manyEmail"/>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('multipleEmail') }}</div>
+                    <div class="row-desc">{{ $t('multipleEmailDesc') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <el-switch @change="change" :before-change="beforeChange" :active-value="0" :inactive-value="1"
+                               v-model="setting.manyEmail"/>
+                  </div>
                 </div>
-              </div>
-              <div class="setting-item">
-                <div class="item-label">
-                  <span>{{ $t('syncDelete') }}</span>
-                  <el-tooltip effect="dark" :content="$t('syncDeleteDesc')">
-                    <span class="tip-trigger"><Icon class="warning" icon="lucide:help-circle" width="15" height="15"/></span>
-                  </el-tooltip>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('syncDelete') }}</div>
+                    <div class="row-desc">{{ $t('syncDeleteDesc') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <el-switch @change="change" :before-change="beforeChange" :active-value="0" :inactive-value="1"
+                               v-model="setting.syncDelete"/>
+                  </div>
                 </div>
-                <div class="item-control">
-                  <el-switch @change="change" :before-change="beforeChange" :active-value="0" :inactive-value="1"
-                             v-model="setting.syncDelete"/>
-                </div>
-              </div>
-              <div class="setting-item">
-                <div class="item-label">
-                  <span>{{ $t('emailPrefix') }}</span>
-                </div>
-                <div class="item-control forward">
-                  <button type="button" class="opt-pill" @click="openEmailPrefix">
-                    <Icon icon="lucide:sliders" width="14" height="14"/>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Personalization Settings Card -->
-          <div class="settings-card">
-            <div class="card-head">
-              <span class="card-icon card-icon--violet"><Icon icon="lucide:palette" width="16" height="16"/></span>
-              <span class="card-title">{{ $t('customization') }}</span>
-            </div>
-            <div class="card-content">
-              <div class="setting-item">
-                <div class="item-label title-item"><span>{{ $t('websiteTitle') }}</span></div>
-                <div class="item-control email-title">
-                  <span class="value-ellipsis">{{ setting.title }}</span>
-                  <button type="button" class="opt-pill" @click="editTitleShow = true">
-                    <Icon icon="lucide:square-pen" width="14" height="14"/>
-                  </button>
-                </div>
-              </div>
-              <div class="setting-item">
-                <div class="item-label title-item"><span>{{ $t('loginBoxOpacity') }}</span></div>
-                <div class="item-control">
-                  <el-input-number size="small" v-model="loginOpacity" @change="opacityChange" :precision="2"
-                                   :step="0.01" :max="1" :min="0"/>
-                </div>
-              </div>
-              <div class="setting-item personalized">
-                <div class="item-label"><span>{{ $t('loginBackground') }}</span></div>
-                <div class="item-control bg-control">
-                  <el-image
-                      class="background"
-                      :src="cvtR2Url(setting.background)"
-                      :preview-src-list="[cvtR2Url(setting.background)]"
-                      show-progress
-                      fit="cover"
-                  >
-                    <template #error>
-                      <div class="error-image">
-                        <Icon icon="ph:image" width="22" height="22"/>
-                      </div>
-                    </template>
-                  </el-image>
-                  <div class="background-btn">
-                    <button type="button" class="opt-pill" @click="openSetBackground">
-                      <Icon icon="lucide:square-pen" width="14" height="14"/>
-                    </button>
-                    <button type="button" class="opt-pill opt-pill--danger" @click="delBackground">
-                      <Icon icon="lucide:trash-2" width="14" height="14"/>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('emailPrefix') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <button type="button" class="opt-pill opt-pill--text" @click="openEmailPrefix">
+                      <Icon icon="lucide:sliders" width="14" height="14"/>
+                      <span>{{ $t('tabSetting') }}</span>
                     </button>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
+            </section>
 
-          <!-- Email Sending Settings Card -->
-          <div class="settings-card">
-            <div class="card-head">
-              <span class="card-icon card-icon--indigo"><Icon icon="lucide:mails" width="16" height="16"/></span>
-              <span class="card-title">{{ $t('emailSetting') }}</span>
-            </div>
-            <div class="card-content">
-              <div class="setting-item">
-                <div class="item-label"><span>{{ $t('receiveEmail') }}</span></div>
-                <div class="item-control">
-                  <el-switch @change="change" :before-change="beforeChange" :active-value="0" :inactive-value="1"
-                             v-model="setting.receive"/>
+            <!-- 2. Customization -->
+            <section v-else-if="activeSection === 'customization'" class="settings-section">
+              <div class="section-head">
+                <span class="card-icon card-icon--violet"><Icon icon="lucide:palette" width="17" height="17"/></span>
+                <h2 class="section-title">{{ $t('customization') }}</h2>
+              </div>
+              <div class="setting-sheet">
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('websiteTitle') }}</div>
+                  </div>
+                  <div class="row-control email-title">
+                    <span class="value-ellipsis">{{ setting.title }}</span>
+                    <button type="button" class="opt-pill" @click="editTitleShow = true">
+                      <Icon icon="lucide:square-pen" width="14" height="14"/>
+                    </button>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('loginBoxOpacity') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <el-input-number size="small" v-model="loginOpacity" @change="opacityChange" :precision="2"
+                                     :step="0.01" :max="1" :min="0"/>
+                  </div>
+                </div>
+                <div class="setting-row setting-row--top">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('loginBackground') }}</div>
+                    <div class="row-desc">{{ $t('backgroundWarning') }}</div>
+                  </div>
+                  <div class="row-control bg-control">
+                    <el-image
+                        class="background"
+                        :src="cvtR2Url(setting.background)"
+                        :preview-src-list="[cvtR2Url(setting.background)]"
+                        show-progress
+                        fit="cover"
+                    >
+                      <template #error>
+                        <div class="error-image">
+                          <Icon icon="ph:image" width="20" height="20"/>
+                        </div>
+                      </template>
+                    </el-image>
+                    <div class="background-btn">
+                      <button type="button" class="opt-pill" @click="openSetBackground">
+                        <Icon icon="lucide:square-pen" width="14" height="14"/>
+                      </button>
+                      <button type="button" class="opt-pill opt-pill--danger" @click="delBackground">
+                        <Icon icon="lucide:trash-2" width="14" height="14"/>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="setting-item">
-                <div class="item-label">
-                  <span>{{ $t('autoRefresh') }}</span>
-                  <el-tooltip effect="dark" :content="$t('autoRefreshDesc')">
-                    <span class="tip-trigger"><Icon class="warning" icon="lucide:help-circle" width="15" height="15"/></span>
-                  </el-tooltip>
-                </div>
-                <div class="item-control">
-                  <el-switch @change="change" :before-change="beforeChange" :active-value="2" :inactive-value="1"
-                             v-model="setting.autoRefresh"/>
-                </div>
-              </div>
-              <div class="setting-item">
-                <div class="item-label"><span>{{ $t('sendEmail') }}</span></div>
-                <div class="item-control">
-                  <el-switch @change="change" :before-change="beforeChange" :active-value="0" :inactive-value="1"
-                             v-model="setting.send"/>
-                </div>
-              </div>
-              <div class="setting-item">
-                <div class="item-label">
-                  <span>{{ $t('noRecipientTitle') }}</span>
-                  <el-tooltip effect="dark" :content="$t('noRecipientDesc')">
-                    <span class="tip-trigger"><Icon class="warning" icon="lucide:help-circle" width="15" height="15"/></span>
-                  </el-tooltip>
-                </div>
-                <div class="item-control">
-                  <el-switch @change="change" :before-change="beforeChange" :active-value="0" :inactive-value="1"
-                             v-model="setting.noRecipient"/>
-                </div>
-              </div>
-              <div class="setting-item">
-                <div class="item-label"><span>{{ setting.hasCfEmail ? $t('cloudflareEmailSending') : $t('resendToken') }}</span></div>
-                <div class="item-control" v-if="setting.hasCfEmail">
-                  <span class="status-pill is-on">{{ $t('enabled') }}</span>
-                </div>
-                <div class="item-control btn-group" v-else>
-                  <button type="button" class="opt-pill" @click="openResendList">
-                    <Icon icon="lucide:list" width="14" height="14"/>
-                  </button>
-                  <button type="button" class="opt-pill opt-pill--primary" @click="openResendForm">
-                    <Icon icon="lucide:plus" width="14" height="14"/>
-                  </button>
-                </div>
-              </div>
-              <div class="setting-item">
-                <div class="item-label"><span>{{ $t('blackList') }}</span></div>
-                <div class="item-control">
-                  <button type="button" class="opt-pill" @click="openBlackListForm">
-                    <Icon icon="lucide:sliders" width="14" height="14"/>
-                  </button>
-                </div>
-              </div>
-              <div class="setting-item">
-                <div class="item-label">
-                  <span>{{ $t('autoClean') }}</span>
-                  <el-tooltip effect="dark" :content="$t('autoCleanDesc')">
-                    <span class="tip-trigger"><Icon class="warning" icon="lucide:help-circle" width="15" height="15"/></span>
-                  </el-tooltip>
-                </div>
-                <div class="item-control forward">
-                  <span class="status-pill" :class="{ 'is-on': setting.autoCleanDays > 0 }">
-                    {{ setting.autoCleanDays > 0 ? $t('autoCleanRetain', { days: setting.autoCleanDays }) : $t('disabled') }}
-                  </span>
-                  <button type="button" class="opt-pill" @click="openAutoClean">
-                    <Icon icon="lucide:sliders" width="14" height="14"/>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+            </section>
 
-          <!-- Email Push Card -->
-          <div class="settings-card">
-            <div class="card-head">
-              <span class="card-icon card-icon--amber"><Icon icon="lucide:bell" width="16" height="16"/></span>
-              <span class="card-title">{{ $t('emailPush') }}</span>
-            </div>
-            <div class="card-content">
-              <div class="setting-item">
-                <div class="item-label"><span>{{ $t('tgBot') }}</span></div>
-                <div class="item-control forward">
-                  <span class="status-pill" :class="{ 'is-on': setting.tgBotStatus === 0 }">
-                    {{ setting.tgBotStatus === 0 ? $t('enabled') : $t('disabled') }}
-                  </span>
-                  <button type="button" class="opt-pill" @click="openTgSetting">
-                    <Icon icon="lucide:sliders" width="14" height="14"/>
-                  </button>
+            <!-- 3. Email Settings -->
+            <section v-else-if="activeSection === 'email'" class="settings-section">
+              <div class="section-head">
+                <span class="card-icon card-icon--indigo"><Icon icon="lucide:mails" width="17" height="17"/></span>
+                <h2 class="section-title">{{ $t('emailSetting') }}</h2>
+              </div>
+              <div class="setting-sheet">
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('receiveEmail') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <el-switch @change="change" :before-change="beforeChange" :active-value="0" :inactive-value="1"
+                               v-model="setting.receive"/>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('autoRefresh') }}</div>
+                    <div class="row-desc">{{ $t('autoRefreshDesc') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <el-switch @change="change" :before-change="beforeChange" :active-value="2" :inactive-value="1"
+                               v-model="setting.autoRefresh"/>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('sendEmail') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <el-switch @change="change" :before-change="beforeChange" :active-value="0" :inactive-value="1"
+                               v-model="setting.send"/>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('noRecipientTitle') }}</div>
+                    <div class="row-desc">{{ $t('noRecipientDesc') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <el-switch @change="change" :before-change="beforeChange" :active-value="0" :inactive-value="1"
+                               v-model="setting.noRecipient"/>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ setting.hasCfEmail ? $t('cloudflareEmailSending') : $t('resendToken') }}</div>
+                  </div>
+                  <div class="row-control" v-if="setting.hasCfEmail">
+                    <span class="status-pill is-on">{{ $t('enabled') }}</span>
+                  </div>
+                  <div class="row-control btn-group" v-else>
+                    <button type="button" class="opt-pill" @click="openResendList">
+                      <Icon icon="lucide:list" width="14" height="14"/>
+                    </button>
+                    <button type="button" class="opt-pill opt-pill--primary" @click="openResendForm">
+                      <Icon icon="lucide:plus" width="14" height="14"/>
+                    </button>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('blackList') }}</div>
+                    <div class="row-desc">{{ $t('blackListDesc') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <button type="button" class="opt-pill opt-pill--text" @click="openBlackListForm">
+                      <Icon icon="lucide:sliders" width="14" height="14"/>
+                      <span>{{ $t('tabSetting') }}</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('autoClean') }}</div>
+                    <div class="row-desc">{{ $t('autoCleanDesc') }}</div>
+                  </div>
+                  <div class="row-control inline-controls">
+                    <span class="status-pill" :class="{ 'is-on': setting.autoCleanDays > 0 }">
+                      {{ setting.autoCleanDays > 0 ? $t('autoCleanRetain', { days: setting.autoCleanDays }) : $t('disabled') }}
+                    </span>
+                    <button type="button" class="opt-pill" @click="openAutoClean">
+                      <Icon icon="lucide:sliders" width="14" height="14"/>
+                    </button>
+                  </div>
                 </div>
               </div>
-              <div class="setting-item">
-                <div class="item-label"><span>{{ $t('otherEmail') }}</span></div>
-                <div class="item-control forward">
-                  <span class="status-pill" :class="{ 'is-on': setting.forwardStatus === 0 }">
-                    {{ setting.forwardStatus === 0 ? $t('enabled') : $t('disabled') }}
-                  </span>
-                  <button type="button" class="opt-pill" @click="openThirdEmailSetting">
-                    <Icon icon="lucide:sliders" width="14" height="14"/>
-                  </button>
-                </div>
-              </div>
-              <div class="setting-item">
-                <div class="item-label"><span>{{ $t('webhook') }}</span></div>
-                <div class="item-control forward">
-                  <span class="status-pill" :class="{ 'is-on': setting.webhookStatus === 0 }">
-                    {{ setting.webhookStatus === 0 ? $t('enabled') : $t('disabled') }}
-                  </span>
-                  <button type="button" class="opt-pill" @click="openWebhookSetting">
-                    <Icon icon="lucide:sliders" width="14" height="14"/>
-                  </button>
-                </div>
-              </div>
-              <div class="setting-item">
-                <div class="item-label"><span>{{ $t('forwardingRules') }}</span></div>
-                <div class="item-control forward">
-                  <span class="status-pill is-neutral">
-                    {{ setting.ruleType === 0 ? $t('forwardAll') : $t('rules') }}
-                  </span>
-                  <button type="button" class="opt-pill" @click="openForwardRules">
-                    <Icon icon="lucide:sliders" width="14" height="14"/>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+            </section>
 
-          <!-- Object Storage Card -->
-          <div class="settings-card">
-            <div class="card-head">
-              <span class="card-icon card-icon--emerald"><Icon icon="lucide:database" width="16" height="16"/></span>
-              <span class="card-title">{{ $t('oss') }}</span>
-            </div>
-            <div class="card-content">
-              <div class="setting-item">
-                <div class="item-label">
-                  <span>{{ $t('s3Configuration') }}</span>
+            <!-- 4. Email Push -->
+            <section v-else-if="activeSection === 'push'" class="settings-section">
+              <div class="section-head">
+                <span class="card-icon card-icon--amber"><Icon icon="lucide:bell" width="17" height="17"/></span>
+                <h2 class="section-title">{{ $t('emailPush') }}</h2>
+              </div>
+              <div class="setting-sheet">
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('tgBot') }}</div>
+                    <div class="row-desc">{{ $t('tgBotDesc') }}</div>
+                  </div>
+                  <div class="row-control inline-controls">
+                    <span class="status-pill" :class="{ 'is-on': setting.tgBotStatus === 0 }">
+                      {{ setting.tgBotStatus === 0 ? $t('enabled') : $t('disabled') }}
+                    </span>
+                    <button type="button" class="opt-pill" @click="openTgSetting">
+                      <Icon icon="lucide:sliders" width="14" height="14"/>
+                    </button>
+                  </div>
                 </div>
-                <div class="item-control r2domain">
-                  <button type="button" class="opt-pill" @click="addS3Show = true">
-                    <Icon icon="lucide:sliders" width="14" height="14"/>
-                  </button>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('otherEmail') }}</div>
+                    <div class="row-desc">{{ $t('otherEmailDesc') }}</div>
+                  </div>
+                  <div class="row-control inline-controls">
+                    <span class="status-pill" :class="{ 'is-on': setting.forwardStatus === 0 }">
+                      {{ setting.forwardStatus === 0 ? $t('enabled') : $t('disabled') }}
+                    </span>
+                    <button type="button" class="opt-pill" @click="openThirdEmailSetting">
+                      <Icon icon="lucide:sliders" width="14" height="14"/>
+                    </button>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('webhook') }}</div>
+                    <div class="row-desc">{{ $t('webhookDesc') }}</div>
+                  </div>
+                  <div class="row-control inline-controls">
+                    <span class="status-pill" :class="{ 'is-on': setting.webhookStatus === 0 }">
+                      {{ setting.webhookStatus === 0 ? $t('enabled') : $t('disabled') }}
+                    </span>
+                    <button type="button" class="opt-pill" @click="openWebhookSetting">
+                      <Icon icon="lucide:sliders" width="14" height="14"/>
+                    </button>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('forwardingRules') }}</div>
+                    <div class="row-desc">{{ $t('forwardingRulesDesc') }}</div>
+                  </div>
+                  <div class="row-control inline-controls">
+                    <span class="status-pill is-neutral">
+                      {{ setting.ruleType === 0 ? $t('forwardAll') : $t('rules') }}
+                    </span>
+                    <button type="button" class="opt-pill" @click="openForwardRules">
+                      <Icon icon="lucide:sliders" width="14" height="14"/>
+                    </button>
+                  </div>
                 </div>
               </div>
-              <div class="setting-item">
-                <div class="item-label">
-                  <span>{{ $t('storageType') }}</span>
+            </section>
+
+            <!-- 5. Object Storage -->
+            <section v-else-if="activeSection === 'oss'" class="settings-section">
+              <div class="section-head">
+                <span class="card-icon card-icon--emerald"><Icon icon="lucide:database" width="17" height="17"/></span>
+                <h2 class="section-title">{{ $t('oss') }}</h2>
+              </div>
+              <div class="setting-sheet">
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('s3Configuration') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <button type="button" class="opt-pill opt-pill--text" @click="addS3Show = true">
+                      <Icon icon="lucide:sliders" width="14" height="14"/>
+                      <span>{{ $t('tabSetting') }}</span>
+                    </button>
+                  </div>
                 </div>
-                <div class="item-control r2domain">
-                  <div class="storage-type">
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('storageType') }}</div>
+                  </div>
+                  <div class="row-control">
                     <el-tag size="small" effect="light">{{ setting.storageType }}</el-tag>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
+            </section>
 
-          <!-- Turnstile Verification Card -->
-          <div class="settings-card">
-            <div class="card-head">
-              <span class="card-icon card-icon--blue"><Icon icon="lucide:shield-check" width="16" height="16"/></span>
-              <span class="card-title">{{ $t('turnstileSetting') }}</span>
-            </div>
-            <div class="card-content">
-              <div class="setting-item">
-                <div class="item-label"><span>{{ $t('signUpVerification') }}</span></div>
-                <div class="item-control inline-controls">
-                  <button type="button" class="opt-pill" @click="openRegVerifyCount">
-                    <Icon icon="lucide:sliders" width="14" height="14"/>
-                  </button>
-                  <el-select
-                      @change="change"
-                      :style="`width: ${ locale === 'en' ? 112 : 96 }px;`"
-                      v-model="setting.registerVerify"
-                      placeholder="Select"
-                      class="bot-verify-select"
-                  >
-                    <el-option key="0" :value="0" :label="$t('enable')"/>
-                    <el-option key="1" :value="1" :label="$t('disable')"/>
-                    <el-option key="2" :value="2" :label="$t('rulesVerify')"/>
-                  </el-select>
+            <!-- 6. Turnstile -->
+            <section v-else-if="activeSection === 'turnstile'" class="settings-section">
+              <div class="section-head">
+                <span class="card-icon card-icon--blue"><Icon icon="lucide:shield-check" width="17" height="17"/></span>
+                <h2 class="section-title">{{ $t('turnstileSetting') }}</h2>
+              </div>
+              <div class="setting-sheet">
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('signUpVerification') }}</div>
+                  </div>
+                  <div class="row-control inline-controls">
+                    <button type="button" class="opt-pill" @click="openRegVerifyCount">
+                      <Icon icon="lucide:sliders" width="14" height="14"/>
+                    </button>
+                    <el-select
+                        @change="change"
+                        :style="`width: ${ locale === 'en' ? 124 : 108 }px;`"
+                        v-model="setting.registerVerify"
+                        placeholder="Select"
+                    >
+                      <el-option key="0" :value="0" :label="$t('enable')"/>
+                      <el-option key="1" :value="1" :label="$t('disable')"/>
+                      <el-option key="2" :value="2" :label="$t('rulesVerify')"/>
+                    </el-select>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('loginVerification') }}</div>
+                  </div>
+                  <div class="row-control inline-controls">
+                    <button type="button" class="opt-pill" :aria-label="$t('rulesVerify')" @click="openLoginVerifyCount">
+                      <Icon icon="lucide:sliders" width="14" height="14"/>
+                    </button>
+                    <el-select
+                        :model-value="setting.loginVerify"
+                        @change="changeField('loginVerify', $event)"
+                        :style="`width: ${ locale === 'en' ? 124 : 108 }px;`"
+                    >
+                      <el-option :value="0" :label="$t('enable')"/>
+                      <el-option :value="1" :label="$t('disable')"/>
+                      <el-option :value="2" :label="$t('rulesVerify')"/>
+                    </el-select>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('addEmailVerification') }}</div>
+                  </div>
+                  <div class="row-control inline-controls">
+                    <button type="button" class="opt-pill" @click="openAddVerifyCount">
+                      <Icon icon="lucide:sliders" width="14" height="14"/>
+                    </button>
+                    <el-select
+                        @change="change"
+                        :style="`width: ${ locale === 'en' ? 124 : 108 }px;`"
+                        v-model="setting.addEmailVerify"
+                        placeholder="Select"
+                    >
+                      <el-option key="0" :value="0" :label="$t('enable')"/>
+                      <el-option key="1" :value="1" :label="$t('disable')"/>
+                      <el-option key="2" :value="2" :label="$t('rulesVerify')"/>
+                    </el-select>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">Site key</div>
+                  </div>
+                  <div class="row-control bot-verify">
+                    <span class="mono-ellipsis">{{ maskSiteKey(setting.siteKey) }}</span>
+                    <button type="button" class="opt-pill" @click="turnstileShow = true">
+                      <Icon icon="lucide:square-pen" width="14" height="14"/>
+                    </button>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">Secret key</div>
+                  </div>
+                  <div class="row-control bot-verify">
+                    <span class="mono-ellipsis">{{ setting.secretKey }}</span>
+                    <button type="button" class="opt-pill" @click="turnstileShow = true">
+                      <Icon icon="lucide:square-pen" width="14" height="14"/>
+                    </button>
+                  </div>
                 </div>
               </div>
-              <div class="setting-item">
-                <div class="item-label"><span>{{ $t('loginVerification') }}</span></div>
-                <div class="item-control inline-controls">
-                  <button type="button" class="opt-pill" :aria-label="$t('rulesVerify')" @click="openLoginVerifyCount">
-                    <Icon icon="lucide:sliders" width="14" height="14"/>
-                  </button>
-                  <el-select
-                      :model-value="setting.loginVerify"
-                      @change="changeField('loginVerify', $event)"
-                      :style="`width: ${ locale === 'en' ? 112 : 96 }px;`"
-                      class="bot-verify-select"
-                  >
-                    <el-option :value="0" :label="$t('enable')"/>
-                    <el-option :value="1" :label="$t('disable')"/>
-                    <el-option :value="2" :label="$t('rulesVerify')"/>
-                  </el-select>
-                </div>
-              </div>
-              <div class="setting-item">
-                <div class="item-label"><span>{{ $t('addEmailVerification') }}</span></div>
-                <div class="item-control inline-controls">
-                  <button type="button" class="opt-pill" @click="openAddVerifyCount">
-                    <Icon icon="lucide:sliders" width="14" height="14"/>
-                  </button>
-                  <el-select
-                      @change="change"
-                      :style="`width: ${ locale === 'en' ? 112 : 96 }px;`"
-                      v-model="setting.addEmailVerify"
-                      placeholder="Select"
-                      class="bot-verify-select"
-                  >
-                    <el-option key="0" :value="0" :label="$t('enable')"/>
-                    <el-option key="1" :value="1" :label="$t('disable')"/>
-                    <el-option key="2" :value="2" :label="$t('rulesVerify')"/>
-                  </el-select>
-                </div>
-              </div>
-              <div class="setting-item">
-                <div class="item-label"><span>Site key</span></div>
-                <div class="item-control bot-verify">
-                  <span class="mono-ellipsis">{{ maskSiteKey(setting.siteKey) }}</span>
-                  <button type="button" class="opt-pill" @click="turnstileShow = true">
-                    <Icon icon="lucide:square-pen" width="14" height="14"/>
-                  </button>
-                </div>
-              </div>
-              <div class="setting-item">
-                <div class="item-label"><span>Secret key</span></div>
-                <div class="item-control bot-verify">
-                  <span class="mono-ellipsis">{{ setting.secretKey }}</span>
-                  <button type="button" class="opt-pill" @click="turnstileShow = true">
-                    <Icon icon="lucide:square-pen" width="14" height="14"/>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+            </section>
 
-          <!-- Notice Card -->
-          <div class="settings-card">
-            <div class="card-head">
-              <span class="card-icon card-icon--amber"><Icon icon="lucide:bell" width="16" height="16"/></span>
-              <span class="card-title">{{ $t('noticeTitle') }}</span>
-            </div>
-            <div class="card-content">
-              <div class="setting-item">
-                <div class="item-label"><span>{{ $t('noticePopup') }}</span></div>
-                <div class="item-control forward">
-                  <span class="status-pill" :class="{ 'is-on': setting.notice === 0 }">
-                    {{ setting.notice === 0 ? $t('enabled') : $t('disabled') }}
-                  </span>
-                  <button type="button" class="opt-pill" @click="openNoticePopupSetting">
-                    <Icon icon="lucide:sliders" width="14" height="14"/>
-                  </button>
+            <!-- 7. Notice -->
+            <section v-else-if="activeSection === 'notice'" class="settings-section">
+              <div class="section-head">
+                <span class="card-icon card-icon--amber"><Icon icon="lucide:sparkles" width="17" height="17"/></span>
+                <h2 class="section-title">{{ $t('noticeTitle') }}</h2>
+              </div>
+              <div class="setting-sheet">
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('noticePopup') }}</div>
+                  </div>
+                  <div class="row-control inline-controls">
+                    <span class="status-pill" :class="{ 'is-on': setting.notice === 0 }">
+                      {{ setting.notice === 0 ? $t('enabled') : $t('disabled') }}
+                    </span>
+                    <button type="button" class="opt-pill opt-pill--text" @click="openNoticePopupSetting">
+                      <Icon icon="lucide:sliders" width="14" height="14"/>
+                      <span>{{ $t('tabSetting') }}</span>
+                    </button>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('popUp') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <button type="button" class="opt-pill opt-pill--text" @click="openNoticePopup">
+                      <Icon icon="lucide:eye" width="14" height="14"/>
+                      <span>{{ $t('preview') }}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
-              <div class="setting-item">
-                <div class="item-label"><span>{{ $t('popUp') }}</span></div>
-                <div class="item-control forward">
-                  <button type="button" class="opt-pill" @click="openNoticePopup">
-                    <Icon icon="lucide:eye" width="14" height="14"/>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+            </section>
 
-          <!-- Workers AI Card -->
-          <div class="settings-card">
-            <div class="card-head">
-              <span class="card-icon card-icon--violet"><Icon icon="lucide:bot" width="16" height="16"/></span>
-              <span class="card-title">Workers AI</span>
-            </div>
-            <div class="card-content">
-              <div class="setting-item">
-                <div class="item-label"><span>{{ $t('codeRecognition') }}</span></div>
-                <div class="item-control">
-                  <el-switch @change="changeField('aiCode', $event)" :before-change="beforeChange" :active-value="0" :inactive-value="1"
-                             v-model="setting.aiCode"/>
+            <!-- 8. Workers AI -->
+            <section v-else-if="activeSection === 'ai'" class="settings-section">
+              <div class="section-head">
+                <span class="card-icon card-icon--violet"><Icon icon="lucide:bot" width="17" height="17"/></span>
+                <h2 class="section-title">Workers AI</h2>
+              </div>
+              <div class="setting-sheet">
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('codeRecognition') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <el-switch @change="changeField('aiCode', $event)" :before-change="beforeChange" :active-value="0" :inactive-value="1"
+                               v-model="setting.aiCode"/>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('codeRecognitionRules') }}</div>
+                    <div class="row-desc">{{ $t('codeRecognitionRulesDesc') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <button type="button" class="opt-pill opt-pill--text" @click="openAiCodeFilter">
+                      <Icon icon="lucide:sliders" width="14" height="14"/>
+                      <span>{{ $t('tabSetting') }}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
-              <div class="setting-item">
-                <div class="item-label"><span>{{ $t('codeRecognitionRules') }}</span></div>
-                <div class="item-control forward">
-                  <button type="button" class="opt-pill" @click="openAiCodeFilter">
-                    <Icon icon="lucide:sliders" width="14" height="14"/>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+            </section>
 
-          <!-- OAuth Login Card -->
-          <div class="settings-card">
-            <div class="card-head">
-              <span class="card-icon card-icon--indigo"><Icon icon="lucide:key-round" width="16" height="16"/></span>
-              <span class="card-title">{{ $t('oauthLogin') }}</span>
-            </div>
-            <div class="card-content">
-              <div class="setting-item" v-for="p in oauthPlatforms" :key="p.key">
-                <div class="item-label">
-                  <el-avatar v-if="p.iconType === 'image'" :src="p.icon" :size="20" class="oauth-icon"/>
-                  <Icon v-else :icon="p.icon" width="20" height="20" class="oauth-icon"/>
-                  <span>{{ p.label }}</span>
-                </div>
-                <div class="item-control forward">
-                  <span class="status-pill" :class="{ 'is-on': setting[p.key + 'Switch'] === 0 }">
-                    {{ setting[p.key + 'Switch'] === 0 ? $t('enabled') : $t('disabled') }}
-                  </span>
-                  <button type="button" class="opt-pill" @click="openOauthSetting(p)">
-                    <Icon icon="lucide:sliders" width="14" height="14"/>
-                  </button>
+            <!-- 9. OAuth Login -->
+            <section v-else-if="activeSection === 'oauth'" class="settings-section">
+              <div class="section-head">
+                <span class="card-icon card-icon--indigo"><Icon icon="lucide:key-round" width="17" height="17"/></span>
+                <h2 class="section-title">{{ $t('oauthLogin') }}</h2>
+              </div>
+              <div class="setting-sheet">
+                <div class="setting-row" v-for="p in oauthPlatforms" :key="p.key">
+                  <div class="row-info row-info--inline">
+                    <el-avatar v-if="p.iconType === 'image'" :src="p.icon" :size="22" class="oauth-icon"/>
+                    <Icon v-else :icon="p.icon" width="22" height="22" class="oauth-icon"/>
+                    <div class="row-label">{{ p.label }}</div>
+                  </div>
+                  <div class="row-control inline-controls">
+                    <span class="status-pill" :class="{ 'is-on': setting[p.key + 'Switch'] === 0 }">
+                      {{ setting[p.key + 'Switch'] === 0 ? $t('enabled') : $t('disabled') }}
+                    </span>
+                    <button type="button" class="opt-pill opt-pill--text" @click="openOauthSetting(p)">
+                      <Icon icon="lucide:sliders" width="14" height="14"/>
+                      <span>{{ $t('tabSetting') }}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
+            </section>
 
-          <!-- About Card -->
-          <div class="settings-card about">
-            <div class="card-head">
-              <span class="card-icon card-icon--slate"><Icon icon="lucide:info" width="16" height="16"/></span>
-              <span class="card-title">{{ $t('about') }}</span>
-            </div>
-            <div class="card-content">
-              <div class="concerning-item">
-                <span class="about-label">{{ $t('version') }}</span>
-                <el-badge is-dot :hidden="!hasUpdate">
-                  <el-button size="small" @click="jump('https://github.com/maillab/cloud-mail/releases')">
-                    {{ currentVersion }}
-                    <template #icon>
-                      <Icon icon="qlementine-icons:version-control-16" style="font-size: 17px" color="#1890FF"/>
-                    </template>
-                  </el-button>
-                </el-badge>
+            <!-- 10. About -->
+            <section v-else-if="activeSection === 'about'" class="settings-section">
+              <div class="section-head">
+                <span class="card-icon card-icon--slate"><Icon icon="lucide:info" width="17" height="17"/></span>
+                <h2 class="section-title">{{ $t('about') }}</h2>
               </div>
-              <div class="concerning-item">
-                <span class="about-label">{{ $t('community') }}</span>
-                <div class="community">
-                  <el-button size="small" @click="jump('https://github.com/maillab/cloud-mail')">
-                    Github
-                    <template #icon>
-                      <Icon icon="codicon:github-inverted" width="17" height="17"/>
-                    </template>
-                  </el-button>
-                  <el-button size="small" @click="jump('https://t.me/cloud_mail_tg')">
-                    Telegram
-                    <template #icon>
-                      <Icon icon="logos:telegram" width="17" height="17"/>
-                    </template>
-                  </el-button>
+              <div class="setting-sheet">
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('version') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <el-badge is-dot :hidden="!hasUpdate">
+                      <el-button size="small" @click="jump('https://github.com/maillab/cloud-mail/releases')">
+                        {{ currentVersion }}
+                        <template #icon>
+                          <Icon icon="qlementine-icons:version-control-16" style="font-size: 16px" color="#1890FF"/>
+                        </template>
+                      </el-button>
+                    </el-badge>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('community') }}</div>
+                  </div>
+                  <div class="row-control community">
+                    <el-button size="small" @click="jump('https://github.com/maillab/cloud-mail')">
+                      Github
+                      <template #icon>
+                        <Icon icon="codicon:github-inverted" width="16" height="16"/>
+                      </template>
+                    </el-button>
+                    <el-button size="small" @click="jump('https://t.me/cloud_mail_tg')">
+                      Telegram
+                      <template #icon>
+                        <Icon icon="logos:telegram" width="16" height="16"/>
+                      </template>
+                    </el-button>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('support') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <el-button size="small" @click="jump('https://docs.skymail.ink/support.html')">
+                      {{ t('supportDesc') }}
+                      <template #icon>
+                        <Icon color="#79D6B5" icon="simple-icons:buymeacoffee" width="15" height="15"/>
+                      </template>
+                    </el-button>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('help') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <el-button size="small" @click="jump('https://docs.skymail.ink')">
+                      {{ t('document') }}
+                      <template #icon>
+                        <Icon color="#79D6B5" icon="fluent-color:document-32" width="15" height="15"/>
+                      </template>
+                    </el-button>
+                  </div>
                 </div>
               </div>
-              <div class="concerning-item">
-                <span class="about-label">{{ $t('support') }}</span>
-                <el-button size="small" @click="jump('https://docs.skymail.ink/support.html')">
-                  {{ t('supportDesc') }}
-                  <template #icon>
-                    <Icon color="#79D6B5" icon="simple-icons:buymeacoffee" width="16" height="16"/>
-                  </template>
-                </el-button>
-              </div>
-              <div class="concerning-item">
-                <span class="about-label">{{ $t('help') }}</span>
-                <el-button size="small" @click="jump('https://docs.skymail.ink')">
-                  {{ t('document') }}
-                  <template #icon>
-                    <Icon color="#79D6B5" icon="fluent-color:document-32" width="16" height="16"/>
-                  </template>
-                </el-button>
-              </div>
-            </div>
-          </div>
+            </section>
+          </main>
         </div>
       </div>
 
@@ -992,6 +1070,20 @@ import axios from "axios";
 defineOptions({
   name: 'sys-setting'
 })
+
+const activeSection = ref('website')
+const settingSections = [
+  { id: 'website', labelKey: 'websiteSetting', icon: 'lucide:globe' },
+  { id: 'customization', labelKey: 'customization', icon: 'lucide:palette' },
+  { id: 'email', labelKey: 'emailSetting', icon: 'lucide:mails' },
+  { id: 'push', labelKey: 'emailPush', icon: 'lucide:bell' },
+  { id: 'oss', labelKey: 'oss', icon: 'lucide:database' },
+  { id: 'turnstile', labelKey: 'turnstileSetting', icon: 'lucide:shield-check' },
+  { id: 'notice', labelKey: 'noticeTitle', icon: 'lucide:sparkles' },
+  { id: 'ai', rawLabel: 'Workers AI', icon: 'lucide:bot' },
+  { id: 'oauth', labelKey: 'oauthLogin', icon: 'lucide:key-round' },
+  { id: 'about', labelKey: 'about', icon: 'lucide:info' },
+]
 
 const currentVersion = 'v3.6.0'
 const hasUpdate = ref(false)
@@ -1835,64 +1927,161 @@ function editSetting(settingForm, refreshStatus = true) {
   }
 
   .scroll-body {
-    max-width: 1160px;
+    max-width: 1080px;
     margin: 0 auto;
-    padding: 22px 28px 40px;
+    padding: 28px 28px 56px;
 
-    @media (max-width: 767px) {
-      padding: 16px 14px 28px;
+    @media (max-width: 860px) {
+      padding: 18px 14px 36px;
     }
   }
 }
 
-.page-head {
-  padding: 2px 2px 16px;
+.settings-workspace {
+  display: grid;
+  grid-template-columns: 224px minmax(0, 1fr);
+  gap: 36px;
+  align-items: start;
+  width: 100%;
+  min-width: 0;
+
+  @media (max-width: 860px) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+  }
 }
 
-.page-title {
+.settings-nav {
+  position: sticky;
+  top: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  max-width: 100%;
+
+  @media (max-width: 860px) {
+    position: static;
+    gap: 10px;
+  }
+}
+
+.workspace-title {
+  margin: 0;
+  padding: 0 10px;
   font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--text-primary);
+
+  @media (max-width: 860px) {
+    padding: 0 2px;
+  }
+}
+
+.nav-items {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  max-width: 100%;
+
+  @media (max-width: 860px) {
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    gap: 6px;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+}
+
+.sec-nav-btn {
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13.5px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  transition: background-color 140ms ease, color 140ms ease, border-color 140ms ease;
+
+  .sec-nav-icon {
+    flex-shrink: 0;
+    opacity: 0.85;
+  }
+
+  &:hover {
+    background: var(--surface-hover);
+    color: var(--text-primary);
+  }
+
+  &.active {
+    background: var(--brand-primary-soft);
+    color: var(--brand-primary);
+    font-weight: 600;
+
+    .sec-nav-icon {
+      opacity: 1;
+    }
+  }
+
+  @media (max-width: 860px) {
+    width: auto;
+    height: 34px;
+    padding: 0 12px;
+    border-radius: 999px;
+    border-color: var(--border-subtle);
+    background: var(--surface-elevated);
+
+    &.active {
+      border-color: transparent;
+    }
+  }
+}
+
+.settings-stage {
+  min-width: 0;
+  max-width: min(760px, 100%);
+  width: 100%;
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 2px 2px 4px;
+}
+
+.section-title {
+  margin: 0;
+  font-size: 18px;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--text-primary);
 }
 
-.card-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  align-items: start;
-
-  @media (max-width: 980px) {
-    grid-template-columns: 1fr;
-    gap: 14px;
-  }
-}
-
-.settings-card {
-  background-color: var(--surface-elevated);
-  border-radius: 16px;
-  border: 1px solid var(--border-subtle);
-  box-shadow: var(--shadow-xs);
-  overflow: hidden;
-  transition: border-color 180ms ease, box-shadow 180ms ease;
-
-  &:hover {
-    border-color: var(--border-strong);
-  }
-}
-
-.card-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--border-subtle);
-}
-
 .card-icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1929,70 +2118,105 @@ function editSetting(settingForm, refreshStatus = true) {
   }
 }
 
-.card-title {
-  font-size: 14.5px;
-  font-weight: 600;
-  color: var(--text-primary);
+.setting-sheet {
+  background-color: var(--surface-elevated);
+  border-radius: 16px;
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
 }
 
-.card-content {
-  padding: 6px 18px 14px;
-  display: flex;
-  flex-direction: column;
-}
-
-.setting-item {
+.setting-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  padding: 10px 0;
+  gap: 24px;
+  padding: 16px 22px;
   border-bottom: 1px solid var(--border-subtle);
-  font-size: 13.5px;
 
   &:last-child {
     border-bottom: none;
-    padding-bottom: 4px;
   }
 
-  .item-label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--text-secondary);
-    min-width: 0;
-
-    span {
-      line-height: 1.4;
-    }
+  &--top {
+    align-items: flex-start;
   }
 
-  .item-control {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 8px;
-    min-width: 0;
+  @media (max-width: 600px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px 16px;
   }
 }
 
-.inline-controls {
+.row-info {
+  min-width: 0;
+  flex: 1;
+
+  &--inline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+}
+
+.row-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.row-desc {
+  margin-top: 3px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.row-control {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+  min-width: 0;
+
+  @media (max-width: 600px) {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+.inline-controls,
+.btn-group {
+  display: flex;
+  align-items: center;
   gap: 8px;
 }
 
 .opt-pill {
-  width: 30px;
-  height: 28px;
+  height: 30px;
+  min-width: 32px;
+  padding: 0 8px;
   border-radius: 8px;
   border: 1px solid var(--border-subtle);
   background: var(--surface-subtle);
   color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 500;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   cursor: pointer;
   flex-shrink: 0;
   transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+
+  &--text {
+    padding: 0 11px;
+  }
 
   &:hover {
     background: var(--surface-hover);
@@ -2021,7 +2245,7 @@ function editSetting(settingForm, refreshStatus = true) {
 .status-pill {
   font-size: 12px;
   font-weight: 500;
-  padding: 2px 8px;
+  padding: 3px 9px;
   border-radius: 999px;
   background: var(--surface-subtle);
   color: var(--text-muted);
@@ -2038,12 +2262,6 @@ function editSetting(settingForm, refreshStatus = true) {
   }
 }
 
-.tip-trigger {
-  display: inline-flex;
-  align-items: center;
-  color: var(--text-muted);
-}
-
 .warning {
   color: var(--text-muted);
   cursor: pointer;
@@ -2055,23 +2273,19 @@ function editSetting(settingForm, refreshStatus = true) {
 }
 
 .oauth-icon {
-  width: 20px !important;
-  height: 20px !important;
-  min-width: 20px;
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px;
   flex-shrink: 0;
 }
 
 .background {
-  width: 196px;
-  height: 110px;
+  width: 156px;
+  height: 88px;
   border-radius: 10px;
   border: 1px solid var(--border-subtle);
   overflow: hidden;
-
-  @media (max-width: 500px) {
-    width: 150px;
-    height: 84px;
-  }
+  flex-shrink: 0;
 }
 
 .bg-control {
@@ -2085,10 +2299,6 @@ function editSetting(settingForm, refreshStatus = true) {
   gap: 6px;
 }
 
-.personalized {
-  align-items: flex-start;
-}
-
 .error-image {
   background: var(--surface-subtle);
   color: var(--text-muted);
@@ -2100,12 +2310,12 @@ function editSetting(settingForm, refreshStatus = true) {
 }
 
 .bot-verify {
-  max-width: 60%;
+  max-width: 340px;
 
   .mono-ellipsis {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     font-size: 12.5px;
-    color: var(--text-primary);
+    color: var(--text-secondary);
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
@@ -2114,16 +2324,23 @@ function editSetting(settingForm, refreshStatus = true) {
 }
 
 .email-title {
-  max-width: 65%;
+  max-width: 360px;
 
   .value-ellipsis {
     color: var(--text-primary);
+    font-size: 14px;
     font-weight: 500;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
     min-width: 0;
   }
+}
+
+.community {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .cropper {

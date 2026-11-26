@@ -439,7 +439,9 @@ onBeforeUnmount(() => {
 }
 
 .page-inner {
-  padding: 16px 20px 28px;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 20px 24px 36px;
   position: relative;
 
   @media (max-width: 767px) {

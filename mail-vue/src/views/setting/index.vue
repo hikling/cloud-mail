@@ -1,23 +1,35 @@
 <template>
   <div class="settings-page">
     <el-scrollbar height="100%">
-      <div class="settings-container">
-        <div class="settings-header">
-          <div class="settings-title">{{ $t('settings') }}</div>
+      <div class="settings-shell">
+        <header class="settings-head">
+          <h1 class="settings-title">{{ $t('settings') }}</h1>
+        </header>
+
+        <!-- Identity Summary Strip -->
+        <div class="identity-banner">
+          <div class="identity-avatar">
+            {{ (userStore.user?.email || 'U')[0]?.toUpperCase() }}
+          </div>
+          <div class="identity-meta">
+            <div class="identity-name-row">
+              <span class="identity-name">{{ userStore.user?.name || userStore.user?.email }}</span>
+              <el-tag v-if="userStore.user?.role?.name" size="small" effect="plain">
+                {{ userStore.user.role.name }}
+              </el-tag>
+            </div>
+            <div class="identity-email">{{ userStore.user?.email }}</div>
+          </div>
         </div>
 
-        <!-- Profile Card -->
-        <section class="settings-card">
-          <div class="card-head">
-            <span class="card-icon card-icon--blue">
-              <Icon icon="lucide:users" width="16" height="16" />
-            </span>
-            <h2 class="card-title">{{ $t('profile') }}</h2>
-          </div>
-
-          <div class="setting-list">
+        <!-- Profile Section -->
+        <section class="setting-group">
+          <div class="group-heading">{{ $t('profile') }}</div>
+          <div class="setting-sheet">
             <div class="setting-row">
-              <div class="row-label">{{ $t('username') }}</div>
+              <div class="row-info">
+                <div class="row-label">{{ $t('username') }}</div>
+              </div>
               <div class="row-control">
                 <div v-if="setNameShow" class="edit-name-group">
                   <el-input
@@ -28,27 +40,34 @@
                   <el-button type="primary" size="small" @click="setName">
                     {{ $t('save') }}
                   </el-button>
+                  <el-button size="small" @click="setNameShow = false">
+                    {{ $t('cancel') }}
+                  </el-button>
                 </div>
                 <div v-else class="user-name">
                   <span class="name-text">{{ userStore.user.name }}</span>
-                  <button type="button" class="text-action" @click="showSetName">
+                  <el-button size="small" @click="showSetName">
                     {{ $t('change') }}
-                  </button>
+                  </el-button>
                 </div>
               </div>
             </div>
 
             <div class="setting-row">
-              <div class="row-label">{{ $t('emailAccount') }}</div>
+              <div class="row-info">
+                <div class="row-label">{{ $t('emailAccount') }}</div>
+              </div>
               <div class="row-control">
                 <span class="mono-value">{{ userStore.user.email }}</span>
               </div>
             </div>
 
             <div class="setting-row">
-              <div class="row-label">{{ $t('password') }}</div>
+              <div class="row-info">
+                <div class="row-label">{{ $t('password') }}</div>
+              </div>
               <div class="row-control">
-                <el-button type="primary" plain @click="pwdShow = true">
+                <el-button size="small" @click="pwdShow = true">
                   {{ $t('changePwdBtn') }}
                 </el-button>
               </div>
@@ -56,18 +75,14 @@
           </div>
         </section>
 
-        <!-- Preferences Card -->
-        <section class="settings-card">
-          <div class="card-head">
-            <span class="card-icon card-icon--violet">
-              <Icon icon="lucide:palette" width="16" height="16" />
-            </span>
-            <h2 class="card-title">{{ $t('themeStyle') }} &amp; {{ $t('language') }}</h2>
-          </div>
-
-          <div class="setting-list">
+        <!-- Appearance & Language Section -->
+        <section class="setting-group">
+          <div class="group-heading">{{ $t('themeStyle') }} &amp; {{ $t('language') }}</div>
+          <div class="setting-sheet">
             <div class="setting-row">
-              <div class="row-label">{{ $t('preferredLanguage') }}</div>
+              <div class="row-info">
+                <div class="row-label">{{ $t('preferredLanguage') }}</div>
+              </div>
               <div class="row-control">
                 <el-select
                   :model-value="langSelect"
@@ -81,47 +96,49 @@
               </div>
             </div>
 
-            <div class="setting-row setting-row--stack">
-              <div class="row-label" id="theme-label">{{ $t('themeStyle') }}</div>
-              <div class="row-control">
+            <div class="setting-row setting-row--vertical">
+              <div class="row-info">
+                <div class="row-label" id="theme-label">{{ $t('themeStyle') }}</div>
+              </div>
+              <div class="row-control row-control--full">
                 <ThemeSelector />
               </div>
             </div>
           </div>
         </section>
 
-        <!-- Notice Card -->
-        <section class="settings-card">
-          <div class="card-head">
-            <span class="card-icon card-icon--amber">
-              <Icon icon="lucide:bell" width="16" height="16" />
-            </span>
-            <h2 class="card-title">{{ $t('noticeTitle') }}</h2>
-          </div>
-
-          <div class="setting-list">
+        <!-- System Notice Section -->
+        <section class="setting-group">
+          <div class="group-heading">{{ $t('noticeTitle') }}</div>
+          <div class="setting-sheet">
             <div class="setting-row">
-              <div class="row-label">{{ $t('noticeInfo') }}</div>
+              <div class="row-info">
+                <div class="row-label">{{ $t('noticeTitle') }}</div>
+                <div class="row-desc">{{ $t('noticeInfo') }}</div>
+              </div>
               <div class="row-control">
-                <el-button @click="uiStore.showNotice()">{{ $t('viewNotice') }}</el-button>
+                <el-button size="small" @click="uiStore.showNotice()">
+                  {{ $t('viewNotice') }}
+                </el-button>
               </div>
             </div>
           </div>
         </section>
 
-        <!-- Danger Zone -->
-        <section class="settings-card settings-card--danger" v-perm="'my:delete'">
-          <div class="card-head">
-            <span class="card-icon card-icon--danger">
-              <Icon icon="lucide:trash-2" width="16" height="16" />
-            </span>
-            <h2 class="card-title">{{ $t('deleteUser') }}</h2>
-          </div>
-
-          <div class="danger-body">
-            <p class="danger-desc">{{ $t('delAccountMsg') }}</p>
-            <div>
-              <el-button type="danger" plain @click="deleteConfirm">{{ $t('deleteUserBtn') }}</el-button>
+        <!-- Danger Zone Section -->
+        <section class="setting-group" v-perm="'my:delete'">
+          <div class="group-heading group-heading--danger">{{ $t('deleteUser') }}</div>
+          <div class="setting-sheet setting-sheet--danger">
+            <div class="setting-row">
+              <div class="row-info">
+                <div class="row-label">{{ $t('deleteUser') }}</div>
+                <div class="row-desc">{{ $t('delAccountMsg') }}</div>
+              </div>
+              <div class="row-control">
+                <el-button type="danger" plain size="small" @click="deleteConfirm">
+                  {{ $t('deleteUserBtn') }}
+                </el-button>
+              </div>
             </div>
           </div>
         </section>
@@ -156,7 +173,6 @@
 
 <script setup>
 import {reactive, ref, defineOptions} from 'vue'
-import {Icon} from '@iconify/vue'
 import {resetPassword, userDelete} from "@/request/my.js";
 import {useUserStore} from "@/store/user.js";
 import router from "@/router/index.js";
@@ -303,7 +319,6 @@ function submitPwd() {
   })
 
 }
-
 </script>
 
 <style scoped lang="scss">
@@ -315,170 +330,197 @@ function submitPwd() {
   background: var(--app-canvas);
 }
 
-.settings-container {
-  max-width: 820px;
-  padding: 24px 28px 40px;
+.settings-shell {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 28px 24px 56px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
 
   @media (max-width: 767px) {
-    padding: 16px 14px 28px;
-    gap: 12px;
+    padding: 18px 14px 36px;
+    gap: 20px;
   }
 }
 
-.settings-header {
-  padding: 2px 2px 4px;
+.settings-head {
+  padding-bottom: 2px;
 }
 
 .settings-title {
-  font-size: 20px;
+  margin: 0;
+  font-size: 22px;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
   color: var(--text-primary);
 }
 
-.settings-card {
+.identity-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  border-radius: 16px;
   background: var(--surface-elevated);
   border: 1px solid var(--border-subtle);
-  border-radius: 14px;
-  padding: 18px 20px;
   box-shadow: var(--shadow-xs);
+}
 
-  @media (max-width: 767px) {
-    padding: 16px;
+.identity-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: var(--brand-primary-soft);
+  color: var(--brand-primary);
+  font-size: 18px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.identity-meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.identity-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.identity-name {
+  font-size: 15.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.identity-email {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.setting-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.group-heading {
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+  padding-left: 4px;
+
+  &--danger {
+    color: #ef4444;
   }
+}
+
+.setting-sheet {
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
 
   &--danger {
     border-color: rgba(239, 68, 68, 0.25);
   }
 }
 
-.card-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--border-subtle);
-  margin-bottom: 4px;
-}
-
-.card-icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-
-  &--blue {
-    background: var(--brand-primary-soft);
-    color: var(--brand-primary);
-  }
-
-  &--violet {
-    background: rgba(124, 58, 237, 0.12);
-    color: #7c3aed;
-  }
-
-  &--amber {
-    background: rgba(245, 158, 11, 0.14);
-    color: #d97706;
-  }
-
-  &--danger {
-    background: rgba(239, 68, 68, 0.12);
-    color: #ef4444;
-  }
-}
-
-.card-title {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.setting-list {
-  display: flex;
-  flex-direction: column;
-}
-
 .setting-row {
-  display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
+  display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 14px 0;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 20px;
   border-bottom: 1px solid var(--border-subtle);
 
   &:last-child {
     border-bottom: none;
-    padding-bottom: 2px;
   }
 
-  &--stack {
-    align-items: start;
+  &--vertical {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
   }
 
-  @media (max-width: 640px) {
-    grid-template-columns: 1fr;
-    gap: 8px;
+  @media (max-width: 600px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px 16px;
   }
+}
+
+.row-info {
+  min-width: 0;
+  flex: 1;
 }
 
 .row-label {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.row-desc {
+  margin-top: 3px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
 }
 
 .row-control {
-  min-width: 0;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  min-width: 0;
+
+  &--full {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  @media (max-width: 600px) {
+    width: 100%;
+    justify-content: flex-start;
+  }
 }
 
 .mono-value {
   font-size: 13.5px;
-  color: var(--text-primary);
-  font-weight: 500;
+  color: var(--text-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   word-break: break-all;
 }
 
 .user-name {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  min-width: 0;
+  gap: 12px;
   max-width: 100%;
 
   .name-text {
-    font-size: 13.5px;
-    font-weight: 600;
+    font-size: 14px;
+    font-weight: 500;
     color: var(--text-primary);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-}
-
-.text-action {
-  background: var(--brand-primary-soft);
-  color: var(--brand-primary);
-  border: none;
-  border-radius: 6px;
-  padding: 3px 10px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background-color 150ms ease;
-
-  &:hover {
-    background: rgba(37, 99, 235, 0.18);
   }
 }
 
@@ -495,22 +537,8 @@ function submitPwd() {
 }
 
 .language-select {
-  width: 160px;
+  width: 150px;
   max-width: 100%;
-}
-
-.danger-body {
-  padding-top: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.danger-desc {
-  margin: 0;
-  font-size: 13.5px;
-  line-height: 1.6;
-  color: var(--text-secondary);
 }
 
 .update-pwd {
