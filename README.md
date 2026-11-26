@@ -56,7 +56,45 @@ Cloud Mail 是一个可完整运行在 Cloudflare 边缘网络上的**个人云�
 1. 拥有一个 Cloudflare 账号，并将至少一个域名托管到 Cloudflare DNS（名称服务器已切换为 Cloudflare）。
 2. 进入域名控制台 → **电子邮件（Email）** → **电子邮件路由（Email Routing）**，按引导开启 Email Routing（Cloudflare 会自动添加所需 MX / TXT 解析记录）。
 
-### 方式一：GitHub Actions 一键自动部署（推荐）
+### 方式一：Cloudflare 控制台连接 Git 部署（推荐，零本地环境）
+
+适合 Fork 后直接在 Cloudflare Dashboard 创建 Worker 并绑定 GitHub 仓库自动构建部署：
+
+1. **Fork 本仓库**到你自己的 GitHub 账号。
+2. 登录 Cloudflare Dashboard → **Workers 和 Pages** → **创建（Create）** → **连接 Git 仓库（Connect to Git）**，选择你 Fork 的 `cloud-mail` 仓库，按如下配置填写：
+   - **项目名称**：`cloud-mail`（可自定义）
+   - **构建命令（Build command）**：**保持留空**（`mail-worker/wrangler.toml` 已内置自动构建 `../mail-vue` 前端的命令）
+   - **部署命令（Deploy command）**：`npx wrangler deploy`
+   - **高级设置 → 非生产分支部署命令**：`npx wrangler versions upload`
+   - **高级设置 → 路径（Root directory）**：**`/mail-worker`**（⚠️ **必须填写**，因为 `wrangler.toml` 与后端代码位于 `mail-worker` 目录）
+3. 点击 **保存并部署**，等待首次构建部署完成。
+4. **在 Cloudflare Worker 控制台绑定资源与环境变量**：
+   - 先分别在控制台创建好 **D1 数据库**、**KV 命名空间**（以及可选的 **R2 存储桶**）。
+   - 进入刚部署的 Worker → **设置（Settings）→ 绑定（Bindings）**，依次添加：
+     | 类型 | 变量名称（必须严格一致） | 说明 |
+     |---|---|---|
+     | D1 数据库 | `db` | 必填，指向你创建的 D1 数据库 |
+     | KV 命名空间 | `kv` | 必填，指向你创建的 KV 命名空间 |
+     | R2 存储桶 | `r2` | 可选，用于存储附件和自定义背景图；不绑定则回退使用 KV（或后台配置 S3） |
+     | Send Email | `email` | 可选，开通 Cloudflare Email Sending 后用于对外发信 |
+   - 进入 **设置（Settings）→ 变量和机密（Variables and Secrets）**，添加以下变量（`wrangler.toml` 已开启 `keep_vars = true`，后续重新部署不会覆盖控制台变量）：
+     | 变量名 | 说明 | 示例 |
+     |---|---|---|
+     | `domain` | 允许使用的邮箱域名（JSON 数组格式） | `["example.com"]` |
+     | `admin` | 管理员邮箱地址（需属于 `domain` 内域名） | `admin@example.com` |
+     | `jwt_secret` | JWT 与初始化签名密钥（**禁止包含** `? % # / \`） | `my_random_secret_string_2026` |
+     | `password` | 可选；设置后初始化自动创建管理员，留空则在登录页注册 | `StrongPass123!` |
+     | `analysis_cache` | 可选；是否将统计数据缓存至 KV（`true` / `false`） | `false` |
+5. **绑定自定义域名并初始化数据库（必须）**：
+   - 在 Worker → **设置 → 域和路由** 绑定自定义域名（例如 `mail.example.com`）。
+   - 用浏览器访问一次初始化接口（将尖括号内容替换为实际值，页面显示 `success` 即成功）：
+     ```text
+     https://<你的Worker域名或自定义域名>/api/init/<你设置的jwt_secret>
+     ```
+
+---
+
+### 方式二：GitHub Actions 一键自动部署
 
 仓库内置了完整的自动化部署工作流（[.github/workflows/deploy-cloudflare.yml](.github/workflows/deploy-cloudflare.yml)），会自动完成前端编译、KV / D1 资源创建或绑定、Worker 部署以及数据库表结构初始化。
 
@@ -95,7 +133,7 @@ Cloud Mail 是一个可完整运行在 Cloudflare 边缘网络上的**个人云�
 
 ---
 
-### 方式二：Wrangler CLI 本地 / 手动部署
+### 方式三：Wrangler CLI 本地 / 手动部署
 
 1. **拉取代码并构建前端**：
    ```bash

@@ -56,7 +56,45 @@ This edition is streamlined specifically for **personal use**: multi-user admini
 1. A Cloudflare account with at least one domain managed by Cloudflare DNS.
 2. Enable **Email Routing** under your domain (`Domain` → **Email** → **Email Routing**) so Cloudflare configures the MX/TXT records required for inbound delivery.
 
-### Option 1: GitHub Actions One-Click Deployment (Recommended)
+### Option 1: Cloudflare Dashboard Git Integration (Recommended, Zero Local Setup)
+
+Connect your forked GitHub repository directly inside the Cloudflare Dashboard:
+
+1. **Fork this repository** to your GitHub account.
+2. Open Cloudflare Dashboard → **Workers & Pages** → **Create** → **Connect to Git**, select your `cloud-mail` fork, and configure:
+   - **Project name**: `cloud-mail` (or any name)
+   - **Build command**: **Leave empty** (`mail-worker/wrangler.toml` already runs the `../mail-vue` build command automatically)
+   - **Deploy command**: `npx wrangler deploy`
+   - **Advanced settings → Non-production branch deploy command**: `npx wrangler versions upload`
+   - **Advanced settings → Root directory / Path**: **`/mail-worker`** (⚠️ **Required**, because `wrangler.toml` resides inside `mail-worker/`)
+3. Click **Save and Deploy** to run the initial deployment.
+4. **Add Bindings and Environment Variables in the Worker Dashboard**:
+   - Create a **D1 Database** and a **KV Namespace** (plus an optional **R2 Bucket**).
+   - Open your deployed Worker → **Settings → Bindings** and add:
+     | Type | Variable Name (exact) | Notes |
+     |---|---|---|
+     | D1 Database | `db` | Required |
+     | KV Namespace | `kv` | Required |
+     | R2 Bucket | `r2` | Optional; falls back to KV (or S3 in System Settings) if omitted |
+     | Send Email | `email` | Optional; enables Cloudflare Email Sending outbound delivery |
+   - Open **Settings → Variables and Secrets** and add (`keep_vars = true` in `wrangler.toml` preserves Dashboard variables across future Git deploys):
+     | Name | Description | Example |
+     |---|---|---|
+     | `domain` | Allowed mail domains (JSON array) | `["example.com"]` |
+     | `admin` | Admin email address (under `domain`) | `admin@example.com` |
+     | `jwt_secret` | Random secret for JWT & init (**avoid** `? % # / \`) | `my_random_secret_string_2026` |
+     | `password` | Optional; auto-creates admin on init (omit to register via `/login`) | `StrongPass123!` |
+     | `analysis_cache` | Optional; cache ECharts analytics in KV (`true` / `false`) | `false` |
+5. **Attach Custom Domain & Initialize Database (Required)**:
+   - Under **Settings → Domains & Routes**, add your custom domain (e.g. `mail.example.com`).
+   - Open the initialization URL once in your browser (returns `success`):
+     ```text
+     https://<your-worker-or-custom-domain>/api/init/<your-jwt_secret>
+     ```
+
+---
+
+### Option 2: GitHub Actions One-Click Deployment
 
 The built-in workflow ([.github/workflows/deploy-cloudflare.yml](.github/workflows/deploy-cloudflare.yml)) builds the frontend, provisions or binds KV/D1 resources, deploys the Worker + `MailHub` Durable Object, and initializes the database schema automatically.
 
@@ -94,7 +132,7 @@ The built-in workflow ([.github/workflows/deploy-cloudflare.yml](.github/workflo
 
 ---
 
-### Option 2: Manual Deployment via Wrangler CLI
+### Option 3: Manual Deployment via Wrangler CLI
 
 1. **Clone & build frontend**:
    ```bash

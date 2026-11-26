@@ -53,7 +53,23 @@ Cloud Mail は、Cloudflare エッジネットワーク上で完結する**個�
 1. Cloudflare アカウントを用意し、メールで使用するドメインの DNS を Cloudflare で管理します。
 2. ドメインの **メール（Email）→ Email Routing** を有効化し、Cloudflare 側で必要な MX / TXT レコードを設定します。
 
-### 方法 1：GitHub Actions 自動デプロイ（推奨）
+### 方法 1：Cloudflare ダッシュボードの Git 連携デプロイ（推奨）
+
+Cloudflare ダッシュボードからフォークした GitHub リポジトリを直接接続して自動ビルド・デプロイできます：
+
+1. 本リポジトリを自分の GitHub アカウントへ **Fork** します。
+2. Cloudflare ダッシュボード → **Workers & Pages → 作成 → Git リポジトリを接続** を開き、以下を設定します：
+   - **プロジェクト名**：`cloud-mail`
+   - **ビルドコマンド**：**空欄のまま**（`mail-worker/wrangler.toml` 内の `[build]` が `../mail-vue` を自動ビルドします）
+   - **デプロイコマンド**：`npx wrangler deploy`
+   - **詳細設定 → 非本番ブランチのデプロイコマンド**：`npx wrangler versions upload`
+   - **詳細設定 → パス（Root directory）**：**`/mail-worker`**（⚠️ **必須**：`wrangler.toml` は `mail-worker/` 配下にあります）
+3. 初回デプロイ後、Worker の **設定 → バインディング** で `db`（D1）・`kv`（KV）・任意の `r2`（R2）・任意の `email`（Send Email）を追加し、**変数とシークレット** に `domain`（例: `["example.com"]`）・`admin`・`jwt_secret`（`? % # / \` は不可）・任意の `password` を設定します（`keep_vars = true` により再デプロイ時も上書きされません）。
+4. ブラウザで `https://<ドメイン>/api/init/<jwt_secret>` に一度アクセスし、`success` が返れば初期化完了です。
+
+---
+
+### 方法 2：GitHub Actions 自動デプロイ
 
 同梱のワークフロー（[.github/workflows/deploy-cloudflare.yml](.github/workflows/deploy-cloudflare.yml)）により、ビルド・D1/KV 準備・Worker デプロイ・DB 初期化まで自動実行できます。
 
@@ -75,7 +91,7 @@ Cloud Mail は、Cloudflare エッジネットワーク上で完結する**個�
 
 4. **Actions → 🚀 Deploy cloud-mail to Cloudflare Workers → Run workflow** を実行すると、デプロイと `/api/init/<JWT_SECRET>` の呼び出しが自動完了します。
 
-### 方法 2：Wrangler CLI による手動デプロイ
+### 方法 3：Wrangler CLI による手動デプロイ
 
 ```bash
 git clone https://github.com/hikling/cloud-mail.git
