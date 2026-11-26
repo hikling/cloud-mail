@@ -134,8 +134,14 @@
               <div class="email-body-col">
                 <div class="email-text">
                   <span class="email-subject">
-                    <span v-if="item.code" class="code-tag" @click.stop="copyCode(item.code)" :title="t('copyCode')">
-                      <Icon icon="lucide:key-round" width="11" height="11" />
+                    <span
+                      v-if="item.code"
+                      class="code-tag"
+                      :class="{ 'is-copied': copiedCodeId === item.emailId }"
+                      @click.stop="copyCode(item.code, item.emailId)"
+                      :title="t('copyCode')"
+                    >
+                      <Icon :icon="copiedCodeId === item.emailId ? 'lucide:check' : 'lucide:key-round'" width="11" height="11" />
                       <span>{{ item.code }}</span>
                     </span>
                     <span class="subject-text">
@@ -164,6 +170,28 @@
 
             <div class="email-right">
               <span class="email-time">{{ item.formatCreateTime }}</span>
+              <div class="row-quick-actions" @click.stop>
+                <button
+                  v-if="showUnread && props.emailRead && item.unread === EmailUnreadEnum.UNREAD"
+                  type="button"
+                  class="quick-action-btn"
+                  @click="emailRead(item.emailId)"
+                  :title="$t('markAsRead')"
+                  :aria-label="$t('markAsRead')"
+                >
+                  <Icon icon="lucide:mail-open" width="14" height="14" />
+                </button>
+                <button
+                  v-if="hasPerm(deletePerm) && props.type !== 'draft'"
+                  type="button"
+                  class="quick-action-btn danger"
+                  @click="rightDelete(item.emailId)"
+                  :title="$t('delete')"
+                  :aria-label="$t('delete')"
+                >
+                  <Icon icon="lucide:trash-2" width="14" height="14" />
+                </button>
+              </div>
             </div>
           </div>
 
@@ -398,6 +426,8 @@ const rightClickEmail = ref({});
 const MAX_SELECT_COUNT = 95;
 const checkedEmailCount = ref(0);
 const isSelectMax = computed(() => checkedEmailCount.value >= MAX_SELECT_COUNT);
+const copiedCodeId = ref(null);
+let copiedCodeTimer = null;
 let timer = null
 const position = ref(
     DOMRect.fromRect({
@@ -483,6 +513,7 @@ onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   window.removeEventListener('wheel', handleWheel)
   clearInterval(timer)
+  clearTimeout(copiedCodeTimer)
 })
 
 getEmailList()
@@ -740,9 +771,16 @@ function handleSearch(type, value) {
   emit('right-search', type, value);
 }
 
-async function copyCode(code) {
+async function copyCode(code, emailId = null) {
   try {
     await navigator.clipboard.writeText(code);
+    if (emailId !== null) {
+      copiedCodeId.value = emailId;
+      clearTimeout(copiedCodeTimer);
+      copiedCodeTimer = setTimeout(() => {
+        if (copiedCodeId.value === emailId) copiedCodeId.value = null;
+      }, 1500);
+    }
     ElMessage({
       message: t('copySuccessMsg'),
       type: 'success',
@@ -1089,11 +1127,15 @@ function renderHighlight(value) {
   justify-content: center;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: background-color 0.14s ease, color 0.14s ease;
+  transition: background-color 0.14s ease, color 0.14s ease, transform 0.12s ease;
 
   &:hover {
     background: var(--surface-hover);
     color: var(--text-primary);
+  }
+
+  &:active {
+    transform: scale(0.92);
   }
 
   &.danger:hover {
@@ -1218,11 +1260,15 @@ function renderHighlight(value) {
     justify-content: center;
     color: var(--text-muted);
     cursor: pointer;
-    transition: background-color 0.14s ease, color 0.14s ease;
+    transition: background-color 0.14s ease, color 0.14s ease, transform 0.14s cubic-bezier(0.34, 1.56, 0.64, 1);
 
     &:hover {
       background: var(--surface-muted);
       color: #F59E0B;
+    }
+
+    &:active {
+      transform: scale(0.86);
     }
 
     &.starred {
@@ -1374,10 +1420,24 @@ function renderHighlight(value) {
         font-size: 12px;
         font-weight: 600;
         cursor: pointer;
-        transition: background-color 0.14s ease;
+        transition: background-color 0.16s ease, color 0.16s ease, transform 0.12s ease;
 
         &:hover {
           background: rgba(37, 99, 235, 0.18);
+        }
+
+        &:active {
+          transform: scale(0.94);
+        }
+
+        &.is-copied {
+          background: rgba(16, 185, 129, 0.14);
+          color: #059669;
+
+          :global(.dark) & {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+          }
         }
       }
 
@@ -1446,6 +1506,12 @@ function renderHighlight(value) {
   }
 
   .email-right {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-width: 72px;
+    padding-right: v-bind(timePaddingRight);
     text-align: right;
     font-size: 12px;
     font-variant-numeric: tabular-nums;
@@ -1456,6 +1522,86 @@ function renderHighlight(value) {
     @media (max-width: 1366px) {
       display: none;
     }
+  }
+
+  .row-quick-actions {
+    display: none;
+  }
+
+  @media (hover: hover) and (min-width: 1367px) {
+    .email-time {
+      transition: opacity 0.14s ease;
+    }
+
+    .row-quick-actions {
+      position: absolute;
+      right: v-bind(timePaddingRight);
+      top: 50%;
+      transform: translate(4px, -50%);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.14s ease, transform 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .quick-action-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      background: var(--surface-primary);
+      border: 1px solid var(--border-subtle);
+      box-shadow: var(--shadow-xs);
+      cursor: pointer;
+      transition: background-color 0.14s ease, color 0.14s ease, border-color 0.14s ease, transform 0.12s ease;
+
+      &:hover {
+        border-color: var(--border-strong);
+        color: var(--text-primary);
+        background: var(--surface-elevated);
+      }
+
+      &:active {
+        transform: scale(0.92);
+      }
+
+      &.danger:hover {
+        border-color: rgba(239, 68, 68, 0.32);
+        background: rgba(239, 68, 68, 0.08);
+        color: var(--el-color-danger);
+      }
+    }
+
+    &:hover .email-right:has(.quick-action-btn) {
+      .email-time {
+        opacity: 0;
+      }
+
+      .row-quick-actions {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translate(0, -50%);
+      }
+    }
+  }
+
+  &::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 2.5px;
+    border-radius: 0 2px 2px 0;
+    background: var(--brand-primary);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    pointer-events: none;
   }
 
   &.is-unread {
@@ -1474,6 +1620,10 @@ function renderHighlight(value) {
 
   &:hover {
     background-color: var(--email-hover-background);
+
+    &::before {
+      opacity: 0.45;
+    }
   }
 
   &.right-checked,
@@ -1485,11 +1635,15 @@ function renderHighlight(value) {
   &[data-checked="true"]:hover {
     background-color: var(--surface-active);
     box-shadow: inset 3px 0 0 var(--brand-primary);
+
+    &::before {
+      opacity: 0;
+    }
   }
 }
 
 .email-time {
-  padding-right: v-bind(timePaddingRight);
+  display: inline-block;
 }
 
 :deep(.el-scrollbar__view) {

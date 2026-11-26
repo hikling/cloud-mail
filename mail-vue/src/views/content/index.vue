@@ -463,11 +463,15 @@ const handleDelete = () => {
   font-weight: 500;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: background-color 0.14s ease, color 0.14s ease;
+  transition: background-color 0.14s ease, color 0.14s ease, border-color 0.14s ease, transform 0.12s ease;
 
   &:hover {
     background: var(--surface-hover);
     color: var(--text-primary);
+  }
+
+  &:active {
+    transform: scale(0.95);
   }
 
   &.with-label {
@@ -535,7 +539,7 @@ const handleDelete = () => {
   border: 1px solid var(--border-subtle);
   border-radius: 14px;
   padding: 16px 18px;
-  box-shadow: var(--shadow-xs);
+  box-shadow: var(--card-shadow);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -648,7 +652,7 @@ const handleDelete = () => {
   border: 1px solid var(--border-subtle);
   border-radius: 14px;
   padding: 20px;
-  box-shadow: var(--shadow-xs);
+  box-shadow: var(--card-shadow);
   overflow: hidden;
 
   @media (max-width: 767px) {
@@ -692,7 +696,7 @@ const handleDelete = () => {
   border: 1px solid var(--border-subtle);
   padding: 16px 18px;
   border-radius: 14px;
-  box-shadow: var(--shadow-xs);
+  box-shadow: var(--card-shadow);
 }
 
 .att-header {
@@ -731,11 +735,13 @@ const handleDelete = () => {
   display: flex;
   align-items: center;
   gap: 10px;
-  transition: border-color 0.14s ease, background-color 0.14s ease;
+  transition: border-color 0.16s ease, background-color 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
 
   &:hover {
     border-color: var(--border-strong);
     background: var(--surface-hover);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-xs);
   }
 }
 

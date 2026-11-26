@@ -673,11 +673,15 @@ function submit() {
   background: var(--surface-primary);
   border: 1px solid var(--border-subtle);
   cursor: pointer;
-  transition: all 0.14s ease;
+  transition: background-color 0.14s ease, color 0.14s ease, border-color 0.14s ease, transform 0.12s ease;
 
   &:hover {
     color: var(--text-primary);
     border-color: var(--border-strong);
+  }
+
+  &:active {
+    transform: scale(0.92);
   }
 
   &.primary {
@@ -720,21 +724,27 @@ function submit() {
   border-radius: 10px;
   background: var(--surface-primary);
   border: 1px solid var(--border-subtle);
+  box-shadow: var(--card-shadow);
   display: flex;
   align-items: center;
   gap: 10px;
   cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 
   &:hover {
     border-color: rgba(245, 158, 11, 0.45);
-    box-shadow: var(--shadow-xs);
+    box-shadow: var(--card-shadow-hover);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: scale(0.985);
   }
 
   &.item-choose {
     background: var(--surface-elevated);
     border-color: #f59e0b;
-    box-shadow: 0 0 0 1px #f59e0b, var(--shadow-xs);
+    box-shadow: 0 0 0 1px #f59e0b, var(--card-shadow);
 
     .noone-shortcut-icon {
       background: #f59e0b;
@@ -788,30 +798,38 @@ function submit() {
   border-radius: 10px;
   background: var(--surface-primary);
   border: 1px solid var(--border-subtle);
+  box-shadow: var(--card-shadow);
   cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+  transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 
   &:hover {
     border-color: var(--border-strong);
-    box-shadow: var(--shadow-xs);
+    box-shadow: var(--card-shadow-hover);
+    transform: translateY(-1px);
 
     .copy-mini-btn {
       opacity: 1;
     }
   }
 
+  &:active {
+    transform: scale(0.985);
+  }
+
   &.item-choose {
     background: var(--surface-elevated);
     border-color: var(--brand-primary);
-    box-shadow: 0 0 0 1px var(--brand-primary), var(--shadow-xs);
+    box-shadow: 0 0 0 1px var(--brand-primary), var(--card-shadow);
   }
 }
 
 .skeleton-card {
   cursor: default;
+  box-shadow: none;
   &:hover {
     border-color: var(--border-subtle);
     box-shadow: none;
+    transform: none;
   }
 }
 

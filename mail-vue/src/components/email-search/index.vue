@@ -6,6 +6,7 @@
         {{ savedSearchSummary || t('searchMail') }}
       </span>
       <span v-if="savedSearchSummary" class="search-active-dot"></span>
+      <kbd v-else class="search-kbd">/</kbd>
     </button>
 
     <button
@@ -205,9 +206,21 @@ function formatSummaryDate(dateValue) {
   return toLocalSearchDate(dateValue)
 }
 
+function isEditableTarget(target) {
+  if (!(target instanceof HTMLElement)) return false
+  const tag = target.tagName
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable
+}
+
 function handleDocumentKeydown(event) {
   if (event.key === 'Escape' && visible.value) {
     closeSearch()
+    return
+  }
+  if (event.key === '/' && !visible.value && !event.ctrlKey && !event.metaKey && !event.altKey && !isEditableTarget(event.target)) {
+    if (document.querySelector('.el-overlay:not([style*="display: none"])')) return
+    event.preventDefault()
+    openSearch()
   }
 }
 
@@ -335,6 +348,23 @@ onBeforeUnmount(() => {
   height: 6px;
   border-radius: 50%;
   background: var(--brand-primary);
+  flex-shrink: 0;
+}
+
+.search-kbd {
+  height: 20px;
+  min-width: 20px;
+  padding: 0 5px;
+  border-radius: 5px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-elevated);
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 

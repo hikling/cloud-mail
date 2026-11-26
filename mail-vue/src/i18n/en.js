@@ -193,6 +193,7 @@ const en = {
     autoCleanExcludeDesc: 'Enter user emails that should not be cleaned up',
     dayUnit: ' days',
     codeRecognition: 'Verification code recognition',
+    codeRecognitionDesc: 'Automatically extract verification codes for one-click copy',
     codeRecognitionRules: 'Recognition rules',
     codeRecognitionRulesDesc: 'Only recognize emails containing the following info. Empty means all.',
     oss: 'Object Storage',

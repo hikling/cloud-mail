@@ -501,7 +501,8 @@ onBeforeUnmount(() => {
 <style lang="scss" scoped>
 .top-chrome {
   position: relative;
-  background: var(--surface-primary);
+  background: var(--header-glass);
+  backdrop-filter: saturate(180%) blur(12px);
   border-bottom: 1px solid var(--border-subtle);
   user-select: none;
   z-index: 80;
@@ -515,7 +516,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  background: var(--surface-primary);
+  background: transparent;
   z-index: 82;
 
   @media (max-width: 767px) {
@@ -628,6 +629,10 @@ onBeforeUnmount(() => {
     border-color: var(--border-strong);
   }
 
+  &:active {
+    transform: scale(0.975);
+  }
+
   &.open {
     border-color: var(--brand-primary);
     background: var(--brand-primary-soft);
@@ -708,12 +713,24 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, transform 120ms ease;
+
+  :deep(svg) {
+    transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
 
   &:hover {
     background: var(--surface-hover);
     border-color: var(--border-strong);
     color: var(--text-primary);
+
+    :deep(svg) {
+      transform: rotate(-14deg) scale(1.06);
+    }
+  }
+
+  &:active {
+    transform: scale(0.94);
   }
 }
 
@@ -727,11 +744,15 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  transition: background-color 150ms ease, border-color 150ms ease;
+  transition: background-color 150ms ease, border-color 150ms ease, transform 120ms ease;
 
   &:hover {
     background: var(--surface-hover);
     border-color: var(--border-strong);
+  }
+
+  &:active {
+    transform: scale(0.98);
   }
 
   @media (max-width: 767px) {
@@ -871,10 +892,15 @@ onBeforeUnmount(() => {
     background: var(--surface-hover);
     border-color: var(--border-strong);
     color: var(--text-primary);
+    transform: translateY(-1px);
 
     .drawer-icon {
       color: var(--text-primary);
     }
+  }
+
+  &:active {
+    transform: scale(0.97);
   }
 
   &.active {

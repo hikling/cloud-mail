@@ -2,10 +2,12 @@
   <div :class="accountShow && hasPerm('account:query') ? 'main-box-show' : 'main-box-hide'">
     <div :class="accountShow && hasPerm('account:query') ? 'block-show' : 'block-hide'" @click="uiStore.accountShow = false"></div>
     <account :class="accountShow && hasPerm('account:query') ? 'show' : 'hide'" />
-    <router-view class="main-view" v-slot="{ Component,route }">
-      <keep-alive :include="['email','all-email','send','sys-setting','star','analysis','draft']">
-        <component :is="Component" :key="route.name"/>
-      </keep-alive>
+    <router-view class="main-view" v-slot="{ Component, route }">
+      <Transition name="page-fade" mode="out-in">
+        <keep-alive :include="['email','all-email','send','sys-setting','star','analysis','draft']">
+          <component :is="Component" :key="route.name"/>
+        </keep-alive>
+      </Transition>
     </router-view>
   </div>
 </template>

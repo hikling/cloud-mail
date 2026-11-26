@@ -1,6 +1,7 @@
 <template>
-  <div class="send" v-show="show">
-    <div class="write-box">
+  <Transition name="compose-modal">
+    <div class="send" v-show="show">
+      <div class="write-box">
       <div class="title">
         <div class="title-left">
           <span class="title-badge">
@@ -181,7 +182,8 @@
         <el-button type="primary" @click="chooseContact">{{t('selectContacts')}}</el-button>
       </div>
     </el-dialog>
-  </div>
+    </div>
+  </Transition>
 </template>
 
 <script setup>
@@ -818,6 +820,25 @@ function close() {
   backdrop-filter: blur(4px);
 }
 
+.compose-modal-enter-active,
+.compose-modal-leave-active {
+  transition: opacity 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+
+  .write-box {
+    transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s ease;
+  }
+}
+
+.compose-modal-enter-from,
+.compose-modal-leave-to {
+  opacity: 0;
+
+  .write-box {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+}
+
 .write-box {
   background: var(--surface-elevated);
   width: min(1200px, calc(100% - 64px));
@@ -910,11 +931,15 @@ function close() {
     color: var(--text-secondary);
     cursor: pointer;
     flex-shrink: 0;
-    transition: background-color 0.14s ease, color 0.14s ease;
+    transition: background-color 0.14s ease, color 0.14s ease, transform 0.12s ease;
 
     &:hover {
       background: var(--surface-muted);
       color: var(--text-primary);
+    }
+
+    &:active {
+      transform: scale(0.92);
     }
   }
 }
@@ -1031,11 +1056,15 @@ function close() {
       border: 1px solid var(--border-subtle);
       color: var(--text-secondary);
       cursor: pointer;
-      transition: all 0.14s ease;
+      transition: background-color 0.14s ease, color 0.14s ease, border-color 0.14s ease, transform 0.12s ease;
 
       &:hover {
         border-color: var(--border-strong);
         color: var(--text-primary);
+      }
+
+      &:active {
+        transform: scale(0.93);
       }
 
       &.danger:hover {

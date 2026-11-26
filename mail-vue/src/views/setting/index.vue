@@ -483,8 +483,9 @@ function submitPwd() {
   background: var(--surface-elevated);
   border: 1px solid var(--border-subtle);
   border-radius: 16px;
-  box-shadow: var(--shadow-xs);
+  box-shadow: var(--card-shadow);
   overflow: hidden;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .hero-cover {
@@ -613,7 +614,7 @@ function submitPwd() {
   border: 1px solid rgba(239, 68, 68, 0.28);
   border-radius: 16px;
   padding: 18px 20px;
-  box-shadow: var(--shadow-xs);
+  box-shadow: var(--card-shadow);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -647,8 +648,9 @@ function submitPwd() {
   background: var(--surface-elevated);
   border: 1px solid var(--border-subtle);
   border-radius: 16px;
-  box-shadow: var(--shadow-xs);
+  box-shadow: var(--card-shadow);
   overflow: hidden;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .panel-head {
@@ -708,6 +710,11 @@ function submitPwd() {
   gap: 20px;
   padding: 16px 22px;
   border-bottom: 1px solid var(--border-subtle);
+  transition: background-color 0.14s ease;
+
+  &:not(.setting-row--vertical):hover {
+    background: var(--row-hover-tint);
+  }
 
   &:last-child {
     border-bottom: none;

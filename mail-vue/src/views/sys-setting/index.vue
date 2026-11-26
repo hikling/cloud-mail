@@ -31,9 +31,10 @@
           </div>
         </header>
 
-        <!-- Tab 1: Basic & Appearance -->
-        <div v-if="activeTab === 'general'" class="cols-2">
-          <div class="col-stack">
+        <!-- Paired Equal-Height 2-Column Grids with Smooth Tab Transition -->
+        <Transition name="sys-tab-fade" mode="out-in">
+          <!-- Tab 1: Basic & Appearance -->
+          <div v-if="activeTab === 'general'" key="general" class="settings-grid">
             <section class="setting-group">
               <h2 class="group-heading">{{ $t('sysSectionGeneral') }}</h2>
               <div class="group-card">
@@ -81,34 +82,9 @@
             </section>
 
             <section class="setting-group">
-              <h2 class="group-heading">{{ $t('noticeTitle') }}</h2>
-              <div class="group-card">
-                <div class="setting-row">
-                  <div class="row-info">
-                    <div class="row-label">{{ $t('noticePopup') }}</div>
-                    <div class="row-desc" v-if="setting.noticeTitle">{{ setting.noticeTitle }}</div>
-                  </div>
-                  <div class="row-control inline-controls">
-                    <span class="status-dot-label" :class="{ 'is-on': setting.notice === 0 }">
-                      <i></i>{{ setting.notice === 0 ? $t('enabled') : $t('disabled') }}
-                    </span>
-                    <button type="button" class="action-btn" @click="openNoticePopupSetting">
-                      {{ $t('sysConfigure') }}
-                    </button>
-                    <button type="button" class="action-btn" @click="openNoticePopup">
-                      {{ $t('preview') }}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </section>
-          </div>
-
-          <div class="col-stack">
-            <section class="setting-group">
               <h2 class="group-heading">{{ $t('sysSectionAppearance') }}</h2>
               <div class="group-card">
-                <div class="setting-row">
+                <div class="setting-row setting-row--fixed">
                   <div class="row-info">
                     <div class="row-label">{{ $t('loginBoxOpacity') }}</div>
                   </div>
@@ -117,7 +93,7 @@
                                      :step="0.01" :max="1" :min="0"/>
                   </div>
                 </div>
-                <div class="setting-row setting-row--stack">
+                <div class="setting-row setting-row--stack setting-row--grow">
                   <div class="bg-row-head">
                     <div class="row-info">
                       <div class="row-label">{{ $t('loginBackground') }}</div>
@@ -153,12 +129,33 @@
                 </div>
               </div>
             </section>
-          </div>
-        </div>
 
-        <!-- Tab 2: Mail & Push -->
-        <div v-else-if="activeTab === 'mail'" class="cols-2">
-          <div class="col-stack">
+            <section class="setting-group setting-group--full">
+              <h2 class="group-heading">{{ $t('noticeTitle') }}</h2>
+              <div class="group-card">
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('noticePopup') }}</div>
+                    <div class="row-desc" v-if="setting.noticeTitle">{{ setting.noticeTitle }}</div>
+                  </div>
+                  <div class="row-control inline-controls">
+                    <span class="status-dot-label" :class="{ 'is-on': setting.notice === 0 }">
+                      <i></i>{{ setting.notice === 0 ? $t('enabled') : $t('disabled') }}
+                    </span>
+                    <button type="button" class="action-btn" @click="openNoticePopupSetting">
+                      {{ $t('sysConfigure') }}
+                    </button>
+                    <button type="button" class="action-btn" @click="openNoticePopup">
+                      {{ $t('preview') }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <!-- Tab 2: Mail & Push (Row 1: 4 vs 4 equal height, Row 2: 3 vs 2 equal height) -->
+          <div v-else-if="activeTab === 'mail'" key="mail" class="settings-grid">
             <section class="setting-group">
               <h2 class="group-heading">{{ $t('sysSectionMailCore') }}</h2>
               <div class="group-card">
@@ -203,55 +200,6 @@
               </div>
             </section>
 
-            <section class="setting-group">
-              <h2 class="group-heading">{{ $t('sysSectionMailFilter') }}</h2>
-              <div class="group-card">
-                <div class="setting-row">
-                  <div class="row-info">
-                    <div class="row-label">{{ setting.hasCfEmail ? $t('cloudflareEmailSending') : $t('resendToken') }}</div>
-                  </div>
-                  <div class="row-control" v-if="setting.hasCfEmail">
-                    <span class="status-dot-label is-on"><i></i>{{ $t('enabled') }}</span>
-                  </div>
-                  <div class="row-control btn-group" v-else>
-                    <button type="button" class="action-btn" @click="openResendList">
-                      {{ $t('resendTokenList') }}
-                    </button>
-                    <button type="button" class="action-btn action-btn--primary" @click="openResendForm">
-                      {{ $t('add') }}
-                    </button>
-                  </div>
-                </div>
-                <div class="setting-row">
-                  <div class="row-info">
-                    <div class="row-label">{{ $t('blackList') }}</div>
-                    <div class="row-desc">{{ $t('blackListDesc') }}</div>
-                  </div>
-                  <div class="row-control">
-                    <button type="button" class="action-btn" @click="openBlackListForm">
-                      {{ $t('sysConfigure') }}
-                    </button>
-                  </div>
-                </div>
-                <div class="setting-row">
-                  <div class="row-info">
-                    <div class="row-label">{{ $t('autoClean') }}</div>
-                    <div class="row-desc">{{ $t('autoCleanDesc') }}</div>
-                  </div>
-                  <div class="row-control inline-controls">
-                    <span class="status-dot-label" :class="{ 'is-on': setting.autoCleanDays > 0 }">
-                      <i></i>{{ setting.autoCleanDays > 0 ? $t('autoCleanRetain', { days: setting.autoCleanDays }) : $t('disabled') }}
-                    </span>
-                    <button type="button" class="action-btn" @click="openAutoClean">
-                      {{ $t('sysConfigure') }}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </section>
-          </div>
-
-          <div class="col-stack">
             <section class="setting-group">
               <h2 class="group-heading">{{ $t('emailPush') }}</h2>
               <div class="group-card">
@@ -315,11 +263,59 @@
             </section>
 
             <section class="setting-group">
+              <h2 class="group-heading">{{ $t('sysSectionMailFilter') }}</h2>
+              <div class="group-card">
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ setting.hasCfEmail ? $t('cloudflareEmailSending') : $t('resendToken') }}</div>
+                  </div>
+                  <div class="row-control" v-if="setting.hasCfEmail">
+                    <span class="status-dot-label is-on"><i></i>{{ $t('enabled') }}</span>
+                  </div>
+                  <div class="row-control btn-group" v-else>
+                    <button type="button" class="action-btn" @click="openResendList">
+                      {{ $t('resendTokenList') }}
+                    </button>
+                    <button type="button" class="action-btn action-btn--primary" @click="openResendForm">
+                      {{ $t('add') }}
+                    </button>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('blackList') }}</div>
+                    <div class="row-desc">{{ $t('blackListDesc') }}</div>
+                  </div>
+                  <div class="row-control">
+                    <button type="button" class="action-btn" @click="openBlackListForm">
+                      {{ $t('sysConfigure') }}
+                    </button>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="row-info">
+                    <div class="row-label">{{ $t('autoClean') }}</div>
+                    <div class="row-desc">{{ $t('autoCleanDesc') }}</div>
+                  </div>
+                  <div class="row-control inline-controls">
+                    <span class="status-dot-label" :class="{ 'is-on': setting.autoCleanDays > 0 }">
+                      <i></i>{{ setting.autoCleanDays > 0 ? $t('autoCleanRetain', { days: setting.autoCleanDays }) : $t('disabled') }}
+                    </span>
+                    <button type="button" class="action-btn" @click="openAutoClean">
+                      {{ $t('sysConfigure') }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="setting-group">
               <h2 class="group-heading">Workers AI</h2>
               <div class="group-card">
                 <div class="setting-row">
                   <div class="row-info">
                     <div class="row-label">{{ $t('codeRecognition') }}</div>
+                    <div class="row-desc">{{ $t('codeRecognitionDesc') }}</div>
                   </div>
                   <div class="row-control">
                     <el-switch @change="changeField('aiCode', $event)" :before-change="beforeChange" :active-value="0" :inactive-value="1"
@@ -340,11 +336,9 @@
               </div>
             </section>
           </div>
-        </div>
 
-        <!-- Tab 3: Security & Storage -->
-        <div v-else-if="activeTab === 'security'" class="cols-2">
-          <div class="col-stack">
+          <!-- Tab 3: Security & Storage (Row 1: 3 vs 3 equal height, Row 2: 2 vs 2 equal height) -->
+          <div v-else-if="activeTab === 'security'" key="security" class="settings-grid">
             <section class="setting-group">
               <h2 class="group-heading">{{ $t('turnstileSetting') }}</h2>
               <div class="group-card">
@@ -393,6 +387,27 @@
             </section>
 
             <section class="setting-group">
+              <h2 class="group-heading">{{ $t('oauthLogin') }}</h2>
+              <div class="group-card">
+                <div class="setting-row" v-for="p in oauthPlatforms" :key="p.key">
+                  <div class="row-info oauth-row-left">
+                    <el-avatar v-if="p.iconType === 'image'" :src="p.icon" :size="20" class="oauth-icon-sm"/>
+                    <Icon v-else :icon="p.icon" width="18" height="18" class="oauth-icon-sm"/>
+                    <span class="row-label">{{ p.label }}</span>
+                  </div>
+                  <div class="row-control inline-controls">
+                    <span class="status-dot-label" :class="{ 'is-on': setting[p.key + 'Switch'] === 0 }">
+                      <i></i>{{ setting[p.key + 'Switch'] === 0 ? $t('enabled') : $t('disabled') }}
+                    </span>
+                    <button type="button" class="action-btn" @click="openOauthSetting(p)">
+                      {{ $t('sysConfigure') }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="setting-group">
               <h2 class="group-heading">{{ $t('oss') }}</h2>
               <div class="group-card">
                 <div class="setting-row">
@@ -412,29 +427,6 @@
                   </div>
                   <div class="row-control">
                     <button type="button" class="action-btn" @click="addS3Show = true">
-                      {{ $t('sysConfigure') }}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </section>
-          </div>
-
-          <div class="col-stack">
-            <section class="setting-group">
-              <h2 class="group-heading">{{ $t('oauthLogin') }}</h2>
-              <div class="group-card">
-                <div class="setting-row" v-for="p in oauthPlatforms" :key="p.key">
-                  <div class="row-info oauth-row-left">
-                    <el-avatar v-if="p.iconType === 'image'" :src="p.icon" :size="20" class="oauth-icon-sm"/>
-                    <Icon v-else :icon="p.icon" width="18" height="18" class="oauth-icon-sm"/>
-                    <span class="row-label">{{ p.label }}</span>
-                  </div>
-                  <div class="row-control inline-controls">
-                    <span class="status-dot-label" :class="{ 'is-on': setting[p.key + 'Switch'] === 0 }">
-                      <i></i>{{ setting[p.key + 'Switch'] === 0 ? $t('enabled') : $t('disabled') }}
-                    </span>
-                    <button type="button" class="action-btn" @click="openOauthSetting(p)">
                       {{ $t('sysConfigure') }}
                     </button>
                   </div>
@@ -471,7 +463,7 @@
               </div>
             </section>
           </div>
-        </div>
+        </Transition>
       </div>
 
       <!-- Dialogs -->
@@ -1886,25 +1878,18 @@ function editSetting(settingForm, refreshStatus = true) {
   }
 }
 
-.cols-2 {
+.settings-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 28px;
-  align-items: start;
+  gap: 24px;
+  align-items: stretch;
   width: 100%;
   min-width: 0;
 
   @media (max-width: 900px) {
     grid-template-columns: minmax(0, 1fr);
-    gap: 22px;
+    gap: 20px;
   }
-}
-
-.col-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  min-width: 0;
 }
 
 .setting-group {
@@ -1912,23 +1897,52 @@ function editSetting(settingForm, refreshStatus = true) {
   flex-direction: column;
   gap: 9px;
   min-width: 0;
+  height: 100%;
+
+  &--full {
+    grid-column: 1 / -1;
+  }
 }
 
 .group-heading {
   margin: 0;
   padding-left: 4px;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
   color: var(--text-secondary);
 }
 
 .group-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   background-color: var(--surface-elevated);
   border-radius: 14px;
   border: 1px solid var(--border-subtle);
+  box-shadow: var(--card-shadow);
   overflow: hidden;
   min-width: 0;
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+
+  &:hover {
+    border-color: var(--border-strong);
+  }
+}
+
+.sys-tab-fade-enter-active,
+.sys-tab-fade-leave-active {
+  transition: opacity 160ms ease, transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sys-tab-fade-enter-from {
+  opacity: 0;
+  transform: translateY(5px);
+}
+
+.sys-tab-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-3px);
 }
 
 .action-btn {
@@ -1946,11 +1960,21 @@ function editSetting(settingForm, refreshStatus = true) {
   white-space: nowrap;
   cursor: pointer;
   flex-shrink: 0;
-  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+  box-shadow: 0 1px 1px rgba(15, 23, 42, 0.03);
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, transform 100ms ease, box-shadow 140ms ease;
 
   &:hover {
     background: var(--surface-hover);
     border-color: var(--border-strong);
+    box-shadow: var(--shadow-xs);
+  }
+
+  &:active {
+    transform: scale(0.96);
+  }
+
+  &:focus-visible {
+    box-shadow: var(--brand-primary-ring);
   }
 
   &--primary {
@@ -1985,6 +2009,7 @@ function editSetting(settingForm, refreshStatus = true) {
     border-radius: 50%;
     background: var(--text-muted);
     opacity: 0.55;
+    transition: background-color 180ms ease, box-shadow 180ms ease;
   }
 
   &.is-on {
@@ -1993,6 +2018,7 @@ function editSetting(settingForm, refreshStatus = true) {
     i {
       background: #10b981;
       opacity: 1;
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.16);
     }
   }
 }
@@ -2030,7 +2056,8 @@ function editSetting(settingForm, refreshStatus = true) {
 
 .background-empty {
   width: 100%;
-  height: 156px;
+  flex: 1;
+  min-height: 152px;
   border-radius: 10px;
   border: 1px dashed var(--border-strong);
   background: var(--surface-subtle);
@@ -2041,11 +2068,16 @@ function editSetting(settingForm, refreshStatus = true) {
   cursor: pointer;
   font-size: 13px;
   color: var(--text-muted);
-  transition: border-color 140ms ease, color 140ms ease;
+  transition: border-color 160ms ease, color 160ms ease, background-color 160ms ease, transform 120ms ease;
 
   &:hover {
     border-color: var(--brand-primary);
+    background: var(--brand-primary-soft);
     color: var(--brand-primary);
+  }
+
+  &:active {
+    transform: scale(0.99);
   }
 }
 
@@ -2096,21 +2128,35 @@ function editSetting(settingForm, refreshStatus = true) {
 }
 
 .setting-row {
+  flex: 1 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 15px 22px;
+  padding: 15px 20px;
   border-bottom: 1px solid var(--border-subtle);
+  transition: background-color 140ms ease;
+
+  &:hover {
+    background: var(--row-hover-tint);
+  }
 
   &:last-child {
     border-bottom: none;
+  }
+
+  &--fixed {
+    flex: 0 0 auto;
   }
 
   &--stack {
     flex-direction: column;
     align-items: stretch;
     gap: 12px;
+  }
+
+  &--grow {
+    flex: 1 1 auto;
   }
 
   @media (max-width: 600px) {
@@ -2130,8 +2176,9 @@ function editSetting(settingForm, refreshStatus = true) {
 
 .background-banner {
   width: 100%;
-  height: 146px;
-  border-radius: 12px;
+  flex: 1;
+  min-height: 152px;
+  border-radius: 10px;
   border: 1px solid var(--border-subtle);
   overflow: hidden;
   display: block;

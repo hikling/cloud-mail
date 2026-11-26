@@ -193,6 +193,7 @@ const zh = {
     autoCleanExcludeDesc: '输入用户邮箱，这些用户的邮件不会被清理',
     dayUnit: '天',
     codeRecognition: '识别验证码',
+    codeRecognitionDesc: '自动提取邮件中的验证码，并在列表展示快捷复制标签',
     codeRecognitionRules: '识别规则',
     codeRecognitionRulesDesc: '只识别包含以下信息的邮件，为空识别全部',
     oss: '对象存储',
