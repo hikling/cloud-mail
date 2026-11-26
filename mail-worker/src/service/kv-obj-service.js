@@ -31,7 +31,8 @@ const kvObjService = {
 				contentType: obj.metadata?.contentType,
 				contentDisposition: obj.metadata?.contentDisposition,
 				cacheControl: obj.metadata?.cacheControl || (isContentHashed ? IMMUTABLE_CACHE_CONTROL : undefined),
-				etag: `"kv-${key}"`
+				etag: `"kv-${key}"`,
+				contentLength: obj.value?.byteLength
 			})
 		});
 	},

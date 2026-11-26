@@ -44,6 +44,67 @@ Cloud Mail は、Cloudflare エッジネットワーク上で完結する**個�
 - **データ・ストレージ**: [Cloudflare D1](https://developers.cloudflare.com/d1/)、[Cloudflare KV](https://developers.cloudflare.com/kv/)、[Cloudflare R2](https://developers.cloudflare.com/r2/) / S3
 - **メール・AI**: [Cloudflare Email](https://developers.cloudflare.com/email-service/)、[Resend](https://resend.com/)、[Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/)
 
+---
+
+## Cloudflare デプロイ手順
+
+### 事前準備
+
+1. Cloudflare アカウントを用意し、メールで使用するドメインの DNS を Cloudflare で管理します。
+2. ドメインの **メール（Email）→ Email Routing** を有効化し、Cloudflare 側で必要な MX / TXT レコードを設定します。
+
+### 方法 1：GitHub Actions 自動デプロイ（推奨）
+
+同梱のワークフロー（[.github/workflows/deploy-cloudflare.yml](.github/workflows/deploy-cloudflare.yml)）により、ビルド・D1/KV 準備・Worker デプロイ・DB 初期化まで自動実行できます。
+
+1. 本リポジトリを自分の GitHub アカウントへ **Fork** します。
+2. Cloudflare ダッシュボードから **Account ID** を控え、**Edit Cloudflare Workers** テンプレートを使って **API Token**（Workers Scripts / KV / D1 / R2 / Workers Routes 編集権限付き）を作成します。
+3. GitHub リポジトリの **Settings → Secrets and variables → Actions** に以下を設定します：
+
+   **必須項目**：
+   | 変数名 | 内容 | 例 |
+   |---|---|---|
+   | `CLOUDFLARE_API_TOKEN` | Cloudflare API トークン | `cfut_xxxx...` |
+   | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare アカウント ID | `32文字のHex文字列` |
+   | `DOMAIN` | 利用するドメイン（JSON 配列形式） | `["example.com"]` |
+   | `ADMIN` | 管理者メールアドレス | `admin@example.com` |
+   | `JWT_SECRET` | JWT/初期化用シークレット（`? % # / \` は使用不可） | `my_random_secret_string_2026` |
+
+   **任意項目**：
+   - `CUSTOM_DOMAIN`（Web UI 用の独自ドメイン。自動初期化にも利用）、`PASSWORD`（初期パスワード。未設定時はログイン画面で初回のみ登録可能）、`NAME`（既定 `cloud-mail`）、`D1_DATABASE_ID`、`KV_NAMESPACE_ID`（未設定時は自動作成）、`R2_BUCKET_NAME`、`AI_MODEL`、`ANALYSIS_CACHE`、`EMAIL`、`PROJECT_LINK`。
+
+4. **Actions → 🚀 Deploy cloud-mail to Cloudflare Workers → Run workflow** を実行すると、デプロイと `/api/init/<JWT_SECRET>` の呼び出しが自動完了します。
+
+### 方法 2：Wrangler CLI による手動デプロイ
+
+```bash
+git clone https://github.com/hikling/cloud-mail.git
+cd cloud-mail
+corepack enable
+pnpm --prefix mail-vue install
+pnpm --prefix mail-vue run build
+pnpm --prefix mail-worker install
+
+cd mail-worker
+npx wrangler login
+npx wrangler d1 create cloud-mail
+npx wrangler kv namespace create cloud-mail
+```
+
+[mail-worker/wrangler.toml](mail-worker/wrangler.toml) に作成した `db`（D1）・`kv`（KV）および `[vars]`（`domain`、`admin`、`jwt_secret`、任意の `password`）を設定し、以下を実行したあとブラウザで `https://<ドメイン>/api/init/<jwt_secret>` にアクセスして `success` を確認してください：
+
+```bash
+npx wrangler deploy
+```
+
+### デプロイ後の必須設定
+
+1. **Email Routing（受信設定）**：Cloudflare ダッシュボード → ドメイン → **Email → Email Routing → Routing rules** で **Catch-all address** を有効化し、アクションを **Send to a Worker** → `cloud-mail` に設定します。
+2. **独自ドメイン設定**：**Workers & Pages → `cloud-mail` → Settings → Domains & Routes** からアクセス用ドメインを追加します。
+3. **初回ログイン**：`PASSWORD` を指定した場合はそのままログイン、未指定の場合は `/login` の管理者登録タブから初回アカウントを作成してください（登録後は公開新規登録が自動で閉じられます）。
+
+---
+
 ## ディレクトリ構成
 
 ```
@@ -96,18 +157,6 @@ cloud-mail
 │   ├── .env.release               # 本番ビルド環境変数
 │   └── vite.config.js             # Vite & PWA 設定
 ```
-
-## デプロイについて
-
-[deploy-cloudflare.yml](.github/workflows/deploy-cloudflare.yml) により、`main` ブランチへのプッシュまたは手動実行でフロントエンドのビルドと Cloudflare Workers へのデプロイを自動化できます。
-
-- **必須シークレット / 変数**：`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`、`D1_DATABASE_ID`、`KV_NAMESPACE_ID`、`DOMAIN`（例: `["example.com"]`）、`ADMIN`、`JWT_SECRET`
-- **主な任意変数**：`PASSWORD`、`CUSTOM_DOMAIN`、`R2_BUCKET_NAME`、`AI_MODEL`、`EMAIL`、`ANALYSIS_CACHE`、`PROJECT_LINK`
-- **ローカルビルド**：
-  ```bash
-  pnpm --prefix mail-vue install
-  pnpm --prefix mail-vue run build
-  ```
 
 ## ライセンス
 

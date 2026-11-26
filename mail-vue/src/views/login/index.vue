@@ -553,9 +553,14 @@ const registerForm = reactive({
   confirmPassword: '',
   code: null
 })
-const domainList = settingStore.domainList;
+const domainList = computed(() => settingStore.domainList || []);
 const registerLoading = ref(false)
-suffix.value = domainList[0]
+suffix.value = domainList.value[0] || ''
+watch(domainList, (list) => {
+  if (!suffix.value && list.length > 0) {
+    suffix.value = list[0]
+  }
+})
 const verifyShow = ref(false)
 let verifyToken = ''
 let turnstileId = null
@@ -732,7 +737,7 @@ async function oauthGetUser() {
       showBindForm.value = true
       oauthLoading.value = false
       ElMessage({
-        message: '请注册绑定一个邮箱',
+        message: settingStore.lang === 'zh' ? '请注册绑定一个邮箱' : 'Please register and bind an email address',
         type: 'warning',
         duration: 4000,
         plain: true,

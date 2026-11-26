@@ -1,6 +1,7 @@
 import BizError from '../error/biz-error';
 import verifyUtils from '../utils/verify-utils';
 import emailUtils from '../utils/email-utils';
+import domainUtils from '../utils/domain-uitls';
 import userService from './user-service';
 import emailService from './email-service';
 import orm from '../entity/orm';
@@ -35,7 +36,8 @@ const accountService = {
 			throw new BizError(t('notEmail'));
 		}
 
-		if (!c.env.domain.includes(emailUtils.getDomain(email))) {
+		const domainList = domainUtils.getDomainList(c.env.domain) || [];
+		if (!domainList.includes(emailUtils.getDomain(email).toLowerCase())) {
 			throw new BizError(t('notExistDomain'));
 		}
 
@@ -68,7 +70,7 @@ const accountService = {
 		const userRow = await userService.selectById(c, userId);
 		const roleRow = await roleService.selectById(c, userRow.type);
 
-		if (userRow.email !== c.env.admin) {
+		if (!emailUtils.isAdminEmail(c.env, userRow.email)) {
 
 			if (roleRow.accountCount > 0) {
 				const userAccountCount = await accountService.countUserAccount(c, userId)

@@ -20,7 +20,7 @@ export function getEdgeCache() {
 
 export async function matchAssetCache(req, cacheKey) {
 	const cache = getEdgeCache();
-	if (!cache || req.method !== 'GET') return null;
+	if (!cache || (req.method !== 'GET' && req.method !== 'HEAD')) return null;
 
 	const cached = await cache.match(cacheKey);
 	if (!cached) return null;
@@ -28,7 +28,12 @@ export async function matchAssetCache(req, cacheKey) {
 	const ifNoneMatch = req.headers.get('If-None-Match');
 	const etag = cached.headers.get('ETag');
 	if (ifNoneMatch && etag && etagMatches(ifNoneMatch, etag)) {
+		await cached.body?.cancel();
 		return new Response(null, { status: 304, headers: cached.headers });
+	}
+	if (req.method === 'HEAD') {
+		await cached.body?.cancel();
+		return new Response(null, { status: cached.status, headers: cached.headers });
 	}
 	return cached;
 }

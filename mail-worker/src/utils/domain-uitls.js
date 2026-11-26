@@ -14,6 +14,23 @@ const domainUtils = {
 		}
 
 		return domain
+	},
+
+	getDomainList(rawDomain) {
+		let list = rawDomain;
+		if (typeof list === 'string') {
+			try {
+				list = JSON.parse(list);
+			} catch {
+				return null;
+			}
+		}
+		if (!Array.isArray(list)) {
+			return null;
+		}
+		return list
+			.map(item => String(item || '').trim().toLowerCase().replace(/^@+/, ''))
+			.filter(Boolean);
 	}
 }
 

@@ -51,13 +51,14 @@ export async function email(message, env, ctx) {
 			return;
 		}
 
-		const rawBuffer = await new Response(message.raw).arrayBuffer();
+		let rawBuffer = await new Response(message.raw).arrayBuffer();
 		if (rawBuffer.byteLength > MAX_RAW_EMAIL_BYTES) {
 			message.setReject('Message too large');
 			return;
 		}
 
 		const email = await PostalMime.parse(rawBuffer);
+		rawBuffer = null;
 
 
 		const blockFlag = checkBlock(blackSubject, blackContent, blackFrom, email);
@@ -87,7 +88,7 @@ export async function email(message, env, ctx) {
 			userRow = await userService.selectByIdIncludeDel(invocationCtx, account.userId) || {};
 		}
 
-		if (account && userRow.email !== env.admin) {
+		if (account && !emailUtils.isAdminEmail(env, userRow.email)) {
 
 			let { banEmail, availDomain } = await roleService.selectByUserId(invocationCtx, account.userId) || {};
 

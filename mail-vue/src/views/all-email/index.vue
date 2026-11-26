@@ -270,7 +270,6 @@ async function pullLatest() {
     if (list.length === 0) return
     if (params.timeSort !== curTimeSort || allEmailStore.searchParams.status !== curStatus) return
 
-    emailStore.applyFullList(list)
     for (let email of list) {
       sysEmailScroll.value.addItem(email)
       await sleep(50)

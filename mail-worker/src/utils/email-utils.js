@@ -58,6 +58,12 @@ const emailUtils = {
 		return localPart + '@' + parts[1];
 	},
 
+	isAdminEmail(env, email) {
+		const admin = String(env?.admin || '').trim().toLowerCase();
+		const target = String(email || '').trim().toLowerCase();
+		return Boolean(admin && target && admin === target);
+	},
+
 	formatText(text) {
 		if (!text) return ''
 		return text

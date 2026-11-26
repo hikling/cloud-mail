@@ -116,19 +116,24 @@ jobs:
           EOF
           fi
 
-          sed -i "s|\${NAME}|${NAME}|g" "$CONFIG_FILE"
-          sed -i "s|\${CUSTOM_DOMAIN}|${CUSTOM_DOMAIN}|g" "$CONFIG_FILE"
-          sed -i "s|\"\${DOMAIN}\"|${DOMAIN}|g" "$CONFIG_FILE"
-          sed -i "s|\${ADMIN}|${ADMIN}|g" "$CONFIG_FILE"
-          sed -i "s|\${PASSWORD}|${PASSWORD}|g" "$CONFIG_FILE"
-          sed -i "s|\${JWT_SECRET}|${JWT_SECRET}|g" "$CONFIG_FILE"
-          sed -i "s|\${R2_BUCKET_NAME}|${R2_BUCKET_NAME}|g" "$CONFIG_FILE"
-          sed -i "s|\${PROJECT_LINK}|${PROJECT_LINK}|g" "$CONFIG_FILE"
-          sed -i "s|\${ANALYSIS_CACHE}|${ANALYSIS_CACHE}|g" "$CONFIG_FILE"
-          sed -i "s|\${AI_MODEL}|${AI_MODEL}|g" "$CONFIG_FILE"
-          sed -i "s|\${LINUXDO_CLIENT_ID}|${LINUXDO_CLIENT_ID}|g" "$CONFIG_FILE"
-          sed -i "s|\${LINUXDO_CLIENT_SECRET}|${LINUXDO_CLIENT_SECRET}|g" "$CONFIG_FILE"
-          sed -i "s|\${LINUXDO_CALLBACK_URL}|${LINUXDO_CALLBACK_URL}|g" "$CONFIG_FILE"
+          node -e '
+            const fs = require("node:fs");
+            const file = "wrangler-action.toml";
+            const esc = (v = "") => String(v).replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
+            let text = fs.readFileSync(file, "utf8");
+            text = text
+              .replaceAll("\"${DOMAIN}\"", process.env.DOMAIN || "[]")
+              .replaceAll("${NAME}", esc(process.env.NAME))
+              .replaceAll("${CUSTOM_DOMAIN}", esc(process.env.CUSTOM_DOMAIN))
+              .replaceAll("${ADMIN}", esc(process.env.ADMIN))
+              .replaceAll("${PASSWORD}", esc(process.env.PASSWORD))
+              .replaceAll("${JWT_SECRET}", esc(process.env.JWT_SECRET))
+              .replaceAll("${R2_BUCKET_NAME}", esc(process.env.R2_BUCKET_NAME))
+              .replaceAll("${PROJECT_LINK}", esc(process.env.PROJECT_LINK))
+              .replaceAll("${ANALYSIS_CACHE}", esc(process.env.ANALYSIS_CACHE))
+              .replaceAll("${AI_MODEL}", esc(process.env.AI_MODEL));
+            fs.writeFileSync(file, text);
+          '
           
           echo "✅ Environment setup completed."
 

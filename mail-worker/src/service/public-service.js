@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
 import cryptoUtils from '../utils/crypto-utils';
 import emailUtils from '../utils/email-utils';
+import domainUtils from '../utils/domain-uitls';
 import roleService from './role-service';
 import verifyUtils from '../utils/verify-utils';
 import { t } from '../i18n/i18n';
@@ -114,14 +115,14 @@ const publicService = {
 			throw new BizError('Batch size cannot exceed 50', 400);
 		}
 
-		const domainList = Array.isArray(c.env.domain) ? c.env.domain : [];
+		const domainList = domainUtils.getDomainList(c.env.domain) || [];
 
 		for (const emailRow of list) {
 			if (!verifyUtils.isEmail(emailRow.email)) {
 				throw new BizError(t('notEmail'));
 			}
 
-			if (!domainList.includes(emailUtils.getDomain(emailRow.email))) {
+			if (!domainList.includes(emailUtils.getDomain(emailRow.email).toLowerCase())) {
 				throw new BizError(t('notEmailDomain'));
 			}
 
@@ -212,7 +213,7 @@ const publicService = {
 
 		const userRow = await userService.selectByEmailIncludeDel(c, emailAddr);
 
-		if (!c.env.admin || String(emailAddr).toLowerCase() !== String(c.env.admin).toLowerCase()) {
+		if (!emailUtils.isAdminEmail(c.env, emailAddr)) {
 			throw new BizError(t('notAdmin'));
 		}
 

@@ -47,6 +47,116 @@ Cloud Mail 是一个可完整运行在 Cloudflare 边缘网络上的**个人云�
 - **存储与数据**：[Cloudflare D1](https://developers.cloudflare.com/d1/)、[Cloudflare KV](https://developers.cloudflare.com/kv/)、[Cloudflare R2](https://developers.cloudflare.com/r2/) / S3
 - **邮件与 AI**：[Cloudflare Email](https://developers.cloudflare.com/email-service/)、[Resend](https://resend.com/)、[Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/)
 
+---
+
+## Cloudflare 搭建教程
+
+### 准备工作
+
+1. 拥有一个 Cloudflare 账号，并将至少一个域名托管到 Cloudflare DNS（名称服务器已切换为 Cloudflare）。
+2. 进入域名控制台 → **电子邮件（Email）** → **电子邮件路由（Email Routing）**，按引导开启 Email Routing（Cloudflare 会自动添加所需 MX / TXT 解析记录）。
+
+### 方式一：GitHub Actions 一键自动部署（推荐）
+
+仓库内置了完整的自动化部署工作流（[.github/workflows/deploy-cloudflare.yml](.github/workflows/deploy-cloudflare.yml)），会自动完成前端编译、KV / D1 资源创建或绑定、Worker 部署以及数据库表结构初始化。
+
+1. **Fork 本仓库**到你自己的 GitHub 账号。
+2. **获取 Cloudflare 凭证**：
+   - 在 Cloudflare 控制台右侧栏复制 **Account ID（账户 ID）**。
+   - 前往 **我的个人资料 → API 令牌 → 创建令牌**，使用 **编辑 Cloudflare Workers（Edit Cloudflare Workers）** 模板，确认账户权限包含 `Workers Scripts`、`KV Storage`、`D1`、`R2`（若使用 R2）、区域权限包含 `Workers Routes`，生成并保存 **API Token**。
+3. **配置 GitHub Actions Secrets / Variables**：  
+   打开你的 GitHub 仓库 → **Settings → Secrets and variables → Actions**，添加以下变量：
+
+   **必填项**：
+   | 变量名 | 说明 | 示例 |
+   |---|---|---|
+   | `CLOUDFLARE_API_TOKEN` | Cloudflare API 令牌 | `cfut_xxxx...` |
+   | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare 账户 ID | `32位十六进制ID` |
+   | `DOMAIN` | 允许使用的邮箱域名（必须为 JSON 数组） | `["example.com"]` 或 `["a.com","b.com"]` |
+   | `ADMIN` | 管理员邮箱地址（需属于 `DOMAIN` 内域名） | `admin@example.com` |
+   | `JWT_SECRET` | JWT 与初始化签名密钥（**禁止包含** `? % # / \`） | `my_random_secret_string_2026` |
+
+   **可选项（建议按需设置）**：
+   | 变量名 | 说明 | 默认值 / 示例 |
+   |---|---|---|
+   | `CUSTOM_DOMAIN` | 绑定自定义访问域名（未启用 `workers.dev` 时建议填写，以便自动初始化） | `mail.example.com` |
+   | `PASSWORD` | 管理员初始密码；留空则首次打开网页在登录页注册管理员 | `StrongPass123!` |
+   | `NAME` | Worker 服务名（同时用作自动创建的 D1/KV 名称） | `cloud-mail` |
+   | `D1_DATABASE_ID` | 已有 D1 数据库 UUID；留空则自动查找或创建 | `xxxxxxxx-xxxx-...` |
+   | `KV_NAMESPACE_ID` | 已有 KV 命名空间 ID；留空则自动查找或创建 | `32位KV命名空间ID` |
+   | `R2_BUCKET_NAME` | R2 存储桶名；留空则回退使用 KV（或后台改用 S3） | `cloud-mail` |
+   | `AI_MODEL` | Cloudflare Workers AI 验证码提取模型 | `@cf/meta/llama-3.1-8b-instruct-fast` |
+   | `ANALYSIS_CACHE` | 是否将统计图表数据缓存至 KV（减少 D1 聚合扫描） | `false` |
+   | `EMAIL` | 若已开通 Cloudflare Email Sending，设为 `true` 启用 `email` 发信绑定 | `true` |
+   | `PROJECT_LINK` | 登录页右下角是否显示 GitHub 图标入口 | `true` |
+
+4. **触发部署**：
+   进入 GitHub 仓库的 **Actions** → 选择 **🚀 Deploy cloud-mail to Cloudflare Workers** → 点击 **Run workflow**（后续每次推送 `main` 分支也会自动触发）。工作流运行成功后即已完成部署与数据库初始化。
+
+---
+
+### 方式二：Wrangler CLI 本地 / 手动部署
+
+1. **拉取代码并构建前端**：
+   ```bash
+   git clone https://github.com/hikling/cloud-mail.git
+   cd cloud-mail
+   corepack enable
+   pnpm --prefix mail-vue install
+   pnpm --prefix mail-vue run build
+   pnpm --prefix mail-worker install
+   ```
+
+2. **创建 Cloudflare D1 / KV（及可选 R2）资源**：
+   ```bash
+   cd mail-worker
+   npx wrangler login
+   npx wrangler d1 create cloud-mail
+   npx wrangler kv namespace create cloud-mail
+   # 可选：若使用 R2 存储附件与背景图
+   # npx wrangler r2 bucket create cloud-mail
+   ```
+
+3. **编辑 [mail-worker/wrangler.toml](mail-worker/wrangler.toml)**：
+   - 取消注释并填入 `[[d1_databases]]`（`binding = "db"`、`database_name`、`database_id`）与 `[[kv_namespaces]]`（`binding = "kv"`、`id`）；
+   - 如使用 R2 或 Cloudflare Email Sending，按注释取消对应 `[[r2_buckets]]`（`binding = "r2"`）或 `[[send_email]]`（`name = "email"`）；
+   - 在 `[vars]` 下填写：
+     ```toml
+     domain = ["example.com"]
+     admin = "admin@example.com"
+     jwt_secret = "your-random-secret-without-special-url-chars"
+     # 可选：配置后初始化将自动创建管理员；不填则在前端登录页首次注册
+     # password = "your-initial-password"
+     ```
+   - 请保留默认的 `[[durable_objects.bindings]]`（`ws` / `MailHub`）、`[[migrations]]`、`[ai]`、`[assets]` 与 `[triggers]` 配置，不要改动绑定名称。
+
+4. **部署 Worker 并初始化数据库**：
+   ```bash
+   npx wrangler deploy
+   ```
+   部署完成后，在浏览器访问以下地址执行初始化（返回 `success` 即成功）：
+   ```text
+   https://<你的Worker域名或自定义域名>/api/init/<你配置的jwt_secret>
+   ```
+
+---
+
+### 部署后收发邮件与域名配置
+
+1. **配置收信路由（必须）**：
+   - 打开 Cloudflare 控制台 → 你的域名 → **电子邮件 → 电子邮件路由 → 路由规则**；
+   - 编辑 **Catch-All 地址（全域收件）**：状态设为 **已启用**，操作选择 **发送到 Worker（Send to a Worker）** → 选择你部署的 `cloud-mail` Worker 并保存。
+   - 这样发往你域名下任意邮箱别名或无人收件地址的邮件都会由 Worker 自动接收并入库推送。
+2. **绑定自定义域名（建议）**：
+   - 若手动部署未在配置中写死 `routes`，可在 **Workers & Pages → `cloud-mail` → 设置 → 域和路由** 添加自定义域名（例如 `mail.example.com`），避免部分地区无法直连 `*.workers.dev`。
+3. **首次登录与管理员创建**：
+   - 若部署时未填写 `PASSWORD`，打开登录页后点击底部的 **初始化管理员** 即可创建唯一管理员账号；管理员创建完成后，公开注册入口会自动永久关闭。
+4. **发信与扩展配置**：
+   - **对外发信**：可在 Worker 启用 Cloudflare Email Sending 绑定，或在系统设置中为域名配置 **Resend API Token**；
+   - **其他功能**：AI 验证码提取、Telegram 推送、Webhook、第三方邮箱转发（需先在 Cloudflare Email Routing 验证目标地址）、Turnstile 人机验证与 OAuth2 登录均可在系统设置中直接配置。
+
+---
+
 ## 目录结构
 
 ```
@@ -62,6 +172,7 @@ cloud-mail
 │   │   ├── hono                   # Hono 实例与全局错误处理
 │   │   ├── i18n                   # 服务端国际化
 │   │   ├── init                   # 数据库初始化与表结构迁移
+│   │   ├── lib                    # 列表列裁剪与公共库封装
 │   │   ├── model                  # 响应数据封装
 │   │   ├── security               # 鉴权与接口拦截器
 │   │   ├── service                # 业务逻辑层
@@ -99,18 +210,6 @@ cloud-mail
 │   ├── .env.release               # 生产构建配置（输出至 mail-worker/dist）
 │   └── vite.config.js             # Vite & PWA 构建配置
 ```
-
-## 快速部署说明
-
-仓库内置 GitHub Actions 工作流（[deploy-cloudflare.yml](.github/workflows/deploy-cloudflare.yml)），可在推送 `main` 分支或手动触发时自动构建前端并部署到 Cloudflare Workers。
-
-- **必要变量 / Secrets**：`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`、`D1_DATABASE_ID`、`KV_NAMESPACE_ID`、`DOMAIN`（JSON 数组，如 `["example.com"]`）、`ADMIN`、`JWT_SECRET`
-- **常用可选变量**：`PASSWORD`、`CUSTOM_DOMAIN`、`R2_BUCKET_NAME`、`AI_MODEL`、`EMAIL`、`ANALYSIS_CACHE`、`PROJECT_LINK`
-- **本地构建命令**：
-  ```bash
-  pnpm --prefix mail-vue install
-  pnpm --prefix mail-vue run build
-  ```
 
 ## 许可证
 

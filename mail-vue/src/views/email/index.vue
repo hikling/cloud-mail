@@ -194,7 +194,6 @@ async function pullLatest() {
       if (!isNoone.value) return;
       const nooneList = (list || []).filter(item => item.status === EMAIL_STATUS_NOONE);
       if (nooneList.length > 0) {
-        emailStore.applyFullList(nooneList);
         for (let email of nooneList) {
           if (!existIds.has(email.emailId)) {
             existIds.add(email.emailId);
@@ -229,8 +228,6 @@ async function pullLatest() {
     }
 
     if (list.length > 0) {
-      emailStore.applyFullList(list);
-
       for (let email of list) {
         email.reqAccountId = accountId;
         email.allReceive = allReceive;

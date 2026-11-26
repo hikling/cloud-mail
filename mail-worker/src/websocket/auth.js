@@ -2,6 +2,7 @@ import jwtUtils from '../utils/jwt-utils';
 import constant from '../const/constant';
 import KvConst from '../const/kv-const';
 import permService from '../service/perm-service';
+import emailUtils from '../utils/email-utils';
 
 // 校验握手 token（query 或 Authorization），确认会话仍在 KV 中。
 export async function getWsUser(env, token) {
@@ -32,7 +33,7 @@ export async function canWatchAllEmail(env, user) {
 	if (!user?.userId) {
 		return false;
 	}
-	if (user.email && env.admin && user.email === env.admin) {
+	if (emailUtils.isAdminEmail(env, user.email)) {
 		return true;
 	}
 	const keys = await permService.userPermKeys({ env }, user.userId);

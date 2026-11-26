@@ -477,7 +477,7 @@ const emailService = {
 			return domainList.includes(domain);
 		});
 
-		if (c.env.admin !== userRow.email) {
+		if (!emailUtils.isAdminEmail(c.env, userRow.email)) {
 
 			//发件被禁用
 			if (roleRow.sendType === 'ban') {
@@ -492,7 +492,7 @@ const emailService = {
 		}
 
 		//如果不是管理员，权限设置了发送次数
-		if (c.env.admin !== userRow.email && roleRow.sendCount) {
+		if (!emailUtils.isAdminEmail(c.env, userRow.email) && roleRow.sendCount) {
 
 			if (userRow.sendCount >= roleRow.sendCount) {
 				if (roleRow.sendType === 'day') throw new BizError(t('daySendLimit'), 403);
@@ -516,7 +516,7 @@ const emailService = {
 			throw new BizError(t('sendEmailNotCurUser'));
 		}
 
-		if (c.env.admin !== userRow.email) {
+		if (!emailUtils.isAdminEmail(c.env, userRow.email)) {
 			//用户没有这个域名的使用权限
 			if(!roleService.hasAvailDomainPerm(roleRow.availDomain, accountRow.email)) {
 				throw new BizError(t('noDomainPermSend'),403)
@@ -1026,7 +1026,7 @@ const emailService = {
 				const { banEmail = '', availDomain = '' } = roleRow || {};
 
 				//如果收件人没有这个域名的使用权限和有邮件拦截，就把邮件改为拒收状态
-				if (email !== c.env.admin) {
+				if (!emailUtils.isAdminEmail(c.env, email)) {
 
 					if (!roleService.hasAvailDomainPerm(availDomain, email)) {
 						emailValues.status = emailConst.status.BOUNCED;
@@ -1275,15 +1275,17 @@ const emailService = {
 	},
 
 	async latest(c, params, userId) {
-		let { emailId, accountId, allReceive } = params;
+		let { emailId, accountId, allReceive, full } = params;
 		allReceive = Number(allReceive);
+		const isBrief = Number(full) === 0;
 
 		if (isNaN(allReceive)) {
 			const accountRow = await accountService.selectById(c, accountId);
 			allReceive = accountRow?.allReceive || 0;
 		}
 
-		const list = await orm(c).select({ ...emailListColumns }).from(email)
+		const columns = isBrief ? emailBriefColumns : emailListColumns;
+		const list = await orm(c).select({ ...columns }).from(email)
 			.innerJoin(
 				account,
 				eq(account.accountId, email.accountId)
@@ -1300,9 +1302,13 @@ const emailService = {
 			.orderBy(desc(email.emailId))
 			.limit(50);
 
-		await this.emailAddAtt(c, list);
-		for (const item of list) {
-			item.listText = this.toListText(item);
+		if (isBrief) {
+			this.applyListText(list);
+		} else {
+			await this.emailAddAtt(c, list);
+			for (const item of list) {
+				item.listText = this.toListText(item);
+			}
 		}
 		return list;
 	},
@@ -1437,9 +1443,11 @@ const emailService = {
 
 	async allEmailLatest(c, params) {
 
-		const { emailId } = params;
+		const { emailId, full } = params;
+		const isBrief = Number(full) === 0;
+		const columns = isBrief ? emailBriefColumns : emailListColumns;
 
-		let list = await orm(c).select({ ...emailListColumns, userEmail: user.email }).from(email)
+		let list = await orm(c).select({ ...columns, userEmail: user.email }).from(email)
 			.leftJoin(user, eq(email.userId, user.userId))
 			.where(
 				and(
@@ -1450,9 +1458,13 @@ const emailService = {
 			.orderBy(desc(email.emailId))
 			.limit(50);
 
-		await this.emailAddAtt(c, list);
-		for (const item of list) {
-			item.listText = this.toListText(item);
+		if (isBrief) {
+			this.applyListText(list);
+		} else {
+			await this.emailAddAtt(c, list);
+			for (const item of list) {
+				item.listText = this.toListText(item);
+			}
 		}
 		return list;
 	},

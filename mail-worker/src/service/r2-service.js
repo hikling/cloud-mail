@@ -83,7 +83,8 @@ const r2Service = {
 						contentType: obj.httpMetadata?.contentType,
 						contentDisposition: obj.httpMetadata?.contentDisposition,
 						cacheControl: obj.httpMetadata?.cacheControl || IMMUTABLE_CACHE_CONTROL,
-						etag: obj.httpEtag
+						etag: obj.httpEtag,
+						contentLength: obj.size
 					})
 				});
 			}

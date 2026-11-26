@@ -47,6 +47,109 @@ This edition is streamlined specifically for **personal use**: multi-user admini
 - **Storage & Database**: [Cloudflare D1](https://developers.cloudflare.com/d1/), [Cloudflare KV](https://developers.cloudflare.com/kv/), [Cloudflare R2](https://developers.cloudflare.com/r2/) / S3
 - **Mail & AI**: [Cloudflare Email](https://developers.cloudflare.com/email-service/), [Resend](https://resend.com/), [Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/)
 
+---
+
+## Cloudflare Deployment Guide
+
+### Prerequisites
+
+1. A Cloudflare account with at least one domain managed by Cloudflare DNS.
+2. Enable **Email Routing** under your domain (`Domain` → **Email** → **Email Routing**) so Cloudflare configures the MX/TXT records required for inbound delivery.
+
+### Option 1: GitHub Actions One-Click Deployment (Recommended)
+
+The built-in workflow ([.github/workflows/deploy-cloudflare.yml](.github/workflows/deploy-cloudflare.yml)) builds the frontend, provisions or binds KV/D1 resources, deploys the Worker + `MailHub` Durable Object, and initializes the database schema automatically.
+
+1. **Fork this repository** to your GitHub account.
+2. **Collect Cloudflare credentials**:
+   - Copy your **Account ID** from the Cloudflare Dashboard sidebar.
+   - Create an API token (**My Profile → API Tokens → Create Token** using the **Edit Cloudflare Workers** template) with edit access for Workers Scripts, KV Storage, D1, R2 (if used), and Workers Routes.
+3. **Configure GitHub Actions Secrets / Variables** (`Settings → Secrets and variables → Actions`):
+
+   **Required**:
+   | Name | Description | Example |
+   |---|---|---|
+   | `CLOUDFLARE_API_TOKEN` | Cloudflare API token | `cfut_xxxx...` |
+   | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Account ID | `32-char hex string` |
+   | `DOMAIN` | Allowed mail domains (must be a JSON array) | `["example.com"]` or `["a.com","b.com"]` |
+   | `ADMIN` | Administrator email address (under `DOMAIN`) | `admin@example.com` |
+   | `JWT_SECRET` | Random secret for JWT & init (**avoid** `? % # / \`) | `my_random_secret_string_2026` |
+
+   **Optional**:
+   | Name | Description | Default / Example |
+   |---|---|---|
+   | `CUSTOM_DOMAIN` | Custom domain for your webmail UI (recommended so Actions can run `/api/init/...`) | `mail.example.com` |
+   | `PASSWORD` | Initial admin password; if omitted, register the sole admin once on `/login` | `StrongPass123!` |
+   | `NAME` | Worker service name (also used for auto-created D1/KV) | `cloud-mail` |
+   | `D1_DATABASE_ID` | Existing D1 UUID (auto-created if omitted) | `xxxxxxxx-xxxx-...` |
+   | `KV_NAMESPACE_ID` | Existing KV Namespace ID (auto-created if omitted) | `32-char KV ID` |
+   | `R2_BUCKET_NAME` | Existing R2 bucket name (falls back to KV/S3 if omitted) | `cloud-mail` |
+   | `AI_MODEL` | Workers AI model for code extraction | `@cf/meta/llama-3.1-8b-instruct-fast` |
+   | `ANALYSIS_CACHE` | Cache ECharts analytics in KV (`true` / `false`) | `false` |
+   | `EMAIL` | Set `true` if Cloudflare Email Sending binding is enabled | `true` |
+   | `PROJECT_LINK` | Show GitHub link icon on the login page | `true` |
+
+4. **Run Deployment**:
+   Open **Actions → 🚀 Deploy cloud-mail to Cloudflare Workers → Run workflow** (or push to `main`). The workflow deploys everything and invokes `/api/init/<JWT_SECRET>` automatically.
+
+---
+
+### Option 2: Manual Deployment via Wrangler CLI
+
+1. **Clone & build frontend**:
+   ```bash
+   git clone https://github.com/hikling/cloud-mail.git
+   cd cloud-mail
+   corepack enable
+   pnpm --prefix mail-vue install
+   pnpm --prefix mail-vue run build
+   pnpm --prefix mail-worker install
+   ```
+
+2. **Create Cloudflare D1 / KV (and optional R2)**:
+   ```bash
+   cd mail-worker
+   npx wrangler login
+   npx wrangler d1 create cloud-mail
+   npx wrangler kv namespace create cloud-mail
+   # Optional:
+   # npx wrangler r2 bucket create cloud-mail
+   ```
+
+3. **Update [mail-worker/wrangler.toml](mail-worker/wrangler.toml)**:
+   - Uncomment and populate `[[d1_databases]]` (`binding = "db"`) and `[[kv_namespaces]]` (`binding = "kv"`), plus optional `[[r2_buckets]]` (`binding = "r2"`) and `[[send_email]]` (`name = "email"`).
+   - Set `[vars]`:
+     ```toml
+     domain = ["example.com"]
+     admin = "admin@example.com"
+     jwt_secret = "your-random-secret-without-special-url-chars"
+     # Optional: omit to register admin via the UI on first visit
+     # password = "your-initial-password"
+     ```
+   - Keep `[[durable_objects.bindings]]` (`ws` / `MailHub`), `[[migrations]]`, `[ai]`, `[assets]`, and `[triggers]` unchanged.
+
+4. **Deploy & initialize**:
+   ```bash
+   npx wrangler deploy
+   ```
+   Then visit `https://<your-worker-or-custom-domain>/api/init/<your-jwt_secret>` in your browser (wait for `success`).
+
+---
+
+### Post-Deploy Setup (Inbound Mail & Custom Domain)
+
+1. **Configure Inbound Email Routing (Required)**:
+   - In Cloudflare Dashboard → your domain → **Email → Email Routing → Routing rules**;
+   - Edit **Catch-all address**: enable it and set Action to **Send to a Worker** → choose your `cloud-mail` Worker.
+2. **Attach a Custom Domain (Recommended)**:
+   - Under **Workers & Pages → `cloud-mail` → Settings → Domains & Routes**, add your custom domain (e.g. `mail.example.com`).
+3. **Initial Admin Sign-In**:
+   - If `PASSWORD` was set before init, sign in at `/login` right away; otherwise switch to **Init Admin** on `/login` to create the sole admin account (public signup disables permanently once created).
+4. **Outbound Mail & Integrations**:
+   - Configure **Resend API tokens** (or use Cloudflare Email Sending if bound), **Workers AI** code extraction, **Telegram Bot**, **Webhook**, **Turnstile**, or **OAuth2** directly inside **System Settings**.
+
+---
+
 ## Project Structure
 
 ```
@@ -99,18 +202,6 @@ cloud-mail
 │   ├── .env.release               # Production build env (outputs to mail-worker/dist)
 │   └── vite.config.js             # Vite & PWA configuration
 ```
-
-## Deployment Notes
-
-This repository includes a GitHub Actions workflow ([deploy-cloudflare.yml](.github/workflows/deploy-cloudflare.yml)) that builds `mail-vue` and deploys the Worker automatically on pushes to `main` or manual dispatch.
-
-- **Required Variables / Secrets**: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `D1_DATABASE_ID`, `KV_NAMESPACE_ID`, `DOMAIN` (JSON array, e.g. `["example.com"]`), `ADMIN`, `JWT_SECRET`
-- **Optional Variables**: `PASSWORD`, `CUSTOM_DOMAIN`, `R2_BUCKET_NAME`, `AI_MODEL`, `EMAIL`, `ANALYSIS_CACHE`, `PROJECT_LINK`
-- **Local Frontend Build**:
-  ```bash
-  pnpm --prefix mail-vue install
-  pnpm --prefix mail-vue run build
-  ```
 
 ## License
 

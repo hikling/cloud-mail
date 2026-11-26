@@ -85,22 +85,17 @@ const settingService = {
 			throw new BizError('数据库未初始化 Database not initialized.');
 		}
 
-		let domainList = c.env.domain;
+		const domainList = domainUtils.getDomainList(c.env.domain);
 
-		if (typeof domainList === 'string') {
-			try {
-				domainList = JSON.parse(domainList);
-			} catch {
-				throw new BizError(t('notJsonDomain'));
-			}
+		if (!domainList) {
+			throw new BizError(t('notJsonDomain'));
 		}
 
-		if (!Array.isArray(domainList) || domainList.length === 0) {
+		if (domainList.length === 0) {
 			throw new BizError(t('noDomainVariable'));
 		}
 
-		domainList = domainList.map(item => '@' + item);
-		settingData.domainList = domainList;
+		settingData.domainList = domainList.map(item => '@' + item);
 
 		let projectLink = c.env.project_link;
 		if (typeof projectLink === 'string' && projectLink === 'false') {

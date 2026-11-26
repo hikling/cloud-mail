@@ -1,6 +1,7 @@
 import BizError from '../error/biz-error';
 import userService from './user-service';
 import emailUtils from '../utils/email-utils';
+import domainUtils from '../utils/domain-uitls';
 import { isDel, settingConst, userConst } from '../const/entity-const';
 import JwtUtils from '../utils/jwt-utils';
 import { v4 as uuidv4 } from 'uuid';
@@ -33,7 +34,7 @@ const loginService = {
 			throw new BizError(t('regDisabled'));
 		}
 
-		if (c.env.admin && email && email.toLowerCase() !== String(c.env.admin).toLowerCase()) {
+		if (c.env.admin && !emailUtils.isAdminEmail(c.env, email)) {
 			throw new BizError(t('regDisabled'));
 		}
 
@@ -63,8 +64,8 @@ const loginService = {
 			throw new BizError(t('pwdMinLength'));
 		}
 
-		const domainList = Array.isArray(c.env.domain) ? c.env.domain : [];
-		if (!domainList.includes(emailUtils.getDomain(email))) {
+		const domainList = domainUtils.getDomainList(c.env.domain) || [];
+		if (!domainList.includes(emailUtils.getDomain(email).toLowerCase())) {
 			throw new BizError(t('notEmailDomain'));
 		}
 

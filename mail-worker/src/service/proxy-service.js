@@ -148,9 +148,13 @@ const proxyService = {
 
 			const cache = getEdgeCache();
 			const cacheKey = cache ? buildProxyCacheKey(target.href) : null;
-			if (cache && cacheKey && (!req || req.method === 'GET')) {
+			if (cache && cacheKey && (!req || req.method === 'GET' || req.method === 'HEAD')) {
 				const cached = await cache.match(cacheKey);
 				if (cached) {
+					if (req?.method === 'HEAD') {
+						await cached.body?.cancel();
+						return new Response(null, { status: cached.status, headers: cached.headers });
+					}
 					return cached;
 				}
 			}
@@ -215,6 +219,14 @@ const proxyService = {
 			const disposition = res.headers.get('Content-Disposition');
 			if (disposition) {
 				headers.set('Content-Disposition', disposition.replace(/[\r\n\0]/g, ''));
+			}
+
+			if (req?.method === 'HEAD') {
+				await res.body?.cancel();
+				if (length && /^\d+$/.test(length) && Number.isSafeInteger(Number(length)) && (!encoding || encoding === 'identity')) {
+					headers.set('Content-Length', length);
+				}
+				return new Response(null, { status: res.status, headers });
 			}
 
 			let body = this.limitStreamBytes(res.body, PROXY_MAX_BYTES);

@@ -6,6 +6,7 @@ import KvConst from '../const/kv-const';
 import dayjs from 'dayjs';
 import userService from '../service/user-service';
 import permService from '../service/perm-service';
+import emailUtils from '../utils/email-utils';
 import { t } from '../i18n/i18n';
 import app from '../hono/hono';
 
@@ -105,7 +106,7 @@ app.use('*', async (c, next) => {
 
 		const userPermIndex = userPaths.findIndex(item => matchesPathPrefix(path, item));
 
-		if (userPermIndex === -1 && authInfo.user.email !== c.env.admin) {
+		if (userPermIndex === -1 && !emailUtils.isAdminEmail(c.env, authInfo.user.email)) {
 			throw new BizError(t('unauthorized'), 403);
 		}
 

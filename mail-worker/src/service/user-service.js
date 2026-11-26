@@ -11,6 +11,7 @@ import dayjs from 'dayjs';
 import permService from './perm-service';
 import roleService from './role-service';
 import emailUtils from '../utils/email-utils';
+import domainUtils from '../utils/domain-uitls';
 import constant from '../const/constant';
 import { t } from '../i18n/i18n'
 import reqUtils from '../utils/req-utils';
@@ -30,10 +31,11 @@ const userService = {
 			throw new BizError(t('authExpired'), 401);
 		}
 
+		const isAdmin = emailUtils.isAdminEmail(c.env, userRow.email);
 		const [account, roleRow, permKeys] = await Promise.all([
 			accountService.selectByEmailIncludeDel(c, userRow.email),
 			roleService.selectById(c, userRow.type),
-			userRow.email === c.env.admin ? Promise.resolve(['*']) : permService.userPermKeys(c, userId)
+			isAdmin ? Promise.resolve(['*']) : permService.userPermKeys(c, userId)
 		]);
 
 		const user = {};
@@ -46,7 +48,7 @@ const userService = {
 		user.role = roleRow;
 		user.type = userRow.type;
 
-		if (c.env.admin === userRow.email) {
+		if (isAdmin) {
 			user.role = constant.ADMIN_ROLE
 			user.type = 0;
 		}
@@ -242,7 +244,7 @@ const userService = {
 				sendAction.hasPerm = false;
 			}
 
-			if (user.email === c.env.admin) {
+			if (emailUtils.isAdminEmail(c.env, user.email)) {
 				sendAction.sendType = constant.ADMIN_ROLE.sendType;
 				sendAction.sendCount = constant.ADMIN_ROLE.sendCount;
 				sendAction.hasPerm = true;
@@ -339,15 +341,18 @@ const userService = {
 	},
 
 	async initAdmin(c) {
-		const email = c.env.admin;
-		const password = c.env.password;
+		const email = String(c.env.admin || '').trim();
+		const password = String(c.env.password || '');
 
 		if (!email || !password) {
 			return;
 		}
 
-		const exist = await userService.selectByEmailIncludeDel(c, email);
-		if (exist) {
+		const [exist, hasUser] = await Promise.all([
+			userService.selectByEmailIncludeDel(c, email),
+			userService.hasAnyUser(c)
+		]);
+		if (exist || hasUser) {
 			return;
 		}
 
@@ -371,7 +376,8 @@ const userService = {
 
 		let { email, type, password } = params;
 
-		if (!c.env.domain.includes(emailUtils.getDomain(email))) {
+		const domainList = domainUtils.getDomainList(c.env.domain) || [];
+		if (!domainList.includes(emailUtils.getDomain(email).toLowerCase())) {
 			throw new BizError(t('notEmailDomain'));
 		}
 

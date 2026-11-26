@@ -38,7 +38,7 @@ export function sanitizeDispositionFilename(filename = 'file') {
 		.trim() || 'file';
 }
 
-export function publicFileHeaders({ contentType, contentDisposition, cacheControl, etag } = {}) {
+export function publicFileHeaders({ contentType, contentDisposition, cacheControl, etag, contentLength } = {}) {
 	const type = mimeTypeOf(contentType);
 	const safeInline = SAFE_INLINE_TYPES.has(type);
 	const headers = {
@@ -52,6 +52,9 @@ export function publicFileHeaders({ contentType, contentDisposition, cacheContro
 		'Content-Security-Policy': 'sandbox',
 		'Cache-Control': cacheControl || ATT_CACHE_CONTROL
 	};
+	if (Number.isFinite(contentLength) && contentLength >= 0) {
+		headers['Content-Length'] = String(contentLength);
+	}
 	if (etag) {
 		headers['ETag'] = etag.startsWith('"') || etag.startsWith('W/"') ? etag : `"${etag}"`;
 	}
