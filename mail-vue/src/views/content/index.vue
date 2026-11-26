@@ -91,7 +91,10 @@
         </div>
 
         <div class="body-card" :class="{ 'has-attachments': email.attList?.length > 0 }">
-          <el-scrollbar class="htm-scrollbar">
+          <div v-if="isDetailLoading" class="detail-loading">
+            <loading />
+          </div>
+          <el-scrollbar v-else class="htm-scrollbar">
             <ShadowHtml class="shadow-html" :html="formatImage(email.content)" v-if="email.content" />
             <pre v-else class="email-text">{{ email.text }}</pre>
           </el-scrollbar>
@@ -145,6 +148,7 @@
 
 <script setup>
 import ShadowHtml from '@/components/shadow-html/index.vue'
+import loading from '@/components/loading/index.vue'
 import {computed, reactive, ref, watch, onMounted, onUnmounted, nextTick} from "vue";
 import {useRouter} from 'vue-router'
 import {ElMessage, ElMessageBox} from 'element-plus'
@@ -246,6 +250,29 @@ function tryMarkRead() {
   })
 }
 
+const isDetailLoading = computed(() => {
+  const id = email.value?.emailId
+  return Boolean(id && !emailStore.detailMap[id] && emailStore.detailLoading)
+})
+
+async function ensureDetailLoaded() {
+  const id = email.value?.emailId
+  if (!id || emailStore.detailMap[id]) return
+  try {
+    await emailStore.loadDetail(id, emailStore.contentData.delType === 'physics')
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+watch(
+  () => email.value?.emailId,
+  () => {
+    void ensureDetailLoaded()
+  },
+  { immediate: true }
+)
+
 watch(
   () => [
     email.value?.emailId,
@@ -263,6 +290,7 @@ watch(
 )
 
 onMounted(() => {
+  void ensureDetailLoaded()
   tryMarkRead()
   window.addEventListener('keydown', handleKeyDown);
   senderResizeObserver = new ResizeObserver(() => updateSenderWrap())
@@ -286,11 +314,13 @@ function handleKeyDown(event) {
   handleBack();
 }
 
-function openReply() {
+async function openReply() {
+  await ensureDetailLoaded()
   uiStore.writerRef.openReply(email.value)
 }
 
-function openForward() {
+async function openForward() {
+  await ensureDetailLoaded()
   uiStore.writerRef.openForward(email.value)
 }
 
@@ -619,6 +649,13 @@ const handleDelete = () => {
   @media (max-width: 767px) {
     padding: 14px;
   }
+}
+
+.detail-loading {
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .shadow-html {

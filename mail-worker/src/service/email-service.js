@@ -1198,6 +1198,64 @@ const emailService = {
 			.get();
 	},
 
+	async detail(c, params, userId) {
+		const emailId = Number(params.emailId);
+		if (!emailId || Number.isNaN(emailId)) {
+			return null;
+		}
+
+		const row = await orm(c)
+			.select({
+				...emailListColumns,
+				starId: star.starId
+			})
+			.from(email)
+			.leftJoin(
+				star,
+				and(
+					eq(star.emailId, email.emailId),
+					eq(star.userId, userId)
+				)
+			)
+			.where(
+				and(
+					eq(email.emailId, emailId),
+					eq(email.userId, userId),
+					eq(email.isDel, isDel.NORMAL)
+				)
+			)
+			.get();
+
+		if (!row) {
+			return null;
+		}
+
+		row.isStar = row.starId != null ? 1 : 0;
+		await this.emailAddAtt(c, [row]);
+		return row;
+	},
+
+	async allDetail(c, params) {
+		const emailId = Number(params.emailId);
+		if (!emailId || Number.isNaN(emailId)) {
+			return null;
+		}
+
+		const row = await orm(c)
+			.select({ ...emailListColumns, userEmail: user.email })
+			.from(email)
+			.leftJoin(user, eq(email.userId, user.userId))
+			.where(eq(email.emailId, emailId))
+			.get();
+
+		if (!row) {
+			return null;
+		}
+
+		await this.emailAddAtt(c, [row]);
+		return row;
+	},
+
 	async latest(c, params, userId) {
 		let { emailId, accountId, allReceive } = params;
 		allReceive = Number(allReceive);

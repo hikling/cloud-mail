@@ -1,4 +1,41 @@
-import { parseHTML } from 'linkedom';
+const HTML_ENTITY_MAP = {
+	nbsp: ' ',
+	amp: '&',
+	lt: '<',
+	gt: '>',
+	quot: '"',
+	apos: "'",
+	mdash: '—',
+	ndash: '–',
+	hellip: '…',
+	copy: '©',
+	reg: '®',
+	trade: '™',
+	laquo: '«',
+	raquo: '»',
+	lsquo: '‘',
+	rsquo: '’',
+	ldquo: '“',
+	rdquo: '”',
+	bull: '•',
+	middot: '·',
+};
+
+function decodeHtmlEntities(str) {
+	if (!str || !str.includes('&')) return str;
+	return str.replace(/&(?:#(\d+)|#x([0-9a-f]+)|([a-z]+));/gi, (match, dec, hex, named) => {
+		if (dec) {
+			const code = Number(dec);
+			return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : '';
+		}
+		if (hex) {
+			const code = parseInt(hex, 16);
+			return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : '';
+		}
+		const mapped = HTML_ENTITY_MAP[named.toLowerCase()];
+		return mapped !== undefined ? mapped : match;
+	});
+}
 
 const emailUtils = {
 
@@ -26,7 +63,7 @@ const emailUtils = {
 		return text
 			.split('\n')
 			.map(line => {
-				return line.replace(/[\u200B-\u200F\uFEFF\u034F\u200B-\u200F\u00A0\u3000\u00AD]/g, '')
+				return line.replace(/[\u200B-\u200F\uFEFF\u034F\u00A0\u3000\u00AD]/g, '')
 					.replace(/\s+/g, ' ')
 					.trim();
 			})
@@ -36,18 +73,19 @@ const emailUtils = {
 	},
 
 	htmlToText(content) {
-		if (!content) return ''
+		if (!content) return '';
 		try {
-			const wrappedContent = content.includes('<body')
-				? content
-				: `<!DOCTYPE html><html><body>${content}</body></html>`;
-			const { document } = parseHTML(wrappedContent);
-			document.querySelectorAll('style, script, title').forEach(el => el.remove());
-			let text = document.body.innerText;
-			return this.formatText(text);
+			const text = String(content)
+				.replace(/<!--[\s\S]*?(?:-->|$)/g, '')
+				.replace(/<(script|style|head|title|noscript)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|$)/gi, '')
+				.replace(/<(?:br|hr)\b[^>]*\/?>/gi, '\n')
+				.replace(/<\/(?:p|div|tr|li|h[1-6]|blockquote|section|article|header|footer|table)\s*>/gi, '\n')
+				.replace(/<\/(?:td|th)\s*>/gi, ' ')
+				.replace(/<[^>]*>?/g, '');
+			return this.formatText(decodeHtmlEntities(text));
 		} catch (e) {
-			console.error(e)
-			return ''
+			console.error(e);
+			return '';
 		}
 	}
 };

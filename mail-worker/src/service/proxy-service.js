@@ -1,8 +1,9 @@
-import { parseHTML } from 'linkedom';
 import settingService from './setting-service';
 
 // 可能带远程图地址的属性；data-* 覆盖懒加载写法。
 const ATTRS = ['src', 'poster', 'background', 'data-src', 'data-original', 'data-lazy-src'];
+const ATTR_SET = new Set(ATTRS);
+const MEDIA_TAGS = new Set(['img', 'source', 'video', 'audio', 'track', 'input']);
 
 const PROXY_MEDIA_TYPES = new Set([
 	'image/avif', 'image/bmp', 'image/gif', 'image/jpeg', 'image/pjpeg', 'image/png', 'image/webp',
@@ -22,6 +23,60 @@ const PROXY_MAX_REDIRECTS = 5;
 const PROXY_REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 const encoder = new TextEncoder();
 
+const ATTR_REGEX = /\b([a-z][a-z0-9:-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/gi;
+const TAG_REGEX = /<([a-z][a-z0-9:-]*)(\s[^>]*?)?(\/?)>/gi;
+const STYLE_TAG_REGEX = /(<style\b[^>]*>)([\s\S]*?)(<\/style>)/gi;
+
+function decodeAttrValue(val) {
+	if (!val || !val.includes('&')) return val;
+	return val
+		.replace(/&amp;/gi, '&')
+		.replace(/&quot;/gi, '"')
+		.replace(/&#39;|&apos;/gi, "'")
+		.replace(/&lt;/gi, '<')
+		.replace(/&gt;/gi, '>');
+}
+
+function encodeAttrValue(val, quote) {
+	let out = String(val).replace(/&/g, '&amp;');
+	if (quote === '"') return out.replace(/"/g, '&quot;');
+	if (quote === "'") return out.replace(/'/g, '&#39;');
+	return out;
+}
+
+async function replaceAsync(str, regex, asyncFn) {
+	const matches = [];
+	str.replace(regex, (...args) => {
+		matches.push(args);
+		return args[0];
+	});
+	if (!matches.length) return str;
+	const replacements = await Promise.all(matches.map(args => asyncFn(...args)));
+	let idx = 0;
+	return str.replace(regex, () => replacements[idx++]);
+}
+
+function extractCssProp(style, propName) {
+	if (!style) return '';
+	const m = style.match(new RegExp(`(?:^|;)\\s*${propName}\\s*:\\s*([^;]+)`, 'i'));
+	return m ? m[1] : '';
+}
+
+function parseTagAttrs(attrStr) {
+	const map = Object.create(null);
+	if (!attrStr) return map;
+	ATTR_REGEX.lastIndex = 0;
+	let m;
+	while ((m = ATTR_REGEX.exec(attrStr)) !== null) {
+		const name = m[1].toLowerCase();
+		const val = m[2] ?? m[3] ?? m[4] ?? '';
+		if (!(name in map)) {
+			map[name] = decodeAttrValue(val);
+		}
+	}
+	return map;
+}
+
 const proxyService = {
 
 	// 改写单封邮件 HTML：内部读取 R2 域名，把外链图换成 /proxy?url=。
@@ -34,7 +89,7 @@ const proxyService = {
 		return this.applyRewrite(html, this.rewriter(await this.signingKey(c.env), r2Domain), r2Domain);
 	},
 
-	// 批量改写邮件列表的 content，R2 域名只查一次。
+	// 批量改写邮件列表的 content，R2 域名与签名密钥只查一次。
 	async rewriteList(c, list) {
 		if (!list?.length) {
 			return list;
@@ -182,10 +237,18 @@ const proxyService = {
 
 	rewriter(key, r2Domain) {
 		const exp = String(Math.floor(Date.now() / 1000) + PROXY_LINK_TTL);
+		const cache = new Map();
 		return raw => {
+			if (!raw) return null;
 			const restored = this.fromProxyPath(raw);
 			const url = restored || (this.shouldProxyUrl(raw, r2Domain) ? this.absoluteUrl(raw) : null);
-			return url ? this.toProxyPath(url, exp, key) : null;
+			if (!url) return null;
+			let pending = cache.get(url);
+			if (!pending) {
+				pending = this.toProxyPath(url, exp, key);
+				cache.set(url, pending);
+			}
+			return pending;
 		};
 	},
 
@@ -210,32 +273,11 @@ const proxyService = {
 		}
 	},
 
-	// 在生成代理链接前移除疑似追踪图：宽或高为 0，或宽高均为 1px 的外链图片。
-	// 检查普通、懒加载和响应式图片来源，也识别已经改写过的代理链接。
-	removeTrackingImages(document, r2Domain) {
-		const isExternal = url => this.fromProxyPath(url) || this.shouldProxyUrl(url, r2Domain);
-		const hasExternalImage = el => ATTRS.some(attr => isExternal(el.getAttribute(attr))) ||
-			el.getAttribute('srcset')?.split(',').some(candidate => isExternal(candidate.trim().split(/\s+/, 1)[0]));
-
-		for (const img of document.querySelectorAll('img')) {
-			const width = this.imageDimension(img, 'width');
-			const height = this.imageDimension(img, 'height');
-			if (width !== 0 && height !== 0 && !(width === 1 && height === 1)) {
-				continue;
-			}
-
-			// picture 的 source 也可能提供外链，命中后一起移除。
-			const picture = img.parentElement?.localName === 'picture' ? img.parentElement : null;
-			if (hasExternalImage(img) || (picture && Array.from(picture.querySelectorAll('source')).some(hasExternalImage))) {
-				(picture || img).remove();
-			}
-		}
-	},
-
 	// 优先读取内联样式，再回退到对应的 HTML 属性。
 	// 仅识别过滤规则所需的 0 和 1px，其余值返回 undefined。
-	imageDimension(img, name) {
-		const value = (img.style.getPropertyValue(name) || img.getAttribute(name) || '').replace(/\s*!important$/i, '').trim();
+	imageDimensionFromAttrs(attrs, name) {
+		const rawVal = extractCssProp(attrs.style, name) || attrs[name] || '';
+		const value = rawVal.replace(/\s*!important$/i, '').trim();
 		if (/^(?:0+(?:\.0+)?|\.0+)(?:px|%)?$/i.test(value)) {
 			return 0;
 		}
@@ -244,65 +286,148 @@ const proxyService = {
 		}
 	},
 
-	// 解析 HTML，把 img/srcset/CSS url 等外链改成带签名的同源代理地址。
-	async applyRewrite(html, rewriteUrl, r2Domain) {
-		const { document } = parseHTML(html);
-		this.removeTrackingImages(document, r2Domain);
-		const updates = [];
-		const rewriteAttr = async (el, attr) => {
-			const path = await rewriteUrl(el.getAttribute(attr));
-			if (path) {
-				el.setAttribute(attr, path);
+	// 在生成代理链接前移除疑似追踪图：宽或高为 0，或宽高均为 1px 的外链图片。
+	removeTrackingImagesFromHtml(html, r2Domain) {
+		if (!/<img\b/i.test(html)) {
+			return html;
+		}
+		const isExternal = url => this.fromProxyPath(url) || this.shouldProxyUrl(url, r2Domain);
+		const hasExternalAttrs = attrs => ATTRS.some(attr => isExternal(attrs[attr])) ||
+			Boolean(attrs.srcset?.split(',').some(candidate => isExternal(candidate.trim().split(/\s+/, 1)[0])));
+
+		const isTrackingImgTag = imgTag => {
+			const m = imgTag.match(/^<img\b([^>]*)>/i);
+			if (!m) return { tracking: false, external: false };
+			const attrs = parseTagAttrs(m[1]);
+			const width = this.imageDimensionFromAttrs(attrs, 'width');
+			const height = this.imageDimensionFromAttrs(attrs, 'height');
+			if (width !== 0 && height !== 0 && !(width === 1 && height === 1)) {
+				return { tracking: false, external: false };
 			}
+			return { tracking: true, external: hasExternalAttrs(attrs) };
 		};
 
-		document.querySelectorAll('img,source,video,audio,track,input').forEach(el => {
-			ATTRS.forEach(attr => updates.push(rewriteAttr(el, attr)));
-			const srcset = el.getAttribute('srcset');
-			if (srcset) {
-				updates.push(this.rewriteSrcset(srcset, rewriteUrl).then(value => el.setAttribute('srcset', value)));
+		let result = html;
+		if (/<picture\b/i.test(result)) {
+			result = result.replace(/<picture\b[^>]*>[\s\S]*?<\/picture>/gi, pictureBlock => {
+				const imgMatch = pictureBlock.match(/<img\b[^>]*>/i);
+				if (!imgMatch) return pictureBlock;
+				const { tracking, external } = isTrackingImgTag(imgMatch[0]);
+				if (!tracking) return pictureBlock;
+				if (external) return '';
+				const sources = pictureBlock.match(/<source\b[^>]*>/gi) || [];
+				const hasExternalSource = sources.some(srcTag => {
+					const sm = srcTag.match(/^<source\b([^>]*)>/i);
+					return sm ? hasExternalAttrs(parseTagAttrs(sm[1])) : false;
+				});
+				return hasExternalSource ? '' : pictureBlock;
+			});
+		}
+
+		return result.replace(/<img\b[^>]*>/gi, imgTag => {
+			const { tracking, external } = isTrackingImgTag(imgTag);
+			return tracking && external ? '' : imgTag;
+		});
+	},
+
+	// 零 DOM 解析快速改写 HTML，把 img/srcset/CSS url 等外链改成带签名的同源代理地址。
+	async applyRewrite(html, rewriteUrl, r2Domain) {
+		if (!html || !/https?:\/\/|\/\/|proxy\?/i.test(html)) {
+			return html;
+		}
+
+		let result = this.removeTrackingImagesFromHtml(html, r2Domain);
+
+		if (/<style\b/i.test(result) && /url\s*\(/i.test(result)) {
+			result = await replaceAsync(result, STYLE_TAG_REGEX, async (full, open, css, close) => {
+				if (!/url\s*\(/i.test(css)) return full;
+				const rewritten = await this.rewriteCssUrls(css, rewriteUrl);
+				return open + rewritten + close;
+			});
+		}
+
+		result = await replaceAsync(result, TAG_REGEX, async (full, tagName, attrStr, selfClose) => {
+			if (!attrStr || !/https?:\/\/|\/\/|proxy\?|url\s*\(/i.test(attrStr)) {
+				return full;
 			}
+			const lowerTag = tagName.toLowerCase();
+			const isMedia = MEDIA_TAGS.has(lowerTag);
+			const rewrittenAttrs = await replaceAsync(attrStr, ATTR_REGEX, async (attrFull, name, dq, sq, uq) => {
+				const lowerName = name.toLowerCase();
+				const quote = dq !== undefined ? '"' : (sq !== undefined ? "'" : '');
+				const rawVal = decodeAttrValue(dq ?? sq ?? uq ?? '');
+
+				if (lowerName === 'style') {
+					if (!/url\s*\(/i.test(rawVal)) return attrFull;
+					const nextCss = await this.rewriteCssUrls(rawVal, rewriteUrl);
+					if (nextCss === rawVal) return attrFull;
+					return `${name}=${quote || '"'}${encodeAttrValue(nextCss, quote || '"')}${quote || '"'}`;
+				}
+
+				if (isMedia && lowerName === 'srcset') {
+					const nextSrcset = await this.rewriteSrcset(rawVal, rewriteUrl);
+					if (nextSrcset === rawVal) return attrFull;
+					return `${name}=${quote || '"'}${encodeAttrValue(nextSrcset, quote || '"')}${quote || '"'}`;
+				}
+
+				if (lowerName === 'background' || (isMedia && ATTR_SET.has(lowerName))) {
+					const nextPath = await rewriteUrl(rawVal);
+					if (!nextPath) return attrFull;
+					return `${name}=${quote || '"'}${encodeAttrValue(nextPath, quote || '"')}${quote || '"'}`;
+				}
+
+				return attrFull;
+			});
+
+			if (rewrittenAttrs === attrStr) return full;
+			return `<${tagName}${rewrittenAttrs}${selfClose}>`;
 		});
 
-		document.querySelectorAll('[background]').forEach(el => updates.push(rewriteAttr(el, 'background')));
-		document.querySelectorAll('[style]').forEach(el => {
-			updates.push(this.rewriteCssUrls(el.getAttribute('style'), rewriteUrl).then(value => el.setAttribute('style', value)));
-		});
-		document.querySelectorAll('style').forEach(el => {
-			updates.push(this.rewriteCssUrls(el.textContent, rewriteUrl).then(value => { el.textContent = value; }));
-		});
-
-		await Promise.all(updates);
-		return document.toString();
+		return result;
 	},
 
 	// 把正文里的 /proxy?url= 还原成原始地址。
 	applyRestore(html) {
-		const { document } = parseHTML(html);
-		const restoreAttr = (el, attr) => {
-			const original = this.fromProxyPath(el.getAttribute(attr));
-			if (original) {
-				el.setAttribute(attr, original);
+		if (!html || !html.includes('proxy?')) {
+			return html;
+		}
+
+		let result = html;
+		if (/<style\b/i.test(result)) {
+			result = result.replace(STYLE_TAG_REGEX, (full, open, css, close) => {
+				if (!css.includes('proxy?')) return full;
+				return open + this.restoreCssUrls(css) + close;
+			});
+		}
+
+		return result.replace(TAG_REGEX, (full, tagName, attrStr, selfClose) => {
+			if (!attrStr || !attrStr.includes('proxy?')) {
+				return full;
 			}
-		};
+			const lowerTag = tagName.toLowerCase();
+			const isMedia = MEDIA_TAGS.has(lowerTag);
+			const restoredAttrs = attrStr.replace(ATTR_REGEX, (attrFull, name, dq, sq, uq) => {
+				const lowerName = name.toLowerCase();
+				const quote = dq !== undefined ? '"' : (sq !== undefined ? "'" : '');
+				const rawVal = decodeAttrValue(dq ?? sq ?? uq ?? '');
+				if (!rawVal.includes('proxy?')) return attrFull;
 
-		document.querySelectorAll('img,source,video,audio,track,input').forEach(el => {
-			ATTRS.forEach(attr => restoreAttr(el, attr));
-			const srcset = el.getAttribute('srcset');
-			if (srcset) {
-				el.setAttribute('srcset', this.restoreSrcset(srcset));
-			}
+				if (lowerName === 'style') {
+					const nextCss = this.restoreCssUrls(rawVal);
+					return nextCss === rawVal ? attrFull : `${name}=${quote || '"'}${encodeAttrValue(nextCss, quote || '"')}${quote || '"'}`;
+				}
+				if (isMedia && lowerName === 'srcset') {
+					const nextSrcset = this.restoreSrcset(rawVal);
+					return nextSrcset === rawVal ? attrFull : `${name}=${quote || '"'}${encodeAttrValue(nextSrcset, quote || '"')}${quote || '"'}`;
+				}
+				if (lowerName === 'background' || (isMedia && ATTR_SET.has(lowerName))) {
+					const original = this.fromProxyPath(rawVal);
+					return original ? `${name}=${quote || '"'}${encodeAttrValue(original, quote || '"')}${quote || '"'}` : attrFull;
+				}
+				return attrFull;
+			});
+			return restoredAttrs === attrStr ? full : `<${tagName}${restoredAttrs}${selfClose}>`;
 		});
-
-		document.querySelectorAll('[background]').forEach(el => restoreAttr(el, 'background'));
-		document.querySelectorAll('[style]').forEach(el => {
-			el.setAttribute('style', this.restoreCssUrls(el.getAttribute('style')));
-		});
-		document.querySelectorAll('style').forEach(el => {
-			el.textContent = this.restoreCssUrls(el.textContent);
-		});
-
-		return document.toString();
 	},
 
 	// 拼浏览器可直接请求的签名代理地址。
@@ -398,7 +523,7 @@ const proxyService = {
 
 	// 改写 style / <style> 中的 url(...)，一般是背景图。
 	async rewriteCssUrls(css, rewriteUrl) {
-		if (!css) {
+		if (!css || !/url\s*\(/i.test(css)) {
 			return css;
 		}
 		const pattern = /url\(\s*(['"]?)(.*?)\1\s*\)/gi;
@@ -412,7 +537,7 @@ const proxyService = {
 
 	// 还原 CSS url(...) 里的代理地址。
 	restoreCssUrls(css) {
-		if (!css) {
+		if (!css || !css.includes('proxy?')) {
 			return css;
 		}
 		return String(css).replace(/url\(\s*(['"]?)(.*?)\1\s*\)/gi, (match, quote, url) => {

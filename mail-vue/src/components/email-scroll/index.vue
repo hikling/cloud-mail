@@ -410,7 +410,7 @@ const triggerRef = ref({
 })
 
 const queryParam = reactive({
-  size: 50
+  size: 30
 });
 
 defineExpose({
@@ -579,14 +579,20 @@ watch(() => emailStore.addStarEmailId, () => {
   })
 })
 
-function openReply(email) {
-  const fullEmail = emailStore.detailMap[email.emailId]
+async function openReply(email) {
+  let fullEmail = emailStore.detailMap[email.emailId]
+  if (!fullEmail) {
+    fullEmail = await emailStore.loadDetail(email.emailId, props.type === 'all-email').catch(() => null)
+  }
   if (!fullEmail) return
   uiStore.writerRef.openReply(fullEmail)
 }
 
-function openForward(email) {
-  const fullEmail = emailStore.detailMap[email.emailId]
+async function openForward(email) {
+  let fullEmail = emailStore.detailMap[email.emailId]
+  if (!fullEmail) {
+    fullEmail = await emailStore.loadDetail(email.emailId, props.type === 'all-email').catch(() => null)
+  }
   if (!fullEmail) return
   uiStore.writerRef.openForward(fullEmail)
 }

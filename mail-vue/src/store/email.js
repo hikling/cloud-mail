@@ -1,6 +1,10 @@
 import { defineStore } from 'pinia'
 import { EmailUnreadEnum } from '@/enums/email-enum.js'
 import { sanitizeEmailHtml } from '@/utils/email-html.js'
+import { emailDetail } from '@/request/email.js'
+import { allEmailDetail } from '@/request/all-email.js'
+
+const pendingDetailRequests = new Map()
 
 export const useEmailStore = defineStore('email', {
     state: () => ({
@@ -18,6 +22,7 @@ export const useEmailStore = defineStore('email', {
         },
         sendScroll: null,
         detailMap: {},
+        detailLoading: false,
         searchParams: {
             text: '',
             type: 'subject',
@@ -36,15 +41,42 @@ export const useEmailStore = defineStore('email', {
             }
         },
         fetchList(request) {
-            return request(0).then(data => {
-                request(1).then(fullData => {
-                    const list = Array.isArray(fullData) ? fullData : fullData?.list
-                    this.applyFullList(list)
-                }).catch(e => {
-                    console.error(e)
+            // 仅请求摘要列表（full=0），正文与附件改为按需单封加载，避免批量解析整页 HTML 触发 Worker 1102 资源超限
+            return request(0)
+        },
+        async loadDetail(emailId, isAllEmail = false) {
+            const id = Number(emailId)
+            if (!id) return null
+            if (this.detailMap[id]) {
+                if (this.contentData.email?.emailId === id) {
+                    this.contentData.email = this.detailMap[id]
+                }
+                return this.detailMap[id]
+            }
+
+            const reqKey = `${isAllEmail ? 'all' : 'user'}:${id}`
+            if (pendingDetailRequests.has(reqKey)) {
+                return pendingDetailRequests.get(reqKey)
+            }
+
+            this.detailLoading = true
+            const req = (isAllEmail ? allEmailDetail(id) : emailDetail(id))
+                .then(detail => {
+                    if (detail?.emailId) {
+                        this.applyFullList([detail])
+                        return this.detailMap[detail.emailId]
+                    }
+                    return null
                 })
-                return data
-            })
+                .finally(() => {
+                    pendingDetailRequests.delete(reqKey)
+                    if (pendingDetailRequests.size === 0) {
+                        this.detailLoading = false
+                    }
+                })
+
+            pendingDetailRequests.set(reqKey, req)
+            return req
         },
         applyFullList(list) {
             if (!list?.length) return
