@@ -1,154 +1,114 @@
 <p align="center">
-    <img src="doc/demo/logo.png" width="80px" />
+    <img src="doc/demo/logo.png" width="80px" alt="Cloud Mail" />
     <h1 align="center">Cloud Mail</h1>
-    <p align="center">An all-in-one email service platform powered by Cloudflare</p>
+    <p align="center"><strong>Cloudflare Workers 上で動作する軽量・モダンな個人向けクラウドメール</strong></p>
     <p align="center">
         <a href="https://www.cloudflare.com/" target="_blank">
             <img src="https://img.shields.io/badge/Cloudflare-F38020?labelColor=F38020&amp;color=F38020&amp;logo=cloudflare&amp;logoColor=white" alt="Cloudflare" />
         </a>
-        <a href="https://github.com/maillab/cloud-mail/releases" target="_blank" >
-            <img src="https://img.shields.io/github/v/release/maillab/cloud-mail?logo=github&amp;logoColor=white" alt="releases" />
+        <a href="https://github.com/hikling/cloud-mail" target="_blank">
+            <img src="https://img.shields.io/badge/GitHub-hikling%2Fcloud--mail-181717?logo=github&amp;logoColor=white" alt="GitHub" />
         </a>
-        <a href="https://github.com/maillab/cloud-mail/tree/main?tab=MIT-1-ov-file" target="_blank" >
-            <img src="https://img.shields.io/badge/license-MIT-green" />
+        <a href="LICENSE" target="_blank">
+            <img src="https://img.shields.io/badge/license-MIT-green" alt="License" />
         </a>
     </p>
     <p align="center">
-        <a href="https://skymail.ink">デモサイト</a> · <a href="https://docs.skymail.ink/en/">デプロイガイド</a> ·
-        <a href="/README.md">简体中文</a> | <a href="/README-en.md">English</a> | 日本語
-    </p>
-    <p align="center">
-        <a href="https://trendshift.io/repositories/20459" target="_blank" >
-            <img src="https://trendshift.io/api/badge/repositories/20459" alt="trendshift" >
-        </a>
-        <a href="https://hellogithub.com/repository/1b1da1f9ae4c4175baa3d762b4e0ba41" target="_blank">
-            <img src="https://api.hellogithub.com/v1/widgets/recommend.svg?rid=1b1da1f9ae4c4175baa3d762b4e0ba41" alt="HelloGitHub" />
-        </a>
+        <a href="README-en.md">English</a> | <a href="README.md">简体中文</a> | 日本語
     </p>
 </p>
 
 ## 概要
-ドメインが 1 つあれば、大手メールサービスのように複数の異なるメールアドレスを作成できます。このプロジェクトは Cloudflare Workers にデプロイできるため、サーバー費用を抑えながら自分専用のメールサービスを構築できます。
-## プロジェクトのスクリーンショット
 
-| ![](/doc/demo/en/demo.jpg)  | ![](/doc/demo/en/demo1.jpg) |
-|-----------------------------|-----------------------------|
-| ![](/doc/demo/en/demo2.jpg) | ![](/doc/demo/en/demo3.jpg) |
+Cloud Mail は、Cloudflare エッジネットワーク上で完結する**個人利用向けのクラウドメールシステム**です。専用サーバーを用意することなく、独自ドメインと Cloudflare Workers / D1 / KV を組み合わせて複数ドメインのメールエイリアス管理、リアルタイム送受信、各種通知・転送ルールを運用できます。
 
-## おすすめのプロジェクト
+本リポジトリは個人用途に合わせて構成を最適化しており、複数ユーザー管理・登録キー・RBAC 権限管理機能を取り除き、初回セットアップ時のみ管理者アカウントを作成できるシンプルな運用モデルを採用しています。
 
-<table>
-  <tr>
-    <td valign="middle">
-      <a href="https://github.com/pixtalelab/pixtale">
-        <img width="30" src="https://img.022335.xyz/logo.png" alt="Pixtale" align="middle">
-      </a>
-    </td>
-    <td valign="middle">
-      <a href="https://github.com/pixtalelab/pixtale">Pixtale</a>
-    </td>
-    <td valign="middle">
-      セルフホスト型のクラウドストレージ写真アルバムアプリ
-    </td>
-  </tr>
-</table>
+## 主な機能
 
-## 機能
-
-- **💰 低コスト**: サーバー不要で、Cloudflare Workers にデプロイしてコストを抑えられます。
-
-- **💻 レスポンシブデザイン**: デスクトップとほとんどのモバイルブラウザに自動で対応します。
-
-- **📧 メール送信**: Cloudflare Email と Resend を統合し、メールを送信できます。
-
-- **🛡️ 管理者機能**: RBAC ベースのアクセス制御により、ユーザーとメールを管理できます。
-
-- **📦 添付ファイル対応**: 添付ファイルを送受信でき、R2 オブジェクトストレージで保存・ダウンロードします。
-
-- **🔔 メールプッシュ**: 受信したメールを Telegram ボットやほかのメールプロバイダーに転送できます。
-
-- **📡 オープン API**: API によるユーザーの一括作成と、複数条件でのメール検索に対応しています
-
-- **🔢 認証コードの認識**: Workers AI で認証コードを自動検出します
-
-- **📈 データの可視化**: ECharts を使い、ユーザーやメールの増加などのシステムデータを可視化します。
-
-- **🎨 パーソナライズ**: サイトのタイトル、ログイン画面の背景、透明度をカスタマイズできます。
-
-- **🤖 CAPTCHA**: Turnstile CAPTCHA を統合し、自動登録を防止します。
-
-- **📜 その他の機能**: 開発中です...
+- **個人・単一管理者モード**：初回起動時（ユーザーが存在しない状態）のみ管理者アカウントを登録でき、以降の公開登録は無効化されます。
+- **複数ドメイン＆キャッチオール受信**：1 つまたは複数のドメインでメールエイリアスを作成・切替でき、未登録アドレス宛ての Catch-All メールも一覧表示できます。
+- **WebSocket リアルタイム通知**：Durable Objects（`MailHub`）による `/realtime` 接続で新着メールを即時通知します。
+- **デュアル送信エンジン**：Cloudflare Email Sending と Resend API の両方に対応し、下書き・スター・全メール検索を備えています。
+- **添付ファイル＆エッジキャッシュ**：Cloudflare R2 / S3 互換ストレージ / KV に添付ファイルを保存し、公開静的アセットには Edge Cache と `ETag` / `304` 検証を適用します。
+- **セキュリティ＆プライバシー保護**：HTML メールの XSS サニタイズ、サンドボックス表示、トラッキングピクセル除去、署名付き外部画像プロキシ（`/proxy`）、Turnstile 認証、GitHub / Google / Linux.do OAuth2 ログインに対応しています。
+- **AI 解析・通知連携**：Workers AI による認証コード自動抽出、Telegram Bot プレビュー通知、Webhook 送信、条件付きメール転送、ブロックリスト、定期自動削除を利用できます。
+- **モダン UI とカスタマイズ**：Vue 3 + Element Plus ベースで、ライト/ダークモード、6 種類のオーロラ背景テーマ、パネル透明度調整、カスタム背景画像、レスポンシブ表示、日本語/英語/中国語 README に対応（アプリ UI は中国語・英語）。
+- **統計ダッシュボード**：ECharts による送受信トレンド表示とオプションの KV キャッシュ（`analysis_cache`）を備えています。
 
 ## 技術スタック
 
-- **プラットフォーム**: [Cloudflare Workers](https://developers.cloudflare.com/workers/)
+- **ランタイム**: [Cloudflare Workers](https://developers.cloudflare.com/workers/) & [Durable Objects](https://developers.cloudflare.com/durable-objects/)
+- **バックエンド / ORM**: [Hono](https://hono.dev/) + [Drizzle ORM](https://orm.drizzle.team/)
+- **フロントエンド / UI**: [Vue 3](https://vuejs.org/) + [Element Plus](https://element-plus.org/) + [Pinia](https://pinia.vuejs.org/) + [ECharts](https://echarts.apache.org/)
+- **データ・ストレージ**: [Cloudflare D1](https://developers.cloudflare.com/d1/)、[Cloudflare KV](https://developers.cloudflare.com/kv/)、[Cloudflare R2](https://developers.cloudflare.com/r2/) / S3
+- **メール・AI**: [Cloudflare Email](https://developers.cloudflare.com/email-service/)、[Resend](https://resend.com/)、[Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/)
 
-- **Web フレームワーク**: [Hono](https://hono.dev/)
-
-- **ORM**: [Drizzle](https://orm.drizzle.team/)
-
-- **フロントエンドフレームワーク**: [Vue3](https://vuejs.org/)
-
-- **UI フレームワーク**: [Element Plus](https://element-plus.org/)
-
-- **メール送信**: [Cloudflare Email](https://developers.cloudflare.com/email-service/) / [Resend](https://resend.com/)
-
-- **キャッシュ**: [Cloudflare KV](https://developers.cloudflare.com/kv/)
-
-- **データベース**: [Cloudflare D1](https://developers.cloudflare.com/d1/)
-
-- **ファイルストレージ**: [Cloudflare R2](https://developers.cloudflare.com/r2/)
-
-## プロジェクト構成
+## ディレクトリ構成
 
 ```
 cloud-mail
-├── mail-worker                    # Backend worker project
+├── mail-worker                    # Cloudflare Workers バックエンド
 │   ├── src
-│   │   ├── api                    # API layer
-│   │   ├── const                  # Project constants
-│   │   ├── dao                    # Data access layer
-│   │   ├── email                  # Email processing and handling
-│   │   ├── entity                 # Database entities
-│   │   ├── error                  # Custom exceptions
-│   │   ├── hono                   # Web framework, middleware, error handling
-│   │   ├── i18n                   # Internationalization
-│   │   ├── init                   # Database and cache initialization
-│   │   ├── model                  # Response data models
-│   │   ├── security               # Authentication and authorization
-│   │   ├── service                # Business logic layer
-│   │   ├── template               # Message templates
-│   │   ├── utils                  # Utility functions
-│   │   └── index.js               # Entry point
-│   ├── package.json               # Project dependencies
-│   └── wrangler.toml              # Project configuration
+│   │   ├── api                    # API ルーティング
+│   │   ├── const                  # 定数・Enum
+│   │   ├── dao                    # 分析集計データアクセス
+│   │   ├── email                  # 受信メール解析・処理
+│   │   ├── entity                 # Drizzle スキーマ定義
+│   │   ├── error                  # 例外定義
+│   │   ├── hono                   # Hono アプリ設定・エラーハンドラ
+│   │   ├── i18n                   # サーバー側多言語対応
+│   │   ├── init                   # DB 初期化・マイグレーション
+│   │   ├── model                  # レスポンスモデル
+│   │   ├── security               # JWT 認証・アクセス制御
+│   │   ├── service                # ビジネスロジック層
+│   │   ├── template               # メール本文・通知テンプレート
+│   │   ├── utils                  # 暗号化・JWT・Edge Cache・ヘッダーユーティリティ
+│   │   ├── websocket              # Durable Object WebSocket ハブ (MailHub)
+│   │   └── index.js               # エントリーポイント（HTTP / Email / Cron）
+│   ├── package.json               # 依存関係とスクリプト
+│   ├── wrangler.toml              # Wrangler デプロイ設定
+│   └── wrangler-action.toml       # GitHub Actions 用テンプレート
 │
-├── mail-vue                       # Frontend Vue project
+├── mail-vue                       # Vue 3 フロントエンド
+│   ├── public                     # アイコン・TinyMCE 静的ファイル
 │   ├── src
-│   │   ├── axios                  # Axios configuration
-│   │   ├── components             # Custom components
-│   │   ├── echarts                # ECharts integration
-│   │   ├── i18n                   # Internationalization
-│   │   ├── init                   # Startup initialization
-│   │   ├── layout                 # Main layout components
-│   │   ├── perm                   # Permissions and access control
-│   │   ├── request                # API request layer
-│   │   ├── router                 # Router configuration
-│   │   ├── store                  # Global state management
-│   │   ├── utils                  # Utility functions
-│   │   ├── views                  # Page components
-│   │   ├── app.vue                # Root component
-│   │   ├── main.js                # Entry JS file
-│   │   └── style.css              # Global styles
-│   ├── package.json               # Project dependencies
-└── └── env.release                # Environment configuration
-
+│   │   ├── axios                  # Axios 設定・インターセプター
+│   │   ├── components             # 共通コンポーネント
+│   │   ├── db                     # Dexie ローカル DB キャッシュ
+│   │   ├── echarts                # ECharts 読み込み設定
+│   │   ├── enums                  # ステータス Enum
+│   │   ├── i18n                   # フロントエンド翻訳（zh / en）
+│   │   ├── icons                  # 最適化済みオフライン Iconify アイコン集
+│   │   ├── init                   # 初期化処理
+│   │   ├── layout                 # ヘッダー・アカウント一覧・作成モーダル
+│   │   ├── perm                   # 動的ルーティング制御
+│   │   ├── request                # API リクエスト関数
+│   │   ├── router                 # Vue Router 設定
+│   │   ├── store                  # Pinia ストア
+│   │   ├── utils                  # セッション・日時・ファイル・オーロラテーマ処理
+│   │   ├── views                  # 各画面コンポーネント
+│   │   ├── websocket              # WebSocket クライアント管理
+│   │   ├── App.vue                # ルートコンポーネント
+│   │   ├── main.js                # エントリーポイント
+│   │   └── style.css              # グローバルスタイルシステム
+│   ├── package.json               # 依存関係とビルドスクリプト
+│   ├── .env.release               # 本番ビルド環境変数
+│   └── vite.config.js             # Vite & PWA 設定
 ```
+
+## デプロイについて
+
+[deploy-cloudflare.yml](.github/workflows/deploy-cloudflare.yml) により、`main` ブランチへのプッシュまたは手動実行でフロントエンドのビルドと Cloudflare Workers へのデプロイを自動化できます。
+
+- **必須シークレット / 変数**：`CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`、`D1_DATABASE_ID`、`KV_NAMESPACE_ID`、`DOMAIN`（例: `["example.com"]`）、`ADMIN`、`JWT_SECRET`
+- **主な任意変数**：`PASSWORD`、`CUSTOM_DOMAIN`、`R2_BUCKET_NAME`、`AI_MODEL`、`EMAIL`、`ANALYSIS_CACHE`、`PROJECT_LINK`
+- **ローカルビルド**：
+  ```bash
+  pnpm --prefix mail-vue install
+  pnpm --prefix mail-vue run build
+  ```
 
 ## ライセンス
 
-このプロジェクトは [MIT](LICENSE) ライセンスの下で公開されています。
-
-## コミュニティ
-
-[Telegram](https://t.me/cloud_mail_tg)
+[MIT](LICENSE) ライセンスのもとで公開されています。

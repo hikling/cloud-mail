@@ -1,154 +1,117 @@
 <p align="center">
-    <img src="doc/demo/logo.png" width="80px" />
+    <img src="doc/demo/logo.png" width="80px" alt="Cloud Mail" />
     <h1 align="center">Cloud Mail</h1>
-    <p align="center">An all-in-one email service platform powered by Cloudflare</p>
+    <p align="center"><strong>Lightweight, refined personal cloud webmail built on Cloudflare Workers</strong></p>
     <p align="center">
         <a href="https://www.cloudflare.com/" target="_blank">
             <img src="https://img.shields.io/badge/Cloudflare-F38020?labelColor=F38020&amp;color=F38020&amp;logo=cloudflare&amp;logoColor=white" alt="Cloudflare" />
         </a>
-        <a href="https://github.com/maillab/cloud-mail/releases" target="_blank" >
-            <img src="https://img.shields.io/github/v/release/maillab/cloud-mail?logo=github&amp;logoColor=white" alt="releases" />
+        <a href="https://github.com/hikling/cloud-mail" target="_blank">
+            <img src="https://img.shields.io/badge/GitHub-hikling%2Fcloud--mail-181717?logo=github&amp;logoColor=white" alt="GitHub" />
         </a>
-        <a href="https://github.com/maillab/cloud-mail/tree/main?tab=MIT-1-ov-file" target="_blank" >
-            <img src="https://img.shields.io/badge/license-MIT-green" />
+        <a href="LICENSE" target="_blank">
+            <img src="https://img.shields.io/badge/license-MIT-green" alt="License" />
         </a>
     </p>
     <p align="center">
-        <a href="https://skymail.ink">Live Demo</a> · <a href="https://docs.skymail.ink/en/">Deployment Guide</a> ·
-        <a href="/README.md">简体中文</a> | English | <a href="/README-ja.md">日本語</a>
-    </p>
-    <p align="center">
-        <a href="https://trendshift.io/repositories/20459" target="_blank" >
-            <img src="https://trendshift.io/api/badge/repositories/20459" alt="trendshift" >
-        </a>
-        <a href="https://hellogithub.com/repository/1b1da1f9ae4c4175baa3d762b4e0ba41" target="_blank">
-            <img src="https://api.hellogithub.com/v1/widgets/recommend.svg?rid=1b1da1f9ae4c4175baa3d762b4e0ba41" alt="HelloGitHub" />
-        </a>
+        English | <a href="README.md">简体中文</a> | <a href="README-ja.md">日本語</a>
     </p>
 </p>
 
-## Description
-With only one domain, you can create multiple different email addresses, similar to major email platforms. This project can be deployed on Cloudflare Workers to reduce server costs and build your own email service.
-## Project Showcase
+## Overview
 
-| ![](/doc/demo/en/demo.jpg)  | ![](/doc/demo/en/demo1.jpg) |
-|-----------------------------|-----------------------------|
-| ![](/doc/demo/en/demo2.jpg) | ![](/doc/demo/en/demo3.jpg) |
+Cloud Mail is a **personal serverless webmail system** running end-to-end on the Cloudflare edge network. Without maintaining traditional mail servers, you can bind your own domain(s) with Cloudflare Workers, D1, and KV to manage multiple personal mailbox aliases, send and receive email in real time, and automate forwarding or notifications.
 
-## Recommended Project
-
-<table>
-  <tr>
-    <td valign="middle">
-      <a href="https://github.com/pixtalelab/pixtale">
-        <img width="30" src="https://img.022335.xyz/logo.png" alt="Pixtale" align="middle">
-      </a>
-    </td>
-    <td valign="middle">
-      <a href="https://github.com/pixtalelab/pixtale">Pixtale</a>
-    </td>
-    <td valign="middle">
-      A self-hosted cloud storage photo album app
-    </td>
-  </tr>
-</table>
+This edition is streamlined specifically for **personal use**: multi-user administration, registration keys, and RBAC management have been removed. Account registration is enabled only once during initial setup (when no user exists yet), focusing on personal productivity, refined glass/aurora UI, and edge security.
 
 ## Features
 
-- **💰 Low-Cost Usage**: No server required — deploy to Cloudflare Workers to reduce costs.
-
-- **💻 Responsive Design**: Automatically adapts to both desktop and most mobile browsers.
-
-- **📧 Email Sending**: Integrated with Cloudflare Email and Resend for sending email.
-
-- **🛡️ Admin Features**: Admin controls for user and email management with RBAC-based access control.
-
-- **📦 Attachment Support**: Send and receive attachments, stored and downloaded via R2 object storage.
-
-- **🔔 Email Push**: Forward received emails to Telegram bots or other email providers.
-
-- **📡 Open API**: Supports batch user creation via API and multi-condition email queries
-
-- **🔢 Verification Code Recognition**: Auto-detect codes via Workers AI
-
-- **📈 Data Visualization**: Use ECharts to visualize system data, including user email growth.
-
-- **🎨 Personalization**: Customize website title, login background, and transparency.
-
-- **🤖 CAPTCHA**: Integrated with Turnstile CAPTCHA to prevent automated registration.
-
-- **📜 More Features**: Under development...
+- **Personal Single-Admin Mode**: Allows initial admin registration only on a fresh setup with zero users, then automatically locks public registration.
+- **Multi-Domain & Catch-All Inbox**: Create multiple mailbox aliases across one or more domains, switch primary mailboxes, and inspect Catch-All messages sent to unregistered addresses.
+- **Real-Time WebSocket Delivery**: Uses Cloudflare Durable Objects (`MailHub`) on `/realtime` to push incoming mail updates immediately.
+- **Dual Outbound Engines**: Supports sending emails via Cloudflare Email Sending and Resend API, with drafts, starred mail, all-mail views, and search filters.
+- **Attachments & Edge Caching**: Store attachments in Cloudflare R2, S3-compatible storage, or KV; serves public assets via Edge Cache with `ETag` / `304` validation to minimize origin reads.
+- **Security & Privacy Hardening**:
+  - HTML email sanitization, sandboxed rendering, and tracking pixel removal.
+  - HMAC-signed external image proxy (`/proxy` + Edge Cache) to prevent leaking client IP addresses.
+  - Optional Cloudflare Turnstile verification and GitHub / Google / Linux.do OAuth2 login binding.
+- **AI & Multi-Channel Notifications**: Extracts verification codes automatically with Cloudflare Workers AI; supports Telegram Bot preview alerts, Webhook delivery, rule-based email forwarding, blocklists, and scheduled auto-cleanup.
+- **Modern Adaptive UI**: Vue 3 + Element Plus workspace with Light/Dark themes, 6 Aurora dynamic backdrops, adjustable panel opacity, custom wallpapers, mobile responsiveness, and Chinese/English UI switching.
+- **Analytics**: Built-in ECharts traffic overview with optional KV caching (`analysis_cache`).
 
 ## Tech Stack
 
-- **Platform**: [Cloudflare Workers](https://developers.cloudflare.com/workers/)
-
-- **Web Framework**: [Hono](https://hono.dev/)
-
-- **ORM**: [Drizzle](https://orm.drizzle.team/)
-
-- **Frontend Framework**: [Vue3](https://vuejs.org/)
-
-- **UI Framework**: [Element Plus](https://element-plus.org/)
-
-- **Email Sending**: [Cloudflare Email](https://developers.cloudflare.com/email-service/) / [Resend](https://resend.com/)
-
-- **Cache**: [Cloudflare KV](https://developers.cloudflare.com/kv/)
-
-- **Database**: [Cloudflare D1](https://developers.cloudflare.com/d1/)
-
-- **File Storage**: [Cloudflare R2](https://developers.cloudflare.com/r2/)
+- **Edge Runtime**: [Cloudflare Workers](https://developers.cloudflare.com/workers/) & [Durable Objects](https://developers.cloudflare.com/durable-objects/)
+- **Backend / ORM**: [Hono](https://hono.dev/) + [Drizzle ORM](https://orm.drizzle.team/)
+- **Frontend / UI**: [Vue 3](https://vuejs.org/) + [Element Plus](https://element-plus.org/) + [Pinia](https://pinia.vuejs.org/) + [ECharts](https://echarts.apache.org/)
+- **Storage & Database**: [Cloudflare D1](https://developers.cloudflare.com/d1/), [Cloudflare KV](https://developers.cloudflare.com/kv/), [Cloudflare R2](https://developers.cloudflare.com/r2/) / S3
+- **Mail & AI**: [Cloudflare Email](https://developers.cloudflare.com/email-service/), [Resend](https://resend.com/), [Cloudflare Workers AI](https://developers.cloudflare.com/workers-ai/)
 
 ## Project Structure
 
 ```
 cloud-mail
-├── mail-worker                    # Backend worker project
+├── mail-worker                    # Cloudflare Workers backend
 │   ├── src
-│   │   ├── api                    # API layer
-│   │   ├── const                  # Project constants
-│   │   ├── dao                    # Data access layer
-│   │   ├── email                  # Email processing and handling
-│   │   ├── entity                 # Database entities
-│   │   ├── error                  # Custom exceptions
-│   │   ├── hono                   # Web framework, middleware, error handling
-│   │   ├── i18n                   # Internationalization
-│   │   ├── init                   # Database and cache initialization
-│   │   ├── model                  # Response data models
-│   │   ├── security               # Authentication and authorization
-│   │   ├── service                # Business logic layer
-│   │   ├── template               # Message templates
-│   │   ├── utils                  # Utility functions
-│   │   └── index.js               # Entry point
-│   ├── package.json               # Project dependencies
-│   └── wrangler.toml              # Project configuration
+│   │   ├── api                    # API routes
+│   │   ├── const                  # Constants and entity enums
+│   │   ├── dao                    # Analytics query layer
+│   │   ├── email                  # Inbound email parsing and handling
+│   │   ├── entity                 # Drizzle schema entities
+│   │   ├── error                  # Custom business error types
+│   │   ├── hono                   # Hono instance and global error handling
+│   │   ├── i18n                   # Server-side i18n
+│   │   ├── init                   # Database bootstrap and migrations
+│   │   ├── model                  # Response wrappers
+│   │   ├── security               # Auth middleware and route guards
+│   │   ├── service                # Core business logic, proxy, and push services
+│   │   ├── template               # HTML/text rendering and alert templates
+│   │   ├── utils                  # Crypto, JWT, Edge Cache, and header utilities
+│   │   ├── websocket              # Durable Object WebSocket hub (MailHub)
+│   │   └── index.js               # Worker entry point (HTTP / Email / Cron)
+│   ├── package.json               # Backend dependencies and scripts
+│   ├── wrangler.toml              # Wrangler configuration
+│   └── wrangler-action.toml       # GitHub Actions deployment config template
 │
-├── mail-vue                       # Frontend Vue project
+├── mail-vue                       # Vue 3 frontend app
+│   ├── public                     # Static icons and TinyMCE assets
 │   ├── src
-│   │   ├── axios                  # Axios configuration
-│   │   ├── components             # Custom components
-│   │   ├── echarts                # ECharts integration
-│   │   ├── i18n                   # Internationalization
-│   │   ├── init                   # Startup initialization
-│   │   ├── layout                 # Main layout components
-│   │   ├── perm                   # Permissions and access control
-│   │   ├── request                # API request layer
-│   │   ├── router                 # Router configuration
-│   │   ├── store                  # Global state management
-│   │   ├── utils                  # Utility functions
-│   │   ├── views                  # Page components
-│   │   ├── app.vue                # Root component
-│   │   ├── main.js                # Entry JS file
-│   │   └── style.css              # Global styles
-│   ├── package.json               # Project dependencies
-└── └── env.release                # Environment configuration
-
+│   │   ├── axios                  # Axios client and interceptors
+│   │   ├── components             # Shared components (Aurora backdrop, virtual list, sandbox, etc.)
+│   │   ├── db                     # Dexie IndexedDB local storage
+│   │   ├── echarts                # On-demand ECharts setup
+│   │   ├── enums                  # Frontend status enums
+│   │   ├── i18n                   # Frontend translations (zh / en)
+│   │   ├── icons                  # Pruned offline Iconify icon bundle
+│   │   ├── init                   # App bootstrap logic
+│   │   ├── layout                 # Top bar, mailbox rail, and compose modal
+│   │   ├── perm                   # Dynamic route registration
+│   │   ├── request                # API request helpers
+│   │   ├── router                 # Vue Router configuration
+│   │   ├── store                  # Pinia stores
+│   │   ├── utils                  # Session, date, file, and Aurora theme helpers
+│   │   ├── views                  # Pages (Login, Inbox, Starred, Content, Analytics, Settings)
+│   │   ├── websocket              # WebSocket client manager
+│   │   ├── App.vue                # Root component
+│   │   ├── main.js                # Entry point
+│   │   └── style.css              # Global design system and CSS tokens
+│   ├── package.json               # Frontend dependencies and build scripts
+│   ├── .env.release               # Production build env (outputs to mail-worker/dist)
+│   └── vite.config.js             # Vite & PWA configuration
 ```
+
+## Deployment Notes
+
+This repository includes a GitHub Actions workflow ([deploy-cloudflare.yml](.github/workflows/deploy-cloudflare.yml)) that builds `mail-vue` and deploys the Worker automatically on pushes to `main` or manual dispatch.
+
+- **Required Variables / Secrets**: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `D1_DATABASE_ID`, `KV_NAMESPACE_ID`, `DOMAIN` (JSON array, e.g. `["example.com"]`), `ADMIN`, `JWT_SECRET`
+- **Optional Variables**: `PASSWORD`, `CUSTOM_DOMAIN`, `R2_BUCKET_NAME`, `AI_MODEL`, `EMAIL`, `ANALYSIS_CACHE`, `PROJECT_LINK`
+- **Local Frontend Build**:
+  ```bash
+  pnpm --prefix mail-vue install
+  pnpm --prefix mail-vue run build
+  ```
 
 ## License
 
-This project is licensed under the [MIT](LICENSE) license.
-
-## Communication
-
-[Telegram](https://t.me/cloud_mail_tg)
+Licensed under the [MIT](LICENSE) License.
