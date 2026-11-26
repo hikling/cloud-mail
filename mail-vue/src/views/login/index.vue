@@ -40,18 +40,6 @@
       <!-- Flagship Showcase Column -->
       <div v-if="!settingStore.settings.background" class="hero-pane">
         <div class="hero-inner">
-          <div class="brand-badge">
-            <div class="brand-logo-box">
-              <img :src="logoUrl" alt="Logo" class="brand-logo"/>
-            </div>
-            <span class="brand-name">{{ settingStore.settings.title || 'Cloud Mail' }}</span>
-            <span class="badge-sep"></span>
-            <span class="edge-status">
-              <i class="edge-dot"></i>
-              <span>{{ settingStore.lang === 'zh' ? '边缘节点在线' : 'EDGE ONLINE' }}</span>
-            </span>
-          </div>
-
           <h1 class="hero-headline">
             <template v-if="settingStore.lang === 'zh'">
               轻盈、极速的<br/><span class="gradient-flow">个人云端邮箱</span>
@@ -1140,12 +1128,6 @@ function submitRegister() {
   }
 }
 
-@keyframes pulseRing {
-  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.55); }
-  70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-}
-
 .custom-bg-layer {
   position: fixed;
   inset: 0;
@@ -1254,78 +1236,6 @@ function submitRegister() {
 
 .hero-inner {
   max-width: 540px;
-}
-
-.brand-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 14px 6px 6px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.76);
-  backdrop-filter: blur(18px) saturate(180%);
-  -webkit-backdrop-filter: blur(18px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  box-shadow: 0 6px 20px -6px rgba(37, 99, 235, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  margin-bottom: 24px;
-
-  :global(.dark) & {
-    background: rgba(15, 23, 42, 0.68);
-    border-color: rgba(255, 255, 255, 0.12);
-    box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  }
-}
-
-.brand-logo-box {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, rgba(37, 99, 235, 0.16), rgba(6, 182, 212, 0.18));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.brand-logo {
-  width: 18px;
-  height: 18px;
-  object-fit: contain;
-}
-
-.brand-name {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: -0.015em;
-}
-
-.badge-sep {
-  width: 1px;
-  height: 12px;
-  background: var(--border-strong);
-  opacity: 0.55;
-}
-
-.edge-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: #059669;
-  letter-spacing: 0.02em;
-
-  :global(.dark) & {
-    color: #34d399;
-  }
-}
-
-.edge-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #10b981;
-  animation: pulseRing 2.2s infinite;
 }
 
 .hero-headline {
@@ -2211,7 +2121,6 @@ function submitRegister() {
   .ambient-beam,
   .gradient-flow,
   .floating-toast,
-  .edge-dot,
   .hero-pane,
   .auth-pane {
     animation: none !important;
@@ -2278,13 +2187,6 @@ function submitRegister() {
     }
   }
 
-  .brand-badge {
-    background: rgba(15, 23, 42, 0.72);
-    border-color: rgba(255, 255, 255, 0.13);
-    box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.09);
-  }
-
-  .edge-status,
   .preview-live {
     color: #34d399;
   }
