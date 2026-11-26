@@ -3,30 +3,64 @@
                :cancel-success="cancelStar"
                :star-success="addStar"
                :getEmailList="getEmailList"
-               :emailDelete="emailDelete"
+               :emailDelete="activeEmailDelete"
+               :delete-perm="isNoone ? 'all-email:delete' : 'email:delete'"
                :star-add="starAdd"
                :star-cancel="starCancel"
                :email-read="emailRead"
-               :show-unread="true"
+               :show-unread="!isNoone"
+               :show-star="!isNoone"
+               :show-recipient-chip="isNoone"
+               :type="isNoone ? 'noone' : 'email'"
                :highlight-text="emailStore.searchParams.text"
                actionLeft="4px"
                @jump="jumpContent"
                @refresh-success="onRefreshSuccess"
   >
+    <template #first>
+      <div v-if="canViewNoone" class="inbox-mode-switch" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          :aria-selected="!isNoone"
+          class="mode-pill"
+          :class="{ active: !isNoone }"
+          @click="switchInboxTab('inbox')"
+        >
+          <Icon icon="lucide:inbox" width="14" height="14" />
+          <span>{{ $t('inbox') }}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          :aria-selected="isNoone"
+          class="mode-pill mode-pill--noone"
+          :class="{ active: isNoone }"
+          @click="switchInboxTab('noone')"
+        >
+          <Icon icon="lucide:at-sign" width="14" height="14" />
+          <span>{{ $t('noRecipientTitle') }}</span>
+        </button>
+      </div>
+    </template>
   </emailScroll>
 </template>
 
 <script setup>
+import {Icon} from "@iconify/vue";
 import {useAccountStore} from "@/store/account.js";
 import {useEmailStore} from "@/store/email.js";
 import {useSettingStore} from "@/store/setting.js";
 import emailScroll from "@/components/email-scroll/index.vue"
 import {emailList, emailDelete, emailLatest, emailRead} from "@/request/email.js";
+import {allEmailList, allEmailDelete, allEmailLatest} from "@/request/all-email.js";
 import {starAdd, starCancel} from "@/request/star.js";
-import {defineOptions, onBeforeUnmount, onMounted, ref, watch} from "vue";
+import {hasPerm} from "@/perm/perm.js";
+import {computed, defineOptions, onBeforeUnmount, onMounted, ref, watch} from "vue";
 import {sleep} from "@/utils/time-utils.js";
 import router from "@/router/index.js";
 import {
+  allEmailWs,
   inboxWs,
   isAutoRefreshEnabled,
 } from "@/websocket/client.js";
@@ -35,12 +69,26 @@ defineOptions({
   name: 'email'
 })
 
+const EMAIL_STATUS_NOONE = 7;
+
 const emailStore = useEmailStore();
 const accountStore = useAccountStore();
 const settingStore = useSettingStore();
 const scroll = ref({})
 const existIds = new Set();
 let pullTimer = null
+
+const canViewNoone = computed(() => hasPerm('all-email:query'))
+const isNoone = computed(() => canViewNoone.value && emailStore.inboxTab === 'noone')
+
+function switchInboxTab(tab) {
+  if (emailStore.inboxTab === tab) return
+  emailStore.setInboxTab(tab)
+}
+
+function activeEmailDelete(emailIds) {
+  return isNoone.value ? allEmailDelete(emailIds) : emailDelete(emailIds)
+}
 
 onMounted(() => {
   emailStore.emailScroll = scroll;
@@ -50,6 +98,15 @@ onMounted(() => {
     onMessage: onWsMessage,
     onReconnect: () => schedulePullLatest(),
   });
+  if (canViewNoone.value) {
+    allEmailWs.start({
+      isEnabled: () => isAutoRefreshEnabled(settingStore.settings.autoRefresh),
+      onMessage: onAllEmailWsMessage,
+      onReconnect: () => {
+        if (isNoone.value) schedulePullLatest()
+      },
+    });
+  }
 })
 
 onBeforeUnmount(() => {
@@ -58,43 +115,68 @@ onBeforeUnmount(() => {
     pullTimer = null
   }
   inboxWs.stop()
+  if (canViewNoone.value) {
+    allEmailWs.stop()
+  }
 })
 
-watch(() => accountStore.currentAccountId, () => {
-  scroll.value.refreshList();
-})
+watch(
+  [() => emailStore.inboxTab, () => accountStore.currentAccountId],
+  () => {
+    scroll.value.refreshList?.();
+  }
+)
 
 watch(
   () => emailStore.searchParams,
   () => {
-    scroll.value.refreshList()
+    scroll.value.refreshList?.()
   },
   {deep: true}
 )
 
 watch(() => settingStore.settings.autoRefresh, () => {
   inboxWs.sync()
+  if (canViewNoone.value) {
+    allEmailWs.sync()
+  }
 })
 
 function onRefreshSuccess() {
   inboxWs.retryNow()
+  if (canViewNoone.value) {
+    allEmailWs.retryNow()
+  }
 }
 
 function jumpContent(email) {
   emailStore.contentData.email = emailStore.toContentEmail(email)
-  emailStore.contentData.delType = 'logic'
-  emailStore.contentData.showUnread = true
-  emailStore.contentData.showStar = true
-  emailStore.contentData.showReply = true
+  if (isNoone.value) {
+    emailStore.contentData.delType = 'physics'
+    emailStore.contentData.showUnread = false
+    emailStore.contentData.showStar = false
+    emailStore.contentData.showReply = false
+  } else {
+    emailStore.contentData.delType = 'logic'
+    emailStore.contentData.showUnread = true
+    emailStore.contentData.showStar = true
+    emailStore.contentData.showReply = true
+  }
   router.push({name: 'content', params: {mailbox: 'inbox'}})
 }
 
 // 推送到达：非「全部收取」时忽略其它账号的信。
 function onWsMessage(event) {
+  if (isNoone.value) return
   const allReceive = accountStore.currentAccount.allReceive
   if (!allReceive && event?.accountId != null && Number(event.accountId) !== Number(accountStore.currentAccountId)) {
     return
   }
+  schedulePullLatest()
+}
+
+function onAllEmailWsMessage() {
+  if (!isNoone.value) return
   schedulePullLatest()
 }
 
@@ -120,6 +202,34 @@ async function pullLatest() {
     return
   }
 
+  if (isNoone.value) {
+    const latestId = scroll.value.latestEmail?.emailId
+    if (!latestId && latestId !== 0) return
+
+    try {
+      const list = await allEmailLatest(latestId)
+      if (!isNoone.value) return
+      const nooneList = (list || []).filter(item => item.status === EMAIL_STATUS_NOONE)
+      if (nooneList.length > 0) {
+        emailStore.applyFullList(nooneList)
+        for (let email of nooneList) {
+          if (!existIds.has(email.emailId)) {
+            existIds.add(email.emailId)
+            scroll.value.addItem(email)
+            await sleep(50)
+          }
+        }
+      }
+    } catch (e) {
+      if (e.code === 401 || e.code === 403) {
+        settingStore.settings.autoRefresh = 1;
+        allEmailWs.sync();
+      }
+      console.error(e)
+    }
+    return
+  }
+
   const latestId = scroll.value.latestEmail?.emailId
   const accountId = accountStore.currentAccountId
   const allReceive = scroll.value.latestEmail?.allReceive
@@ -131,7 +241,7 @@ async function pullLatest() {
   try {
     const list = await emailLatest(latestId, accountId, allReceive);
 
-    if (accountId !== accountStore.currentAccountId || allReceive !== accountStore.currentAccount.allReceive) {
+    if (isNoone.value || accountId !== accountStore.currentAccountId || allReceive !== accountStore.currentAccount.allReceive) {
       return
     }
 
@@ -172,7 +282,22 @@ function cancelStar(email) {
 }
 
 function getEmailList(emailId, size) {
-  const accountId =  accountStore.currentAccountId;
+  if (isNoone.value) {
+    const search = emailStore.searchParams
+    return emailStore.fetchList(full => allEmailList({
+      emailId,
+      size,
+      full,
+      timeSort: 0,
+      type: 'noone',
+      text: search.text,
+      searchType: search.type,
+      startDate: search.startDate,
+      endDate: search.endDate,
+    }))
+  }
+
+  const accountId = accountStore.currentAccountId;
   const allReceive = accountStore.currentAccount.allReceive;
   return emailStore.fetchList(full =>
     emailList(accountId, allReceive, emailId, 0, size, 0, full, emailStore.searchParams)
@@ -184,6 +309,54 @@ function getEmailList(emailId, size) {
 }
 
 </script>
+<style scoped lang="scss">
+.inbox-mode-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  margin-left: 4px;
+  border-radius: 9px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-subtle);
+}
+
+.mode-pill {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12.5px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 140ms ease, color 140ms ease, box-shadow 140ms ease;
+
+  &:hover {
+    color: var(--text-primary);
+  }
+
+  &.active {
+    background: var(--surface-elevated);
+    color: var(--brand-primary);
+    font-weight: 600;
+    box-shadow: var(--shadow-xs);
+  }
+
+  &--noone.active {
+    color: #d97706;
+
+    :global(.dark) & {
+      color: #fbbf24;
+    }
+  }
+}
+</style>
 <style>
 .icon {
   cursor: pointer;

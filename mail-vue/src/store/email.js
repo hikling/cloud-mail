@@ -23,6 +23,7 @@ export const useEmailStore = defineStore('email', {
         sendScroll: null,
         detailMap: {},
         detailLoading: false,
+        inboxTab: 'inbox',
         searchParams: {
             text: '',
             type: 'subject',
@@ -34,6 +35,9 @@ export const useEmailStore = defineStore('email', {
         pick: ['contentData'],
     },
     actions: {
+        setInboxTab(tab) {
+            this.inboxTab = tab === 'noone' ? 'noone' : 'inbox'
+        },
         setSearchParams(params) {
             this.searchParams = {
                 ...this.searchParams,

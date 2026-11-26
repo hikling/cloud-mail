@@ -338,12 +338,18 @@ const currentRouteIcon = computed(() => {
   return ROUTE_ICONS[route.meta.name] || 'lucide:menu'
 })
 
-const inboxSearchOptions = computed(() => [
-  {label: t('subject'), type: 'subject'},
-  {label: t('searchSummaryContent'), type: 'content'},
-  {label: t('sender'), type: 'sender'},
-  {label: t('searchSenderAddress'), type: 'senderAddress'},
-])
+const inboxSearchOptions = computed(() => {
+  const options = [
+    {label: t('subject'), type: 'subject'},
+    {label: t('searchSummaryContent'), type: 'content'},
+    {label: t('sender'), type: 'sender'},
+    {label: t('searchSenderAddress'), type: 'senderAddress'},
+  ]
+  if (emailStore.inboxTab === 'noone' && hasPerm('all-email:query')) {
+    options.push({label: t('searchRecipientAddress'), type: 'recipientAddress'})
+  }
+  return options
+})
 const sentSearchOptions = computed(() => [
   {label: t('subject'), type: 'subject'},
   {label: t('searchSummaryContent'), type: 'content'},

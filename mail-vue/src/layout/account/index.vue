@@ -20,9 +20,25 @@
 
     <el-scrollbar class="scrollbar" ref="scrollbarRef">
       <div class="account-list" v-infinite-scroll="getAccountList" :infinite-scroll-distance="600" :infinite-scroll-immediate="false">
+        <button
+          v-if="showNooneShortcut"
+          type="button"
+          class="noone-shortcut-card"
+          :class="{ 'item-choose': emailStore.inboxTab === 'noone' }"
+          @click="selectNoone"
+        >
+          <span class="noone-shortcut-icon">
+            <Icon icon="lucide:at-sign" width="15" height="15" />
+          </span>
+          <span class="noone-shortcut-meta">
+            <span class="noone-shortcut-title">{{ $t('noRecipientTitle') }}</span>
+            <span class="noone-shortcut-desc">{{ $t('noRecipientInboxDesc') }}</span>
+          </span>
+        </button>
+
         <div
           class="account-card"
-          :class="{ 'item-choose': accountStore.currentAccountId === item.accountId }"
+          :class="{ 'item-choose': accountStore.currentAccountId === item.accountId && !(showNooneShortcut && emailStore.inboxTab === 'noone') }"
           v-for="(item, index) in accounts"
           :key="item.accountId"
           @click="changeAccount(item)"
@@ -191,16 +207,26 @@ import {useSettingStore} from "@/store/setting.js";
 import {useAccountStore} from "@/store/account.js";
 import {useEmailStore} from "@/store/email.js";
 import {useUserStore} from "@/store/user.js";
+import {useUiStore} from "@/store/ui.js";
 import {hasPerm} from "@/perm/perm.js"
 import {useI18n} from "vue-i18n";
+import {useRoute, useRouter} from "vue-router";
 import {AccountAllReceiveEnum} from "@/enums/account-enum.js";
 import {reloadTurnstileScript} from "@/utils/turnstile-script.js";
 
 const {t} = useI18n();
+const route = useRoute();
+const router = useRouter();
+const uiStore = useUiStore();
 const userStore = useUserStore();
 const accountStore = useAccountStore();
 const settingStore = useSettingStore();
 const emailStore = useEmailStore();
+
+const showNooneShortcut = computed(() => {
+  if (!hasPerm('all-email:query')) return false
+  return route.meta.name === 'email' || (route.meta.name === 'content' && route.params.mailbox === 'inbox')
+})
 const showAdd = ref(false)
 const addLoading = ref(false);
 const domainList = computed(() => settingStore.domainList)
@@ -397,9 +423,26 @@ function refresh() {
   getAccountList()
 }
 
+function selectNoone() {
+  emailStore.setInboxTab('noone')
+  if (route.meta.name === 'content') {
+    router.push({ name: 'email' })
+  }
+  if (window.innerWidth <= 767) {
+    uiStore.accountShow = false
+  }
+}
+
 function changeAccount(account) {
+  emailStore.setInboxTab('inbox')
   accountStore.currentAccountId = account.accountId
   accountStore.currentAccount = account
+  if (route.meta.name === 'content' && route.params.mailbox === 'inbox') {
+    router.push({ name: 'email' })
+  }
+  if (window.innerWidth <= 767) {
+    uiStore.accountShow = false
+  }
 }
 
 function add() {
@@ -668,6 +711,75 @@ function submit() {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.noone-shortcut-card {
+  width: 100%;
+  text-align: left;
+  padding: 10px 11px;
+  border-radius: 10px;
+  background: var(--surface-primary);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: rgba(245, 158, 11, 0.45);
+    box-shadow: var(--shadow-xs);
+  }
+
+  &.item-choose {
+    background: var(--surface-elevated);
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 1px #f59e0b, var(--shadow-xs);
+
+    .noone-shortcut-icon {
+      background: #f59e0b;
+      color: #ffffff;
+    }
+  }
+}
+
+.noone-shortcut-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.14);
+  color: #d97706;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+
+  :global(.dark) & {
+    color: #fbbf24;
+  }
+}
+
+.noone-shortcut-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.noone-shortcut-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.25;
+}
+
+.noone-shortcut-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .account-card {

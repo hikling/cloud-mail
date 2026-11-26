@@ -396,8 +396,21 @@ const en = {
     navMenu: 'Menu',
     sysTabGeneral: 'General & Look',
     sysTabMail: 'Mail & Push',
-    sysTabSecurity: 'Security & OAuth',
+    sysTabSecurity: 'Security & Storage',
     sysTabStorage: 'Storage & About',
+    sysGroupAccess: 'Access & Sign-up',
+    sysGroupMailbox: 'Mailbox & Data',
+    sysStatusMail: 'Mail Service',
+    sysStatusPush: 'Push Channels',
+    sysStatusAuth: 'OAuth Providers',
+    sysStatusStorage: 'Storage Engine',
+    sysActiveChannels: '{active}/{total} active',
+    sysConfigure: 'Configure',
+    sysEditKeys: 'Edit Keys',
+    sysSetBackgroundHint: 'Click to set sign-in background',
+    sysRuleThreshold: '{count}/day',
+    sysNotConfigured: 'Not set',
+    noRecipientInboxDesc: 'Catch-all mail for unregistered addresses',
 }
 
 export default en

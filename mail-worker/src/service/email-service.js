@@ -318,12 +318,25 @@ const emailService = {
 				conditions.push(sql`${email.subject} COLLATE NOCASE LIKE ${searchText}`);
 			}
 
+			if (searchType === 'content') {
+				conditions.push(
+					or(
+						sql`${email.text} COLLATE NOCASE LIKE ${searchText}`,
+						sql`${email.content} COLLATE NOCASE LIKE ${searchText}`,
+					)
+				);
+			}
+
 			if (searchType === 'sender') {
 				conditions.push(sql`${email.name} COLLATE NOCASE LIKE ${searchText}`);
 			}
 
 			if (searchType === 'senderAddress') {
 				conditions.push(sql`${email.sendEmail} COLLATE NOCASE LIKE ${searchText}`);
+			}
+
+			if (searchType === 'recipientAddress') {
+				conditions.push(sql`${email.toEmail} COLLATE NOCASE LIKE ${searchText}`);
 			}
 
 			if (searchType === 'user') {

@@ -16,7 +16,7 @@
           <template v-if="getSelectedMailsIds().length > 0">
             <span class="selected-pill">{{ getSelectedMailsIds().length }}</span>
             <button
-              v-perm="'email:delete'"
+              v-if="hasPerm(deletePerm)"
               type="button"
               class="toolbar-btn danger"
               @click="handleDelete"
@@ -157,6 +157,12 @@
                     <span v-html="item.accountEmailHtml"></span>
                   </div>
                 </div>
+                <div class="user-info" v-else-if="showRecipientChip">
+                  <div class="meta-chip meta-chip--recipient">
+                    <Icon icon="lucide:at-sign" width="12" height="12"/>
+                    <span v-html="item.accountEmailHtml"></span>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -281,7 +287,7 @@
               </div>
             </template>
           </el-dropdown-item>
-          <el-dropdown-item @click="rightDelete(rightClickEmail.emailId)">
+          <el-dropdown-item v-if="hasPerm(deletePerm)" @click="rightDelete(rightClickEmail.emailId)">
             <template #default>
               <div class="right-dropdown-item danger">
                 <Icon icon="lucide:trash-2" width="15" height="15" />
@@ -306,6 +312,7 @@ import {sleep} from "@/utils/time-utils.js"
 import {fromNow} from "@/utils/day.js";
 import {useI18n} from "vue-i18n";
 import {EmailUnreadEnum} from "@/enums/email-enum.js";
+import {hasPerm} from "@/perm/perm.js";
 import { UseVirtualList } from '@vueuse/components'
 import { useScroll } from '@vueuse/core'
 
@@ -336,6 +343,14 @@ const props = defineProps({
   showUserInfo: {
     type: Boolean,
     default: false
+  },
+  showRecipientChip: {
+    type: Boolean,
+    default: false
+  },
+  deletePerm: {
+    type: String,
+    default: 'email:delete'
   },
   showStar: {
     type: Boolean,
@@ -497,7 +512,7 @@ const list = computed(() => {
 })
 
 const itemHeight = computed(() => {
-  if (props.type === 'all-email') {
+  if (props.type === 'all-email' || props.type === 'noone') {
     return isMobile.value ? 128 : 74;
   } else {
     return isMobile.value ? 86 : 56;
@@ -706,7 +721,7 @@ function localRead(emailIds) {
 }
 
 function rightDelete(emailId) {
-  if (props.type === 'all-email') {
+  if (props.type === 'all-email' || props.type === 'noone') {
     ElMessageBox.confirm(t('delOneEmailConfirm'), {
       confirmButtonText: t('confirm'),
       cancelButtonText: t('cancel'),
@@ -1187,7 +1202,8 @@ function renderHighlight(value) {
     user-select: none;
   }
 
-  &.all-email {
+  &.all-email,
+  &.noone {
     height: 74px;
     @media (max-width: 1366px) {
       height: 128px;
@@ -1423,6 +1439,19 @@ function renderHighlight(value) {
         span {
           overflow: hidden;
           text-overflow: ellipsis;
+        }
+
+        &--recipient {
+          max-width: 280px;
+          background: rgba(245, 158, 11, 0.12);
+          border-color: rgba(245, 158, 11, 0.28);
+          color: #b45309;
+
+          :global(.dark) & {
+            color: #fbbf24;
+            background: rgba(245, 158, 11, 0.16);
+            border-color: rgba(245, 158, 11, 0.34);
+          }
         }
       }
     }

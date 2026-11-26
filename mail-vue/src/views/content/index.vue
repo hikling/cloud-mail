@@ -39,7 +39,7 @@
       </div>
 
       <button
-        v-perm="'email:delete'"
+        v-if="canDelete"
         type="button"
         class="action-pill danger"
         @click="handleDelete"
@@ -165,6 +165,7 @@ import {useSettingStore} from "@/store/setting.js";
 import {allEmailDelete} from "@/request/all-email.js";
 import {useUiStore} from "@/store/ui.js";
 import {useI18n} from "vue-i18n";
+import {hasPerm} from "@/perm/perm.js";
 import {EmailUnreadEnum} from "@/enums/email-enum.js";
 const { t } = useI18n()
 
@@ -176,6 +177,10 @@ const router = useRouter()
 const sendNameRef = ref(null)
 const senderWrapped = ref(false)
 let senderResizeObserver = null
+
+const canDelete = computed(() =>
+  emailStore.contentData.delType === 'physics' ? hasPerm('all-email:delete') : hasPerm('email:delete')
+)
 
 const showPreview = ref(false)
 const srcList = reactive([])
