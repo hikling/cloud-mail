@@ -1,5 +1,3 @@
-import verifyRecordService from '../service/verify-record-service';
-
 export const userConst = {
 	status: {
 		NORMAL: 0,
@@ -144,10 +142,6 @@ export const settingConst = {
 	syncDelete: {
 		OPEN: 0,
 		CLOSE: 1
-	},
-	authRefresh: {
-		OPEN: 1,
-		CLOSE: 0
 	}
 }
 

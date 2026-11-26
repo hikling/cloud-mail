@@ -1,25 +1,28 @@
 import Dexie from "dexie";
-import {useUserStore} from "@/store/user.js"
+import { useUserStore } from "@/store/user.js";
 import { watch, shallowRef } from "vue";
 
 const userStore = useUserStore();
+let db = shallowRef(null);
 
-
-let db =  shallowRef({})
-
-function createDB() {
-    db.value = new Dexie(userStore.user.email);
-    db.value.version(1).stores({
-        draft: '++draftId,createTime'
-    })
-
-    db.value.version(1).stores({
+function createDB(email) {
+    if (db.value?.close) {
+        db.value.close();
+    }
+    if (!email) {
+        db.value = null;
+        return;
+    }
+    const instance = new Dexie(email);
+    instance.version(1).stores({
+        draft: '++draftId,createTime',
         att: 'draftId'
-    })
+    });
+    db.value = instance;
 }
 
-createDB()
+createDB(userStore.user?.email);
 
-watch(() => userStore.user.email,() => createDB())
+watch(() => userStore.user?.email, (email) => createDB(email));
 
 export default db;

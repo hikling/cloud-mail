@@ -10,21 +10,22 @@ import userContext from '../security/user-context';
 import verifyUtils from '../utils/verify-utils';
 import accountService from './account-service';
 import settingService from './setting-service';
-import saltHashUtils from '../utils/crypto-utils';
 import cryptoUtils from '../utils/crypto-utils';
 import turnstileService from './turnstile-service';
 import roleService from './role-service';
-import regKeyService from './reg-key-service';
 import dayjs from 'dayjs';
-import { toUtc } from '../utils/date-uitil';
 import { t } from '../i18n/i18n.js';
 import verifyRecordService from './verify-record-service';
+import orm from '../entity/orm';
+import user from '../entity/user';
+import account from '../entity/account';
+import { count, eq } from 'drizzle-orm';
 
 const loginService = {
 
-	async register(c, params, oauth = false) {
+	async register(c, params) {
 
-		const { email, password, token, code } = params;
+		const { email, password } = params;
 
 		// 个人收件模式：仅首次搭建（尚无任何用户）允许注册管理员账号，之后彻底关闭公开注册
 		const hasUsers = await userService.hasAnyUser(c);
@@ -36,20 +37,17 @@ const loginService = {
 			throw new BizError(t('regDisabled'));
 		}
 
-		let { minEmailPrefix, emailPrefixFilter } = await settingService.query(c)
-		const regKey = settingConst.regKey.CLOSE;
-		const registerVerify = settingConst.registerVerify.CLOSE;
-		const regVerifyCount = 1;
+		const { minEmailPrefix, emailPrefixFilter } = await settingService.query(c);
 
 		if (!verifyUtils.isEmail(email)) {
 			throw new BizError(t('notEmail'));
 		}
 
 		if (emailUtils.getName(email).length < minEmailPrefix) {
-			throw new BizError(t('minEmailPrefix', { msg: minEmailPrefix } ));
+			throw new BizError(t('minEmailPrefix', { msg: minEmailPrefix }));
 		}
 
-		if (emailPrefixFilter.some(content => emailUtils.getName(email).includes(content)))  {
+		if (emailPrefixFilter.some(content => emailUtils.getName(email).includes(content))) {
 			throw new BizError(t('banEmailPrefix'));
 		}
 
@@ -57,7 +55,7 @@ const loginService = {
 			throw new BizError(t('emailLengthLimit'));
 		}
 
-		if (password.length > 30) {
+		if (!password || password.length > 30) {
 			throw new BizError(t('pwdLengthLimit'));
 		}
 
@@ -65,23 +63,9 @@ const loginService = {
 			throw new BizError(t('pwdMinLength'));
 		}
 
-		if (!c.env.domain.includes(emailUtils.getDomain(email))) {
+		const domainList = Array.isArray(c.env.domain) ? c.env.domain : [];
+		if (!domainList.includes(emailUtils.getDomain(email))) {
 			throw new BizError(t('notEmailDomain'));
-		}
-
-		let type = null;
-		let regKeyId = 0
-
-		if (regKey === settingConst.regKey.OPEN) {
-			const result = await this.handleOpenRegKey(c, regKey, code)
-			type = result?.type
-			regKeyId = result?.regKeyId
-		}
-
-		if (regKey === settingConst.regKey.OPTIONAL) {
-			const result = await this.handleOpenOptional(c, regKey, code)
-			type = result?.type
-			regKeyId = result?.regKeyId
 		}
 
 		const accountRow = await accountService.selectByEmailIncludeDel(c, email);
@@ -94,135 +78,36 @@ const loginService = {
 			throw new BizError(t('isRegAccount'));
 		}
 
-		let defType = null
+		const roleRow = await roleService.selectDefaultRole(c);
+		const defType = roleRow?.roleId || 1;
 
-		if (!type) {
-			const roleRow = await roleService.selectDefaultRole(c);
-			defType = roleRow.roleId
+		if (roleRow && !roleService.hasAvailDomainPerm(roleRow.availDomain, email)) {
+			throw new BizError(t('noDomainPermReg'), 403);
 		}
 
+		const { salt, hash } = await cryptoUtils.hashPassword(password);
 
-		const roleRow = await roleService.selectById(c, type || defType);
+		const userId = await userService.insert(c, { email, regKeyId: 0, password: hash, salt, type: defType });
 
-		if(!roleService.hasAvailDomainPerm(roleRow.availDomain, email)) {
-
-			if (type) {
-				throw new BizError(t('noDomainPermRegKey'),403)
-			}
-
-			if (defType) {
-				throw new BizError(t('noDomainPermReg'),403)
-			}
-
+		// 并发竞态防护：若多请求同时通过前置检查导致用户数 > 1，保留最先创建的 user 并回滚后者
+		const totalRow = await orm(c).select({ total: count() }).from(user).get();
+		if (Number(totalRow?.total || 0) > 1) {
+			await orm(c).delete(user).where(eq(user.userId, userId)).run();
+			throw new BizError(t('regDisabled'));
 		}
-
-		let regVerifyOpen = false
-
-		if (registerVerify === settingConst.registerVerify.OPEN) {
-			regVerifyOpen = true
-			await turnstileService.verify(c,token)
-		}
-
-		if (registerVerify === settingConst.registerVerify.COUNT) {
-			regVerifyOpen = await verifyRecordService.isOpenRegVerify(c, regVerifyCount);
-			if (regVerifyOpen) {
-				await turnstileService.verify(c,token)
-			}
-		}
-
-		const { salt, hash } = await saltHashUtils.hashPassword(password);
-
-		let consumedCode = null
-		const usingRegKey = regKey !== settingConst.regKey.CLOSE && type
-
-		if (usingRegKey && !await regKeyService.consumeCount(c, code)) {
-			if (regKey === settingConst.regKey.OPEN) {
-				throw new BizError(t('noRegKeyCount'))
-			}
-			type = null
-			regKeyId = 0
-			defType = await this.useDefaultRole(c, email)
-		}
-
-		if (usingRegKey && type) {
-			consumedCode = code
-		}
-
-		let userId
 
 		try {
-			userId = await userService.insert(c, { email, regKeyId, password: hash, salt, type: type || defType });
-			await accountService.insert(c, { userId: userId, email, name: emailUtils.getName(email) });
-		} catch (error) {
-			if (consumedCode) {
-				await regKeyService.restoreCount(c, consumedCode)
-			}
-			throw error
+			await accountService.insert(c, { userId, email, name: emailUtils.getName(email) });
+		} catch (e) {
+			await orm(c).delete(account).where(eq(account.userId, userId)).run();
+			await orm(c).delete(user).where(eq(user.userId, userId)).run();
+			throw e;
 		}
 
 		await userService.updateUserInfo(c, userId, true);
 
-		if (registerVerify === settingConst.registerVerify.COUNT && !regVerifyOpen) {
-			const row = await verifyRecordService.increaseRegCount(c);
-			return {regVerifyOpen: row.count >= regVerifyCount}
-		}
+		return { regVerifyOpen: false };
 
-		return {regVerifyOpen}
-
-	},
-
-	async registerVerify() {
-
-	},
-
-	async handleOpenRegKey(c, regKey, code) {
-
-		if (!code) {
-			throw new BizError(t('emptyRegKey'));
-		}
-
-		const regKeyRow = await regKeyService.selectByCode(c, code);
-
-		if (!regKeyRow) {
-			throw new BizError(t('notExistRegKey'));
-		}
-
-		if (regKeyRow.count <= 0) {
-			throw new BizError(t('noRegKeyCount'));
-		}
-
-		if (!toUtc(regKeyRow.expireTime).isAfter(toUtc())) {
-			throw new BizError(t('regKeyExpire'));
-		}
-
-		return { type: regKeyRow.roleId, regKeyId: regKeyRow.regKeyId };
-	},
-
-	async useDefaultRole(c, email) {
-		const defaultRole = await roleService.selectDefaultRole(c)
-		if (!roleService.hasAvailDomainPerm(defaultRole.availDomain, email)) {
-			throw new BizError(t('noDomainPermReg'), 403)
-		}
-		return defaultRole.roleId
-	},
-
-	async handleOpenOptional(c, regKey, code) {
-
-		if (!code) {
-			return null
-		}
-
-		const regKeyRow = await regKeyService.selectByCode(c, code);
-
-		if (!regKeyRow) {
-			return null
-		}
-
-		if (regKeyRow.count <= 0 || !toUtc(regKeyRow.expireTime).isAfter(toUtc())) {
-			return null
-		}
-
-		return { type: regKeyRow.roleId, regKeyId: regKeyRow.regKeyId };
 	},
 
 	async login(c, params, noVerifyPwd = false) {
@@ -247,20 +132,20 @@ const loginService = {
 			throw new BizError(t('notExistUser'));
 		}
 
-		if(userRow.isDel === isDel.DELETE) {
+		if (userRow.isDel === isDel.DELETE) {
 			throw new BizError(t('isDelUser'));
 		}
 
-		if(userRow.status === userConst.status.BAN) {
+		if (userRow.status === userConst.status.BAN) {
 			throw new BizError(t('isBanUser'));
 		}
 
-		if (!await cryptoUtils.verifyPassword(password, userRow.salt, userRow.password) && !noVerifyPwd) {
+		if (!noVerifyPwd && !await cryptoUtils.verifyPassword(password, userRow.salt, userRow.password)) {
 			throw new BizError(t('IncorrectPwd'));
 		}
 
 		const uuid = uuidv4();
-		const jwt = await JwtUtils.generateToken(c,{ userId: userRow.userId, token: uuid, gen: constant.AUTH_GEN });
+		const jwt = await JwtUtils.generateToken(c, { userId: userRow.userId, token: uuid, gen: constant.AUTH_GEN }, constant.TOKEN_EXPIRE);
 
 		let authInfo = await c.env.kv.get(KvConst.AUTH_INFO + userRow.userId, { type: 'json' });
 
@@ -275,12 +160,10 @@ const loginService = {
 		} else {
 
 			authInfo = {
-				tokens: [],
+				tokens: [uuid],
 				user: userRow,
 				refreshTime: dayjs().toISOString()
 			};
-
-			authInfo.tokens.push(uuid);
 
 		}
 
@@ -293,9 +176,12 @@ const loginService = {
 	async logout(c, userId) {
 		const token = await userContext.getToken(c);
 		const authInfo = await c.env.kv.get(KvConst.AUTH_INFO + userId, { type: 'json' });
+		if (!authInfo?.tokens) return;
 		const index = authInfo.tokens.findIndex(item => item === token);
-		authInfo.tokens.splice(index, 1);
-		await c.env.kv.put(KvConst.AUTH_INFO + userId, JSON.stringify(authInfo), { expirationTtl: constant.TOKEN_EXPIRE });
+		if (index > -1) {
+			authInfo.tokens.splice(index, 1);
+			await c.env.kv.put(KvConst.AUTH_INFO + userId, JSON.stringify(authInfo), { expirationTtl: constant.TOKEN_EXPIRE });
+		}
 	}
 
 };

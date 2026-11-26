@@ -1,30 +1,29 @@
-import i18next from 'i18next';
-import zh from './zh.js'
-import en from './en.js'
+import zh from './zh.js';
+import en from './en.js';
 import app from '../hono/hono';
 
+let activeLang = 'en';
+
 app.use('*', async (c, next) => {
-	const lang = c.req.header('accept-language')?.split('-')[0] || 'en'
-	i18next.init({
-		lng: lang,
-	});
-	return await next()
-})
-
-const resources = {
-	en: {
-		translation: en
-	},
-	zh: {
-		translation: zh,
-	},
-};
-
-i18next.init({
-	fallbackLng: 'en',
-	resources,
+	const headerLang = c.req.header('accept-language')?.split(',')[0]?.split('-')[0];
+	activeLang = headerLang === 'zh' ? 'zh' : 'en';
+	return await next();
 });
 
-export const t = (key, values) => i18next.t(key, values)
+function lookup(obj, path) {
+	return path.split('.').reduce((acc, part) => (acc && typeof acc === 'object' ? acc[part] : undefined), obj);
+}
 
-export default i18next;
+export const t = (key, values) => {
+	const dict = activeLang === 'zh' ? zh : en;
+	let msg = lookup(dict, key) ?? lookup(en, key) ?? key;
+	if (typeof msg !== 'string') return String(msg);
+	if (values && typeof values === 'object') {
+		for (const [k, v] of Object.entries(values)) {
+			msg = msg.replaceAll(`{{${k}}}`, String(v ?? ''));
+		}
+	}
+	return msg;
+};
+
+export default { t };

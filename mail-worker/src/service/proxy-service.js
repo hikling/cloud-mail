@@ -1,4 +1,5 @@
 import settingService from './setting-service';
+import { buildProxyCacheKey, getEdgeCache, putEdgeCache } from '../utils/edge-cache';
 
 // 可能带远程图地址的属性；data-* 覆盖懒加载写法。
 const ATTRS = ['src', 'poster', 'background', 'data-src', 'data-original', 'data-lazy-src'];
@@ -19,13 +20,19 @@ const PROXY_IMAGE_EXTENSIONS = new Map([
 
 const PROXY_IP_PLACEHOLDER = '192.0.2.1';
 const PROXY_LINK_TTL = 3600;
+const PROXY_EXP_BUCKET = 1800; // 30-minute windows so signed URLs hit browser/CDN caches instead of busting every second
 const PROXY_MAX_REDIRECTS = 5;
 const PROXY_REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+const PROXY_TIMEOUT_MS = 10_000;
+const PROXY_MAX_BYTES = 10 * 1024 * 1024;
+const PROXY_CACHE_MAX_BYTES = 5 * 1024 * 1024;
 const encoder = new TextEncoder();
+const signingKeyCache = new Map();
 
 const ATTR_REGEX = /\b([a-z][a-z0-9:-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/gi;
 const TAG_REGEX = /<([a-z][a-z0-9:-]*)(\s[^>]*?)?(\/?)>/gi;
 const STYLE_TAG_REGEX = /(<style\b[^>]*>)([\s\S]*?)(<\/style>)/gi;
+const CSS_URL_REGEX = /url\(\s*(?:"([^"]*)"|'([^']*)'|([^)"'\s]+))\s*\)/gi;
 
 function decodeAttrValue(val) {
 	if (!val || !val.includes('&')) return val;
@@ -114,7 +121,10 @@ const proxyService = {
 	},
 
 	// Worker 入口 /proxy：验签后代拉，只返回允许的图片类型。
-	async fetchImage(env, params) {
+	async fetchImage(env, params, ctx = null, req = null) {
+		if (req && req.method !== 'GET' && req.method !== 'HEAD') {
+			return new Response(null, { status: 405 });
+		}
 		const rawUrl = params.get('url');
 		const exp = params.get('exp');
 		const signature = this.decodeSignature(params.get('sig'));
@@ -136,8 +146,18 @@ const proxyService = {
 				return new Response(null, { status: 400 });
 			}
 
+			const cache = getEdgeCache();
+			const cacheKey = cache ? buildProxyCacheKey(target.href) : null;
+			if (cache && cacheKey && (!req || req.method === 'GET')) {
+				const cached = await cache.match(cacheKey);
+				if (cached) {
+					return cached;
+				}
+			}
+
 			const requestOptions = {
 				redirect: 'manual',
+				signal: AbortSignal.timeout(PROXY_TIMEOUT_MS),
 				// 使用文档保留地址覆盖可修改的访客 IP 头。
 				headers: {
 					'X-Real-IP': PROXY_IP_PLACEHOLDER,
@@ -178,6 +198,12 @@ const proxyService = {
 				return new Response(null, { status: 415 });
 			}
 
+			const length = res.headers.get('Content-Length');
+			if (length && /^\d+$/.test(length) && Number(length) > PROXY_MAX_BYTES) {
+				await res.body?.cancel();
+				return new Response(null, { status: 413 });
+			}
+
 			const headers = new Headers({
 				'Content-Type': type,
 				'X-Content-Type-Options': 'nosniff',
@@ -188,25 +214,39 @@ const proxyService = {
 
 			const disposition = res.headers.get('Content-Disposition');
 			if (disposition) {
-				headers.set('Content-Disposition', disposition);
+				headers.set('Content-Disposition', disposition.replace(/[\r\n\0]/g, ''));
 			}
 
-			let body = res.body;
-			const length = res.headers.get('Content-Length');
+			let body = this.limitStreamBytes(res.body, PROXY_MAX_BYTES);
 			const encoding = res.headers.get('Content-Encoding')?.toLowerCase();
 
 			// Workers 从固定长度流生成 Content-Length。压缩响应的上游长度可能与解码后的内容不同。
 			if (length && /^\d+$/.test(length) && Number.isSafeInteger(Number(length)) && (!encoding || encoding === 'identity')) {
-				const { readable, writable } = new FixedLengthStream(Number(length));
-				// 传输错误会通过 readable 传给客户端。
-				body.pipeTo(writable).catch(() => {});
-				body = readable;
+				headers.set('Content-Length', length);
 			}
 
-			return new Response(body, { status: res.status, headers });
+			const response = new Response(body, { status: res.status, headers });
+			if (cache && cacheKey && (!req || req.method === 'GET')) {
+				putEdgeCache(ctx, cacheKey, response, PROXY_CACHE_MAX_BYTES);
+			}
+			return response;
 		} catch {
 			return new Response(null, { status: 502 });
 		}
+	},
+
+	limitStreamBytes(stream, maxBytes) {
+		let total = 0;
+		return stream.pipeThrough(new TransformStream({
+			transform(chunk, controller) {
+				total += chunk.byteLength;
+				if (total > maxBytes) {
+					controller.error(new Error('Image exceeds size limit'));
+					return;
+				}
+				controller.enqueue(chunk);
+			}
+		}));
 	},
 
 	// ---------- 私有方法 ----------
@@ -224,11 +264,25 @@ const proxyService = {
 		if (!env.jwt_secret) {
 			throw new Error('Missing jwt_secret for image proxy');
 		}
-		const algorithm = { name: 'HMAC', hash: 'SHA-256' };
-		const root = await crypto.subtle.importKey('raw', encoder.encode(env.jwt_secret), algorithm, false, ['sign']);
-		// 从现有部署密钥派生图片代理专用密钥。
-		const key = await crypto.subtle.sign('HMAC', root, encoder.encode('cloud-mail/image-proxy/v1'));
-		return crypto.subtle.importKey('raw', key, algorithm, false, ['sign', 'verify']);
+		const secret = String(env.jwt_secret);
+		let pending = signingKeyCache.get(secret);
+		if (!pending) {
+			if (signingKeyCache.size >= 4) {
+				signingKeyCache.clear();
+			}
+			const algorithm = { name: 'HMAC', hash: 'SHA-256' };
+			pending = (async () => {
+				const root = await crypto.subtle.importKey('raw', encoder.encode(secret), algorithm, false, ['sign']);
+				// 从现有部署密钥派生图片代理专用密钥。
+				const derived = await crypto.subtle.sign('HMAC', root, encoder.encode('cloud-mail/image-proxy/v1'));
+				return crypto.subtle.importKey('raw', derived, algorithm, false, ['sign', 'verify']);
+			})().catch(err => {
+				signingKeyCache.delete(secret);
+				throw err;
+			});
+			signingKeyCache.set(secret, pending);
+		}
+		return pending;
 	},
 
 	signatureInput(url, exp) {
@@ -236,7 +290,8 @@ const proxyService = {
 	},
 
 	rewriter(key, r2Domain) {
-		const exp = String(Math.floor(Date.now() / 1000) + PROXY_LINK_TTL);
+		const now = Math.floor(Date.now() / 1000);
+		const exp = String(Math.ceil(now / PROXY_EXP_BUCKET) * PROXY_EXP_BUCKET + PROXY_LINK_TTL);
 		const cache = new Map();
 		return raw => {
 			if (!raw) return null;
@@ -526,11 +581,12 @@ const proxyService = {
 		if (!css || !/url\s*\(/i.test(css)) {
 			return css;
 		}
-		const pattern = /url\(\s*(['"]?)(.*?)\1\s*\)/gi;
-		const paths = await Promise.all(Array.from(css.matchAll(pattern), match => rewriteUrl(match[2])));
+		const matches = Array.from(css.matchAll(CSS_URL_REGEX));
+		const paths = await Promise.all(matches.map(match => rewriteUrl(match[1] ?? match[2] ?? match[3] ?? '')));
 		let index = 0;
-		return css.replace(pattern, (match, quote) => {
+		return css.replace(CSS_URL_REGEX, (match, dq, sq) => {
 			const path = paths[index++];
+			const quote = dq !== undefined ? '"' : (sq !== undefined ? "'" : '');
 			return path ? 'url(' + quote + path + quote + ')' : match;
 		});
 	},
@@ -540,11 +596,13 @@ const proxyService = {
 		if (!css || !css.includes('proxy?')) {
 			return css;
 		}
-		return String(css).replace(/url\(\s*(['"]?)(.*?)\1\s*\)/gi, (match, quote, url) => {
+		return String(css).replace(CSS_URL_REGEX, (match, dq, sq, uq) => {
+			const url = dq ?? sq ?? uq ?? '';
 			const original = this.fromProxyPath(url);
 			if (!original) {
 				return match;
 			}
+			const quote = dq !== undefined ? '"' : (sq !== undefined ? "'" : '');
 			return `url(${quote}${original}${quote})`;
 		});
 	},

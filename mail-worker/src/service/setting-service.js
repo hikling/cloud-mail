@@ -3,35 +3,85 @@ import setting from '../entity/setting';
 import user from '../entity/user';
 import orm from '../entity/orm';
 import { count } from 'drizzle-orm';
-import {settingConst, verifyRecordType} from '../const/entity-const';
+import { settingConst, verifyRecordType } from '../const/entity-const';
 import fileUtils from '../utils/file-utils';
 import r2Service from './r2-service';
 import constant from '../const/constant';
 import BizError from '../error/biz-error';
-import {t} from '../i18n/i18n'
+import { t } from '../i18n/i18n';
 import verifyRecordService from './verify-record-service';
 import userContext from '../security/user-context';
+import jwtUtils from '../utils/jwt-utils';
 import domainUtils from '../utils/domain-uitls';
+import { IMMUTABLE_CACHE_CONTROL, sanitizeDispositionFilename } from '../utils/att-headers';
+
+const perCtxSettingCache = new WeakMap();
+const MAX_BG_BASE64_LEN = 20 * 1024 * 1024; // ~15MB binary limit
+
+const WRITABLE_SETTING_FIELDS = new Set([
+	'register', 'receive', 'title', 'manyEmail', 'addEmail', 'autoRefresh',
+	'addEmailVerify', 'registerVerify', 'regVerifyCount', 'loginVerify', 'loginVerifyCount',
+	'addVerifyCount', 'send', 'r2Domain', 'secretKey', 'siteKey', 'regKey',
+	'loginOpacity', 'resendTokens', 'noRecipient', 'loginDomain',
+	'tgBotToken', 'tgChatId', 'tgBotStatus', 'customDomain', 'tgMsgFrom', 'tgMsgTo', 'tgMsgText',
+	'forwardEmail', 'forwardStatus', 'ruleEmail', 'ruleType',
+	'bucket', 'region', 'endpoint', 's3AccessKey', 's3SecretKey', 'forcePathStyle',
+	'minEmailPrefix', 'emailPrefixFilter', 'blackSubject', 'blackContent', 'blackFrom',
+	'aiCode', 'syncDelete', 'aiCodeFilter',
+	'linuxdoClientId', 'linuxdoClientSecret', 'linuxdoSwitch',
+	'githubClientId', 'githubClientSecret', 'githubSwitch',
+	'googleClientId', 'googleClientSecret', 'googleSwitch',
+	'autoCleanDays', 'autoCleanExclude',
+	'webhookUrl', 'webhookStatus', 'webhookRetry', 'webhookSecret'
+]);
+
+export function isSafeExternalUrl(rawUrl) {
+	if (!rawUrl) return true;
+	try {
+		const url = new URL(rawUrl);
+		const host = url.hostname.replace(/\.$/, '').toLowerCase();
+		if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
+			return false;
+		}
+		if (!host.includes('.') || host === 'localhost' || host.startsWith('[') || /^[\d.]+$/.test(host) || /\.(localhost|local|internal)$/.test(host)) {
+			return false;
+		}
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+function maskSecret(val, showChars = 6) {
+	if (!val) return null;
+	return `${String(val).slice(0, showChars)}******`;
+}
 
 const settingService = {
 
 	async refresh(c) {
 		const settingRow = await orm(c).select().from(setting).get();
-		settingRow.resendTokens = JSON.parse(settingRow.resendTokens);
+		settingRow.resendTokens = JSON.parse(settingRow.resendTokens || '{}');
 		settingRow.r2Domain = '';
-		c.set('setting', settingRow);
+		if (c && typeof c === 'object') {
+			c.set?.('setting', settingRow);
+			perCtxSettingCache.set(c, settingRow);
+		}
 		await c.env.kv.put(KvConst.SETTING, JSON.stringify(settingRow));
 	},
 
 	async query(c) {
 
-		if (c.get?.('setting')) {
-			return c.get('setting')
+		if (c?.get?.('setting')) {
+			return c.get('setting');
+		}
+		if (c && typeof c === 'object' && perCtxSettingCache.has(c)) {
+			return perCtxSettingCache.get(c);
 		}
 
-		const setting = await c.env.kv.get(KvConst.SETTING, { type: 'json' });
+		const settingData = await c.env.kv.get(KvConst.SETTING, { type: 'json' });
 
-		if (!setting) {
+		if (!settingData) {
 			throw new BizError('数据库未初始化 Database not initialized.');
 		}
 
@@ -39,78 +89,85 @@ const settingService = {
 
 		if (typeof domainList === 'string') {
 			try {
-				domainList = JSON.parse(domainList)
-			} catch (error) {
+				domainList = JSON.parse(domainList);
+			} catch {
 				throw new BizError(t('notJsonDomain'));
 			}
 		}
 
-		if (!c.env.domain) {
+		if (!Array.isArray(domainList) || domainList.length === 0) {
 			throw new BizError(t('noDomainVariable'));
 		}
 
 		domainList = domainList.map(item => '@' + item);
-		setting.domainList = domainList;
+		settingData.domainList = domainList;
 
 		let projectLink = c.env.project_link;
 		if (typeof projectLink === 'string' && projectLink === 'false') {
-			projectLink = false
+			projectLink = false;
 		} else if (projectLink === false) {
-			projectLink = false
+			projectLink = false;
 		} else {
-			projectLink = true
+			projectLink = true;
 		}
 
-		setting.projectLink = projectLink;
-		setting.loginVerify ??= settingConst.loginVerify.CLOSE;
-		setting.loginVerifyCount ??= 1;
+		settingData.projectLink = projectLink;
+		settingData.loginVerify ??= settingConst.loginVerify.CLOSE;
+		settingData.loginVerifyCount ??= 1;
 
-		setting.emailPrefixFilter = setting.emailPrefixFilter.split(",").filter(Boolean);
-		setting.autoRefresh = Number(setting.autoRefresh) === 1 ? 1 : 2; // 1 关闭，2 开启
+		settingData.emailPrefixFilter = String(settingData.emailPrefixFilter || '').split(',').filter(Boolean);
+		settingData.autoRefresh = Number(settingData.autoRefresh) === 1 ? 1 : 2; // 1 关闭，2 开启
+		settingData.resendTokens = settingData.resendTokens && typeof settingData.resendTokens === 'object' ? settingData.resendTokens : {};
 
-		c.set?.('setting', setting);
-		return setting;
+		c?.set?.('setting', settingData);
+		if (c && typeof c === 'object') {
+			perCtxSettingCache.set(c, settingData);
+		}
+		return settingData;
 	},
 
 	async get(c) {
 
-		const [settingRow, recordList] = await Promise.all([
-			await this.query(c),
+		const [rawSetting, recordList] = await Promise.all([
+			this.query(c),
 			verifyRecordService.selectListByIP(c)
 		]);
 
-		settingRow.secretKey = settingRow.secretKey ? `${settingRow.secretKey.slice(0, 6)}******` : null;
-
-		Object.keys(settingRow.resendTokens).forEach(key => {
-			settingRow.resendTokens[key] = `${settingRow.resendTokens[key].slice(0, 12)}******`;
+		const maskedTokens = {};
+		Object.keys(rawSetting.resendTokens || {}).forEach(key => {
+			maskedTokens[key] = maskSecret(rawSetting.resendTokens[key], 12);
 		});
 
-		settingRow.s3AccessKey = settingRow.s3AccessKey ? `${settingRow.s3AccessKey.slice(0, 12)}******` : null;
-		settingRow.s3SecretKey = settingRow.s3SecretKey ? `${settingRow.s3SecretKey.slice(0, 12)}******` : null;
-		settingRow.tgBotToken = settingRow.tgBotToken ? `${settingRow.tgBotToken.slice(0, 20)}******` : null;
-		settingRow.hasR2 = !!c.env.r2
-		settingRow.hasCfEmail = !!c.env.email
+		const settingRow = {
+			...rawSetting,
+			resendTokens: maskedTokens,
+			secretKey: maskSecret(rawSetting.secretKey, 6),
+			s3AccessKey: maskSecret(rawSetting.s3AccessKey, 12),
+			s3SecretKey: maskSecret(rawSetting.s3SecretKey, 12),
+			tgBotToken: maskSecret(rawSetting.tgBotToken, 20),
+			webhookSecret: rawSetting.webhookSecret ? maskSecret(rawSetting.webhookSecret, 6) : '',
+			linuxdoClientSecret: rawSetting.linuxdoClientSecret ? maskSecret(rawSetting.linuxdoClientSecret, 6) : '',
+			githubClientSecret: rawSetting.githubClientSecret ? maskSecret(rawSetting.githubClientSecret, 6) : '',
+			googleClientSecret: rawSetting.googleClientSecret ? maskSecret(rawSetting.googleClientSecret, 6) : '',
+			hasR2: !!c.env.r2,
+			hasCfEmail: !!c.env.email,
+		};
 
-		let regVerifyOpen = false
-		let addVerifyOpen = false
-		let loginVerifyOpen = false
+		let addVerifyOpen = false;
+		let loginVerifyOpen = false;
 
 		recordList.forEach(row => {
-			if (row.type === verifyRecordType.REG) {
-				regVerifyOpen = row.count >= settingRow.regVerifyCount
-			}
 			if (row.type === verifyRecordType.ADD) {
-				addVerifyOpen = row.count >= settingRow.addVerifyCount
+				addVerifyOpen = row.count >= settingRow.addVerifyCount;
 			}
 			if (row.type === verifyRecordType.LOGIN) {
-				loginVerifyOpen = row.count >= settingRow.loginVerifyCount
+				loginVerifyOpen = row.count >= settingRow.loginVerifyCount;
 			}
-		})
+		});
 
-		settingRow.regVerifyOpen = regVerifyOpen
-		settingRow.addVerifyOpen = addVerifyOpen
-		settingRow.loginVerifyOpen = loginVerifyOpen
-
+		settingRow.regVerifyOpen = false;
+		settingRow.addVerifyOpen = addVerifyOpen;
+		settingRow.loginVerifyOpen = loginVerifyOpen;
 		settingRow.storageType = await r2Service.storageType(c);
 
 		return settingRow;
@@ -118,88 +175,129 @@ const settingService = {
 
 	async set(c, params) {
 		const settingData = await this.query(c);
-		let resendTokens = { ...settingData.resendTokens, ...params.resendTokens };
-		Object.keys(resendTokens).forEach(domain => {
-			if (!resendTokens[domain]) delete resendTokens[domain];
-		});
+		const updateData = {};
 
-		if (Array.isArray(params.emailPrefixFilter)) {
-			params.emailPrefixFilter = params.emailPrefixFilter + '';
+		for (const [k, v] of Object.entries(params || {})) {
+			if (WRITABLE_SETTING_FIELDS.has(k) && v !== undefined) {
+				updateData[k] = v;
+			}
 		}
 
-		if (Array.isArray(params.aiCodeFilter)) {
-			params.aiCodeFilter = params.aiCodeFilter + '';
+		if (updateData.resendTokens !== undefined) {
+			const mergedTokens = { ...settingData.resendTokens, ...updateData.resendTokens };
+			Object.keys(mergedTokens).forEach(domain => {
+				if (!mergedTokens[domain]) delete mergedTokens[domain];
+			});
+			updateData.resendTokens = JSON.stringify(mergedTokens);
 		}
 
-		if (params.webhookUrl !== undefined) {
-			params.webhookUrl = domainUtils.toOssDomain(params.webhookUrl) || '';
+		if (Array.isArray(updateData.emailPrefixFilter)) {
+			updateData.emailPrefixFilter = updateData.emailPrefixFilter.join(',');
 		}
 
-		params.resendTokens = JSON.stringify(resendTokens);
-
-		if (params.autoRefresh !== undefined) {
-			params.autoRefresh = Number(params.autoRefresh) === 1 ? 1 : 2;
+		if (Array.isArray(updateData.aiCodeFilter)) {
+			updateData.aiCodeFilter = updateData.aiCodeFilter.join(',');
 		}
 
-		if (params.loginVerifyCount !== undefined && (!Number.isSafeInteger(params.loginVerifyCount) || params.loginVerifyCount < 1)) {
-			params.loginVerifyCount = 1;
+		if (updateData.webhookUrl !== undefined) {
+			const normalized = domainUtils.toOssDomain(String(updateData.webhookUrl).trim()) || '';
+			if (normalized && !isSafeExternalUrl(normalized)) {
+				throw new BizError(t('webhookIpNotSupported') || 'Invalid webhook URL', 400);
+			}
+			updateData.webhookUrl = normalized;
 		}
 
-		await orm(c).update(setting).set({ ...params }).returning().get();
+		if (updateData.webhookRetry !== undefined) {
+			const retry = Math.trunc(Number(updateData.webhookRetry));
+			updateData.webhookRetry = Number.isFinite(retry) ? Math.min(5, Math.max(0, retry)) : 0;
+		}
+
+		if (updateData.autoRefresh !== undefined) {
+			updateData.autoRefresh = Number(updateData.autoRefresh) === 1 ? 1 : 2;
+		}
+
+		if (updateData.loginVerifyCount !== undefined && (!Number.isSafeInteger(updateData.loginVerifyCount) || updateData.loginVerifyCount < 1)) {
+			updateData.loginVerifyCount = 1;
+		}
+
+		if (Object.keys(updateData).length === 0) {
+			return;
+		}
+
+		await orm(c).update(setting).set(updateData).returning().get();
 		await this.refresh(c);
 	},
 
 	async deleteBackground(c) {
 
 		const { background } = await this.query(c);
-		if (!background) return
+		if (!background) return;
 
 		if (background.startsWith('http')) {
 			await orm(c).update(setting).set({ background: '' }).run();
-			await this.refresh(c)
+			await this.refresh(c);
 			return;
 		}
 
-		if (background) {
-			await r2Service.delete(c,background)
-			await orm(c).update(setting).set({ background: '' }).run();
-			await this.refresh(c)
-		}
+		await r2Service.delete(c, background);
+		await orm(c).update(setting).set({ background: '' }).run();
+		await this.refresh(c);
 	},
 
 	async setBackground(c, params) {
 
-		let { background } = params
+		let { background } = params || {};
+
+		if (background && typeof background !== 'string') {
+			throw new BizError('Invalid background payload', 400);
+		}
+
+		if (background && background.length > MAX_BG_BASE64_LEN) {
+			throw new BizError('Background image is too large', 413);
+		}
+
+		if (background && background.startsWith('http') && !isSafeExternalUrl(background)) {
+			throw new BizError('Invalid background URL', 400);
+		}
 
 		await this.deleteBackground(c);
 
 		if (background && !background.startsWith('http')) {
 
-			const file = fileUtils.base64ToFile(background)
-
+			const file = fileUtils.base64ToFile(background);
 			const arrayBuffer = await file.arrayBuffer();
-			background = constant.BACKGROUND_PREFIX + await fileUtils.getBuffHash(arrayBuffer) + fileUtils.getExtFileName(file.name);
-
+			const safeFilename = sanitizeDispositionFilename(file.name);
+			background = constant.BACKGROUND_PREFIX + await fileUtils.getBuffHash(arrayBuffer) + fileUtils.getExtFileName(safeFilename);
 
 			await r2Service.putObj(c, background, arrayBuffer, {
 				contentType: file.type,
-				cacheControl: `public, max-age=31536000, immutable`,
-				contentDisposition: `inline; filename="${file.name}"`
+				cacheControl: IMMUTABLE_CACHE_CONTROL,
+				contentDisposition: `inline; filename="${safeFilename}"`
 			});
 
 		}
 
-		await orm(c).update(setting).set({ background }).run();
+		await orm(c).update(setting).set({ background: background || '' }).run();
 		await this.refresh(c);
-		return background;
+		return background || '';
 	},
 
-
 	async setBlacklist(c, params) {
-		const { blackSubject, blackContent, blackFrom  } = params
+		const { blackSubject, blackContent, blackFrom } = params;
 		await orm(c).update(setting).set({ blackSubject, blackContent, blackFrom }).run();
 		await this.refresh(c);
 		return this.get(c);
+	},
+
+	async hasActiveSession(c) {
+		const jwt = c.req?.header?.(constant.TOKEN_HEADER);
+		if (!jwt) return false;
+		const payload = await jwtUtils.verifyToken(c, jwt);
+		if (!payload || payload.gen !== constant.AUTH_GEN || !payload.userId || !payload.token) {
+			return false;
+		}
+		const authInfo = await c.env.kv.get(KvConst.AUTH_INFO + payload.userId, { type: 'json' });
+		return Boolean(authInfo?.tokens?.includes(payload.token));
 	},
 
 	async websiteConfig(c) {
@@ -209,7 +307,7 @@ const settingService = {
 			orm(c).select({ total: count() }).from(user).get()
 		]);
 		const hasUsers = Number(userCountRow?.total || 0) > 0;
-		const token = await userContext.getToken(c);
+		const authed = settingRow.loginDomain === 1 ? await this.hasActiveSession(c) : true;
 
 		return {
 			register: hasUsers ? settingConst.register.CLOSE : settingConst.register.OPEN,
@@ -219,26 +317,18 @@ const settingService = {
 			addEmail: settingRow.addEmail,
 			autoRefresh: settingRow.autoRefresh,
 			addEmailVerify: settingRow.addEmailVerify,
-			registerVerify: settingRow.registerVerify,
+			registerVerify: settingConst.registerVerify.CLOSE,
 			loginVerify: settingRow.loginVerify,
 			send: settingRow.send,
 			r2Domain: settingRow.r2Domain,
 			siteKey: settingRow.siteKey,
 			background: settingRow.background,
 			loginOpacity: settingRow.loginOpacity,
-			domainList: settingRow.loginDomain === 1 && !token ? [] : settingRow.domainList,
+			domainList: settingRow.loginDomain === 1 && !authed ? [] : settingRow.domainList,
 			regKey: settingConst.regKey.CLOSE,
-			regVerifyOpen: settingRow.regVerifyOpen,
+			regVerifyOpen: false,
 			addVerifyOpen: settingRow.addVerifyOpen,
 			loginVerifyOpen: settingRow.loginVerifyOpen,
-			noticeTitle: settingRow.noticeTitle,
-			noticeContent: settingRow.noticeContent,
-			noticeType: settingRow.noticeType,
-			noticeDuration: settingRow.noticeDuration,
-			noticePosition: settingRow.noticePosition,
-			noticeWidth: settingRow.noticeWidth,
-			noticeOffset: settingRow.noticeOffset,
-			notice: settingRow.notice,
 			loginDomain: settingRow.loginDomain,
 			linuxdoClientId: settingRow.linuxdoClientId,
 			linuxdoSwitch: settingRow.linuxdoSwitch,

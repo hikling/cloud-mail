@@ -118,7 +118,7 @@
         </div>
 
         <div class="editor-shell">
-          <tinyEditor :def-value="defValue" ref="editor" @change="change" @focus="focusChange" />
+          <tinyEditor v-if="editorMounted" :def-value="defValue" ref="editor" @change="change" @focus="focusChange" />
         </div>
 
         <div class="button-item">
@@ -161,7 +161,7 @@
       </div>
     </div>
 
-    <el-dialog top="10vh" v-model="showContacts" @closed="clearSelectContact" :title="t('recentContacts')">
+    <el-dialog top="10vh" v-model="showContacts" append-to-body align-center @closed="clearSelectContact" :title="t('recentContacts')">
       <el-table class="contacts-table" ref="contactsTabRef" row-key="email" :data="contacts" style="height: 445px" @row-click="toggleContactRow">
         <el-table-column type="selection" width="38" />
         <el-table-column property="email" :label="t('emailAccount')">
@@ -223,6 +223,7 @@ const settingStore = useSettingStore()
 const emailStore = useEmailStore();
 const accountStore = useAccountStore()
 const editor = ref({})
+const editorMounted = ref(false)
 const userStore = useUserStore();
 const show = ref(false);
 const percent = ref(0)
@@ -616,7 +617,16 @@ function resetForm() {
   backReply.subject = ''
   backReply.receiveEmail = []
   backReply.sendType = ''
-  editor.value.clearEditor()
+  editor.value?.clearEditor?.()
+}
+
+function escapeHtml(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 function change(content, text) {
@@ -636,14 +646,15 @@ function openForward(email) {
   form.sendType = 'forward'
   defValue.value = ''
 
+  open()
   setTimeout(() => {
+    const safeHtml = formatImage(email.content) || `<pre style="font-family: inherit;word-break: break-word;white-space: pre-wrap;margin: 0">${escapeHtml(email.text)}</pre>`
     defValue.value = `
-      ${formatImage(email.content) || `<pre style="font-family: inherit;word-break: break-word;white-space: pre-wrap;margin: 0">${email.text}</pre>`}
+      ${safeHtml}
     `
-    open()
 
     nextTick(() => {
-      backReply.content = editor.value.getContent()
+      backReply.content = editor.value?.getContent?.() || defValue.value
       backReply.subject = form.subject
       backReply.receiveEmail = form.receiveEmail
       backReply.sendType = form.sendType
@@ -664,22 +675,25 @@ function openReply(email) {
   form.emailId = email.emailId
   defValue.value = ''
 
+  open()
   setTimeout(() => {
+    const safeName = escapeHtml(email.name)
+    const safeSender = escapeHtml(email.sendEmail)
+    const safeHtml = formatImage(email.content) || `<pre style="font-family: inherit;word-break: break-word;white-space: pre-wrap;margin: 0">${escapeHtml(email.text)}</pre>`
     defValue.value = `
     <div></div>
     <div>
     <br>
-        ${formatDetailDate(email.createTime)} ${email.name} &lt${email.sendEmail}&gt ${t('wrote')}:
+        ${escapeHtml(formatDetailDate(email.createTime))} ${safeName} &lt;${safeSender}&gt; ${escapeHtml(t('wrote'))}:
     </div>
     <blockquote class="mceNonEditable" style="margin: 0 0 0 0.8ex;border-left: 1px solid rgb(204,204,204);padding-left: 1ex;">
-      <articl>
-          ${formatImage(email.content) || `<pre style="font-family: inherit;word-break: break-word;white-space: pre-wrap;margin: 0">${email.text}</pre>`}
+      <article>
+          ${safeHtml}
       </article>
     </blockquote>`
-    open()
 
     nextTick(() => {
-      backReply.content = editor.value.getContent()
+      backReply.content = editor.value?.getContent?.() || defValue.value
       backReply.subject = form.subject
       backReply.receiveEmail = form.receiveEmail
       backReply.sendType = form.sendType
@@ -694,7 +708,8 @@ function formatImage(content) {
 }
 
 function open() {
-  if (!accountStore.currentAccount.email) {
+  editorMounted.value = true;
+  if (!accountStore.currentAccount?.email) {
     form.sendEmail = userStore.user.email;
     form.accountId = userStore.user.account.accountId;
     form.name = userStore.user.name;
@@ -704,10 +719,11 @@ function open() {
     form.name = accountStore.currentAccount.name;
   }
   show.value = true;
-  editor.value.focus()
+  nextTick(() => editor.value?.focus?.())
 }
 
 function openDraft(draft) {
+  editorMounted.value = true;
   Object.assign(form, {...draft, manyType: draft.manyType || 'together'})
   form.ccEmail = draft.ccEmail || []
   form.bccEmail = draft.bccEmail || []
@@ -717,9 +733,9 @@ function openDraft(draft) {
   showCc.value = form.ccEmail.length > 0
   showBcc.value = form.bccEmail.length > 0
   defValue.value = ''
-  setTimeout(() => defValue.value = form.content)
   show.value = true;
-  editor.value.focus()
+  setTimeout(() => defValue.value = form.content)
+  nextTick(() => editor.value?.focus?.())
 }
 
 const handleKeyDown = (event) => {
@@ -739,8 +755,8 @@ onUnmounted(() => {
 function close() {
   closeOpenSuggest();
 
-  if (!form.content) {
-    form.content = editor.value.getContent();
+  if (!form.content && editor.value?.getContent) {
+    form.content = editor.value.getContent() || '';
   }
 
   if (form.draftId) {
@@ -750,7 +766,7 @@ function close() {
     return;
   }
 
-  if (!(form.content || form.subject || form.receiveEmail.length > 0 || form.ccEmail.length > 0 || form.bccEmail.length > 0)) {
+  if (!(form.content || form.subject || form.receiveEmail.length > 0 || form.ccEmail.length > 0 || form.bccEmail.length > 0 || form.attachments.length > 0)) {
     show.value = false
     resetForm()
     return;
@@ -758,7 +774,7 @@ function close() {
 
   if (backReply.sendType === 'reply' || backReply.sendType === 'forward') {
     let subjectFlag = form.subject === backReply.subject
-    let contentFlag = editor.value.getContent() === backReply.content
+    let contentFlag = (editor.value?.getContent?.() ?? form.content) === backReply.content
     let receiveFlag = form.receiveEmail.length === 1 && form.receiveEmail[0] === backReply.receiveEmail[0]
     if (backReply.sendType === 'forward' && form.receiveEmail.length === 0) {
       receiveFlag = true
@@ -776,12 +792,17 @@ function close() {
     type: 'warning',
     distinguishCancelAndClose: true
   }).then(async () => {
+    if (!db.value) {
+      show.value = false
+      resetForm()
+      return
+    }
     const formData = {...toRaw(form)};
     delete formData.draftId
     delete formData.attachments
     formData.createTime = dayjs().utc().format('YYYY-MM-DD HH:mm:ss');
     const draftId = await db.value.draft.add({...formData})
-    db.value.att.add({draftId, attachments: toRaw(form.attachments)})
+    await db.value.att.add({draftId, attachments: toRaw(form.attachments)})
     draftStore.refreshList++
     show.value = false
     await nextTick(() => {

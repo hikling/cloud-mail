@@ -192,10 +192,10 @@
                     <Icon icon="lucide:mail" width="16" height="16" class="input-icon"/>
                   </template>
                   <template #append v-if="!hideLoginDomain">
-                    <div class="domain-trigger" @click.stop="openSelect">
+                    <div class="domain-trigger" @click.stop="openSelect('login')">
                       <el-select
                         v-if="show === 'login'"
-                        ref="mySelect"
+                        ref="loginSelect"
                         v-model="suffix"
                         :placeholder="$t('select')"
                         class="select"
@@ -283,10 +283,10 @@
                     <Icon icon="lucide:mail" width="16" height="16" class="input-icon"/>
                   </template>
                   <template #append v-if="!hideLoginDomain">
-                    <div class="domain-trigger" @click.stop="openSelect">
+                    <div class="domain-trigger" @click.stop="openSelect('register')">
                       <el-select
                         v-if="show !== 'login'"
-                        ref="mySelect"
+                        ref="registerSelect"
                         v-model="suffix"
                         :placeholder="$t('select')"
                         class="select"
@@ -367,7 +367,7 @@
       </div>
     </div>
 
-    <el-dialog class="bind-dialog" v-model="showBindForm" title="注册邮箱">
+    <el-dialog class="bind-dialog" v-model="showBindForm" :title="settingStore.lang === 'zh' ? '注册邮箱' : 'Bind Email'" append-to-body align-center>
       <div class="bind-container">
         <el-input
           :class="!hideLoginDomain ? 'email-input' : ''"
@@ -379,9 +379,9 @@
           @keyup.enter="bind"
         >
           <template #append v-if="!hideLoginDomain">
-            <div class="domain-trigger" @click.stop="openSelect">
+            <div class="domain-trigger" @click.stop="openSelect('bind')">
               <el-select
-                ref="mySelect"
+                ref="bindSelect"
                 v-model="suffix"
                 :placeholder="$t('select')"
                 class="select"
@@ -400,26 +400,8 @@
             </div>
           </template>
         </el-input>
-        <el-input
-          v-if="settingStore.settings.regKey === 0"
-          v-model="bindForm.code"
-          size="large"
-          :placeholder="$t('regKey')"
-          type="text"
-          autocomplete="off"
-          @keyup.enter="bind"
-        />
-        <el-input
-          v-if="settingStore.settings.regKey === 2"
-          v-model="bindForm.code"
-          size="large"
-          :placeholder="$t('regKeyOptional')"
-          type="text"
-          autocomplete="off"
-          @keyup.enter="bind"
-        />
         <el-button class="submit-btn" size="large" type="primary" @click="bind" :loading="bindLoading">
-          绑定
+          {{ settingStore.lang === 'zh' ? '绑定' : 'Bind' }}
         </el-button>
       </div>
     </el-dialog>
@@ -442,7 +424,6 @@ import {useAccountStore} from "@/store/account.js";
 import {useUserStore} from "@/store/user.js";
 import {useUiStore} from "@/store/ui.js";
 import {Icon} from "@iconify/vue";
-import {cvtR2Url} from "@/utils/convert.js";
 import {loginUserInfo} from "@/request/my.js";
 import {permsToRouter} from "@/perm/perm.js";
 import {useI18n} from "vue-i18n";
@@ -487,7 +468,10 @@ const previewTiltStyle = computed(() => ({
   transform: `perspective(1200px) rotateX(${pointer.tiltX}deg) rotateY(${pointer.tiltY}deg)`,
 }))
 
-function handlePointerMove(e) {
+let pointerRafId = 0
+let latestPointerEvent = null
+
+function applyPointerMove(e) {
   const el = loginPageRef.value
   if (!el) return
   const rect = el.getBoundingClientRect()
@@ -501,7 +485,21 @@ function handlePointerMove(e) {
   pointer.active = true
 }
 
+function handlePointerMove(e) {
+  latestPointerEvent = e
+  if (pointerRafId) return
+  pointerRafId = requestAnimationFrame(() => {
+    pointerRafId = 0
+    if (latestPointerEvent) applyPointerMove(latestPointerEvent)
+  })
+}
+
 function handlePointerLeave() {
+  latestPointerEvent = null
+  if (pointerRafId) {
+    cancelAnimationFrame(pointerRafId)
+    pointerRafId = 0
+  }
   pointer.tiltX = 0
   pointer.tiltY = 0
   pointer.active = false
@@ -526,13 +524,6 @@ watch(allowInitialRegister, (allowed) => {
 
 const oauthKeys = ['linuxdo', 'github', 'google']
 
-const oauthProvider = computed(() => {
-  const fromState = route.query.state
-  if (oauthKeys.includes(fromState)) return fromState
-  const fromStore = sessionStorage.getItem('oauthProvider')
-  return oauthKeys.includes(fromStore) ? fromStore : null
-})
-
 const oauthProviders = computed(() => {
   const allProviders = [
     { key: 'google', label: 'Google', icon: 'devicon:google', iconType: 'iconify' },
@@ -545,14 +536,16 @@ const oauthProviders = computed(() => {
 const bindForm = reactive({
   email: '',
   oauthUserId: '',
-  code: ''
+  bindToken: ''
 })
 
 const form = reactive({
   email: '',
   password: '',
 });
-const mySelect = ref()
+const loginSelect = ref()
+const registerSelect = ref()
+const bindSelect = ref()
 const suffix = ref('')
 const registerForm = reactive({
   email: '',
@@ -598,6 +591,7 @@ watch(show, clearTurnstile)
 onBeforeUnmount(() => {
   clearTurnstile()
   clearTimeout(previewCopyTimer)
+  if (pointerRafId) cancelAnimationFrame(pointerRafId)
 })
 
 function renderTurnstile(api, container) {
@@ -662,24 +656,11 @@ function needsTurnstile(mode, open) {
   return true
 }
 
-const loginOpacity = computed(() => {
-  const opacity = settingStore.settings.loginOpacity ?? 0.9
-  return uiStore.dark ? `rgba(17, 20, 27, ${opacity})` : `rgba(255, 255, 255, ${opacity})`
-})
-
 const hideLoginDomain = computed(() => settingStore.settings.loginDomain === 1)
 
-const background = computed(() => {
-  return settingStore.settings.background ? {
-    'background-image': `url(${cvtR2Url(settingStore.settings.background)})`,
-    'background-repeat': 'no-repeat',
-    'background-size': 'cover',
-    'background-position': 'center'
-  } : ''
-})
-
-const openSelect = () => {
-  mySelect.value.toggleMenu()
+const openSelect = (target = 'login') => {
+  const selectMap = { login: loginSelect, register: registerSelect, bind: bindSelect }
+  selectMap[target]?.value?.toggleMenu?.()
 }
 
 const getFullEmail = (email) => {
@@ -690,14 +671,24 @@ const getEmailName = (email) => {
   return email.split('@')[0]
 }
 
+function generateOAuthState() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID()
+  const bytes = new Uint8Array(16)
+  globalThis.crypto.getRandomValues(bytes)
+  return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('')
+}
+
 function oauthLogin(provider) {
   const clientId = settingStore.settings[provider + 'ClientId']
   const redirectUri = encodeURIComponent(window.location.origin + '/login')
+  const state = generateOAuthState()
+  sessionStorage.setItem('oauthState', state)
   sessionStorage.setItem('oauthProvider', provider)
+  const encodedState = encodeURIComponent(state)
   const authorizeUrls = {
-    linuxdo: `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${provider}`,
-    github: `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=user:email&state=${provider}`,
-    google: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${provider}`,
+    linuxdo: `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${encodedState}`,
+    github: `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=user:email&state=${encodedState}`,
+    google: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${encodedState}`,
   }
   window.location.href = authorizeUrls[provider]
 }
@@ -713,15 +704,29 @@ oauthGetUser();
 async function oauthGetUser() {
   const params = new URLSearchParams(window.location.search)
   const code = params.get('code')
-  if (!code || !oauthProvider.value) return
+  const state = params.get('state')
+  if (!code) return
 
-  const provider = oauthProvider.value
-  oauthLoading.value = true
+  const expectedState = sessionStorage.getItem('oauthState')
+  const provider = sessionStorage.getItem('oauthProvider')
+  sessionStorage.removeItem('oauthState')
   sessionStorage.removeItem('oauthProvider')
   window.history.replaceState({}, '', window.location.origin + window.location.pathname)
 
+  if (!expectedState || state !== expectedState || !oauthKeys.includes(provider)) {
+    ElMessage({
+      message: settingStore.lang === 'zh' ? '登录状态已失效，请重试' : 'OAuth state validation failed, please retry',
+      type: 'error',
+      plain: true,
+    })
+    return
+  }
+
+  oauthLoading.value = true
+
   loginFns[provider](code, window.location.origin + '/login').then(data => {
     bindForm.oauthUserId = data.userInfo.oauthUserId;
+    bindForm.bindToken = data.bindToken || '';
 
     if (!data.token) {
       showBindForm.value = true
@@ -735,7 +740,7 @@ async function oauthGetUser() {
       return;
     }
 
-    saveToken(data.token);
+    return saveToken(data.token);
   }).catch(() => {
     oauthLoading.value = false
   })
@@ -773,23 +778,10 @@ function bind() {
     return
   }
 
-  if (settingStore.settings.regKey === 0) {
-    if (!bindForm.code) {
-      ElMessage({
-        message: t('emptyRegKeyMsg'),
-        type: 'error',
-        plain: true,
-      })
-      return
-    }
-  }
-
-  const form = {email, oauthUserId: bindForm.oauthUserId, code: bindForm.code}
+  const form = {email, oauthUserId: bindForm.oauthUserId, bindToken: bindForm.bindToken}
 
   bindLoading.value = true
-  oauthBindUser(form).then(data => {
-    saveToken(data.token)
-  }).catch(() => {
+  oauthBindUser(form).then(data => saveToken(data.token)).catch(() => {
     bindLoading.value = false
   })
 }
@@ -842,17 +834,23 @@ const submit = () => {
 async function saveToken(token) {
   localStorage.setItem('token', token)
   refreshWebsiteConfig()
-  const user = await loginUserInfo();
-  accountStore.currentAccountId = user.account.accountId;
-  accountStore.currentAccount = user.account;
-  userStore.user = user;
-  const routers = permsToRouter(user.permKeys);
-  routers.forEach(routerData => {
-    router.addRoute('layout', routerData);
-  });
-  await router.replace({name: 'layout'})
-  oauthLoading.value = false;
-  bindLoading.value = false;
+  try {
+    const user = await loginUserInfo();
+    accountStore.currentAccountId = user.account.accountId;
+    accountStore.currentAccount = user.account;
+    userStore.user = user;
+    const routers = permsToRouter(user.permKeys);
+    routers.forEach(routerData => {
+      router.addRoute('layout', routerData);
+    });
+    await router.replace({name: 'layout'})
+  } catch (err) {
+    localStorage.removeItem('token')
+    throw err
+  } finally {
+    oauthLoading.value = false;
+    bindLoading.value = false;
+  }
 }
 
 function refreshWebsiteConfig() {
@@ -980,116 +978,6 @@ function submitRegister() {
   justify-content: center;
 }
 
-/* Living Aurora Backdrop */
-.ambient-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.ambient-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(88px);
-  will-change: transform;
-}
-
-.orb-1 {
-  width: 560px;
-  height: 560px;
-  top: -180px;
-  left: -120px;
-  background: radial-gradient(circle, rgba(37, 99, 235, 0.36) 0%, rgba(37, 99, 235, 0) 70%);
-  animation: orbFloatA 18s ease-in-out infinite;
-}
-
-.orb-2 {
-  width: 520px;
-  height: 520px;
-  bottom: -180px;
-  right: -80px;
-  background: radial-gradient(circle, rgba(6, 182, 212, 0.32) 0%, rgba(6, 182, 212, 0) 70%);
-  animation: orbFloatB 22s ease-in-out infinite;
-}
-
-.orb-3 {
-  width: 460px;
-  height: 460px;
-  top: 12%;
-  right: 16%;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.26) 0%, rgba(99, 102, 241, 0) 72%);
-  animation: orbFloatC 20s ease-in-out infinite;
-}
-
-.orb-4 {
-  width: 380px;
-  height: 380px;
-  bottom: 4%;
-  left: 22%;
-  background: radial-gradient(circle, rgba(168, 85, 247, 0.18) 0%, rgba(168, 85, 247, 0) 72%);
-  animation: orbFloatB 25s ease-in-out infinite reverse;
-}
-
-.ambient-beam {
-  position: absolute;
-  inset: -40%;
-  background: linear-gradient(
-    115deg,
-    transparent 38%,
-    rgba(255, 255, 255, 0.42) 48%,
-    rgba(56, 189, 248, 0.16) 52%,
-    transparent 62%
-  );
-  transform: translateX(-18%) rotate(-6deg);
-  animation: beamSweep 14s ease-in-out infinite alternate;
-  opacity: 0.7;
-}
-
-.ambient-grid {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(to right, rgba(37, 99, 235, 0.055) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(37, 99, 235, 0.055) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(ellipse 78% 72% at 50% 48%, black 26%, transparent 96%);
-}
-
-.cursor-spotlight {
-  position: absolute;
-  inset: 0;
-  opacity: var(--spot-opacity, 0);
-  background: radial-gradient(
-    560px circle at var(--mx, 50%) var(--my, 40%),
-    rgba(59, 130, 246, 0.14),
-    rgba(6, 182, 212, 0.06) 35%,
-    transparent 70%
-  );
-  transition: opacity 0.35s ease;
-}
-
-@keyframes orbFloatA {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50% { transform: translate3d(42px, 32px, 0) scale(1.07); }
-}
-
-@keyframes orbFloatB {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50% { transform: translate3d(-38px, -28px, 0) scale(1.06); }
-}
-
-@keyframes orbFloatC {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50% { transform: translate3d(-24px, 34px, 0) scale(0.95); }
-}
-
-@keyframes beamSweep {
-  0% { transform: translateX(-16%) rotate(-6deg); }
-  100% { transform: translateX(14%) rotate(-6deg); }
-}
-
 @keyframes gradientFlow {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
@@ -1110,18 +998,6 @@ function submitRegister() {
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-.custom-bg-layer {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-}
-
-.custom-bg-scrim {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at center, rgba(15, 23, 42, 0.1), rgba(15, 23, 42, 0.38));
 }
 
 /* Top Floating Controls */
@@ -1657,10 +1533,6 @@ function submitRegister() {
     pointer-events: none;
   }
 
-  &.has-wallpaper::before {
-    opacity: 0.35;
-  }
-
   @media (max-width: 480px) {
     border-radius: 20px;
   }
@@ -1678,12 +1550,6 @@ function submitRegister() {
   :global(.dark) & {
     background: rgba(12, 18, 32, 0.84);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
-  }
-
-  &.glass-card {
-    background: v-bind(loginOpacity);
-    backdrop-filter: blur(24px) saturate(170%);
-    -webkit-backdrop-filter: blur(24px) saturate(170%);
   }
 
   @media (max-width: 480px) {
@@ -2101,8 +1967,6 @@ function submitRegister() {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .ambient-orb,
-  .ambient-beam,
   .gradient-flow,
   .floating-toast,
   .hero-pane,
@@ -2117,48 +1981,6 @@ function submitRegister() {
 
 /* Deep Space Obsidian Aurora — Dark Mode Overrides */
 .login-page.is-dark {
-  .orb-1 {
-    background: radial-gradient(circle, rgba(37, 99, 235, 0.5) 0%, rgba(37, 99, 235, 0) 70%);
-  }
-
-  .orb-2 {
-    background: radial-gradient(circle, rgba(6, 182, 212, 0.36) 0%, rgba(6, 182, 212, 0) 70%);
-  }
-
-  .orb-3 {
-    background: radial-gradient(circle, rgba(124, 58, 237, 0.38) 0%, rgba(124, 58, 237, 0) 72%);
-  }
-
-  .orb-4 {
-    background: radial-gradient(circle, rgba(192, 132, 252, 0.22) 0%, rgba(192, 132, 252, 0) 72%);
-  }
-
-  .ambient-beam {
-    background: linear-gradient(
-      115deg,
-      transparent 38%,
-      rgba(59, 130, 246, 0.14) 48%,
-      rgba(34, 211, 238, 0.11) 52%,
-      transparent 62%
-    );
-    opacity: 0.92;
-  }
-
-  .ambient-grid {
-    background-image:
-      linear-gradient(to right, rgba(148, 163, 184, 0.085) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(148, 163, 184, 0.085) 1px, transparent 1px);
-  }
-
-  .cursor-spotlight {
-    background: radial-gradient(
-      620px circle at var(--mx, 50%) var(--my, 40%),
-      rgba(59, 130, 246, 0.24),
-      rgba(6, 182, 212, 0.1) 36%,
-      transparent 72%
-    );
-  }
-
   .control-pill {
     background: rgba(15, 23, 42, 0.72);
     border-color: rgba(255, 255, 255, 0.13);
@@ -2270,10 +2092,6 @@ function submitRegister() {
   .auth-card {
     background: rgba(11, 17, 32, 0.88);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
-
-    &.glass-card {
-      background: v-bind(loginOpacity);
-    }
   }
 
   .card-logo-box {

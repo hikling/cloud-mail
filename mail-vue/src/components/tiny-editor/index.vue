@@ -1,22 +1,22 @@
 <template>
   <div class="editor-box" :class="showLoading ? 'editor-box-loading' : ''">
-    <loading class="loading" v-if="showLoading"/>
-    <textarea v-else style="outline: none" :id="editorId" ref="editorRef"></textarea>
+    <loading class="loading" v-show="showLoading"/>
+    <textarea v-show="!showLoading" style="outline: none" :id="editorId" ref="editorRef"></textarea>
   </div>
 </template>
 
 <script setup>
-import {ref, onMounted, onBeforeUnmount, watch, nextTick, shallowRef, defineEmits, computed} from 'vue';
+import { ref, onMounted, onBeforeUnmount, watch, nextTick, shallowRef, computed } from 'vue';
 import loading from "@/components/loading/index.vue";
-import {useI18n} from 'vue-i18n'
-import {useUiStore} from '@/store/ui.js'
-import {useSettingStore} from '@/store/setting.js'
+import { useI18n } from 'vue-i18n';
+import { useUiStore } from '@/store/ui.js';
+import { useSettingStore } from '@/store/setting.js';
 
 defineExpose({
   clearEditor,
   focus,
   getContent
-})
+});
 
 const props = defineProps({
   defValue: {
@@ -29,20 +29,22 @@ const props = defineProps({
   }
 });
 
-const {locale} = useI18n()
-const emit = defineEmits(['change','focus']);
+const { locale } = useI18n();
+const emit = defineEmits(['change', 'focus']);
 const editor = shallowRef(null);
 const isInitialized = ref(false);
 const editorRef = ref(null);
 const showLoading = ref(false);
 const uiStore = useUiStore();
 const settingStore = useSettingStore();
+let unmounted = false;
 
 onMounted(() => {
   initTinyMCE();
 });
 
 onBeforeUnmount(() => {
+  unmounted = true;
   destroyEditor();
 });
 
@@ -53,16 +55,14 @@ watch(() => props.defValue, (newValue) => {
 });
 
 watch(() => [uiStore.dark, settingStore.lang], () => {
+  if (!window.tinymce || unmounted) return;
   destroyEditor();
   initEditor();
 });
 
 const language = computed(() => {
-  if (locale.value === 'zh') {
-    return 'zh_CN'
-  }
-  return 'en'
-})
+  return locale.value === 'zh' ? 'zh_CN' : 'en';
+});
 
 function clearEditor() {
   if (editor.value) {
@@ -73,17 +73,38 @@ function clearEditor() {
 function initTinyMCE() {
   if (window.tinymce) {
     initEditor();
-  } else {
-    showLoading.value = true;
-    const script = document.createElement('script');
+    return;
+  }
+
+  showLoading.value = true;
+  let script = document.querySelector('script[data-tinymce-loader="1"]');
+  if (!script) {
+    script = document.createElement('script');
     script.src = '/tinymce/tinymce.min.js';
-    script.onload = () => initEditor();
+    script.dataset.tinymceLoader = '1';
     document.head.appendChild(script);
+  }
+
+  const onReady = () => {
     showLoading.value = false;
+    if (!unmounted && window.tinymce) {
+      nextTick(() => initEditor());
+    }
+  };
+  const onFail = () => {
+    showLoading.value = false;
+  };
+
+  if (window.tinymce) {
+    onReady();
+  } else {
+    script.addEventListener('load', onReady, { once: true });
+    script.addEventListener('error', onFail, { once: true });
   }
 }
 
 function initEditor() {
+  if (!window.tinymce || unmounted || !document.getElementById(props.editorId)) return;
   window.tinymce.init({
     selector: `#${props.editorId}`,
     statusbar: false,
@@ -119,12 +140,12 @@ function initEditor() {
       });
       ed.on('input change', () => {
         const content = ed.getContent();
-        const text = ed.getContent({format: 'text'});
+        const text = ed.getContent({ format: 'text' });
         emit('change', content, text);
       });
       ed.on('focus', () => {
         emit('focus', focus);
-      })
+      });
     },
     autofocus: true,
     branding: false,
@@ -138,18 +159,18 @@ function initEditor() {
       input.setAttribute('type', 'file');
       input.setAttribute('accept', 'image/*');
 
-      input.addEventListener('change', async (e) => {
-        let file = e.target.files[0];
+      input.addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
         const reader = new FileReader();
         reader.onload = () => {
-          const id = 'blobid' + (new Date()).getTime();
-          const blobCache = tinymce.activeEditor.editorUpload.blobCache;
-          const base64 = reader.result.split(',')[1];
+          const id = 'blobid' + Date.now();
+          const blobCache = window.tinymce.activeEditor.editorUpload.blobCache;
+          const base64 = String(reader.result || '').split(',')[1];
           const blobInfo = blobCache.create(id, file, base64);
           blobCache.add(blobInfo);
-
-          callback(blobInfo.blobUri(), {title: file.name});
-        }
+          callback(blobInfo.blobUri(), { title: file.name });
+        };
         reader.readAsDataURL(file);
       });
 
@@ -160,12 +181,12 @@ function initEditor() {
 
 function focus() {
   nextTick(() => {
-    editor.value?.focus()
-  })
+    editor.value?.focus();
+  });
 }
 
 function getContent() {
-  return editor.value?.getContent()
+  return editor.value?.getContent();
 }
 
 function destroyEditor() {

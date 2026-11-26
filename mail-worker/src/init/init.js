@@ -1,12 +1,13 @@
 import settingService from '../service/setting-service';
 import userService from '../service/user-service';
+import cryptoUtils from '../utils/crypto-utils';
 
 const dbInit = {
 	async init(c) {
 
 		const secret = c.req.param('secret');
 
-		if (secret !== c.env.jwt_secret) {
+		if (!c.env?.jwt_secret || !cryptoUtils.timingSafeEqualStr(secret, String(c.env.jwt_secret))) {
 			return c.text('❌ JWT secret mismatch');
 		}
 
@@ -45,6 +46,12 @@ const dbInit = {
 				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN login_verify INTEGER NOT NULL DEFAULT 1`),
 				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN login_verify_count INTEGER NOT NULL DEFAULT 1`)
 			]);
+		} catch (e) {
+			console.warn(`sql skip:${e.message}`);
+		}
+
+		try {
+			await c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_attachments_key ON attachments(key)`).run();
 		} catch (e) {
 			console.warn(`sql skip:${e.message}`);
 		}

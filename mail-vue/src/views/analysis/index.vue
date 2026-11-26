@@ -76,12 +76,6 @@
         <div class="chart-card">
           <div class="card-head">
             <span class="title">{{ $t('emailSource') }}</span>
-            <span class="source-button" v-if="false">
-              <el-radio-group v-model="checkedSourceType">
-                <el-radio-button label="发件人" value="sender"/>
-                <el-radio-button label="邮箱" value="email"/>
-              </el-radio-group>
-            </span>
           </div>
           <div class="sender-pie"></div>
         </div>
@@ -125,34 +119,25 @@ defineOptions({
 const {t} = useI18n();
 const route = useRoute();
 const uiStore = useUiStore()
-const checkedSourceType = ref('sender')
 const receiveTotal = ref(0)
 const sendTotal = ref(0)
 const accountTotal = ref(0)
-const userTotal = ref(0)
 const analysisLoading = ref(true)
 
 const numberCount = reactive({
   normalReceiveTotal: 0,
   normalSendTotal: 0,
   normalAccountTotal: 0,
-  normalUserTotal: 0,
   delReceiveTotal: 0,
   delSendTotal: 0,
   delAccountTotal: 0,
-  delUserTotal: 0
 })
 
 const receiveData = useTransition(receiveTotal, { duration: 1500 })
 const sendData = useTransition(sendTotal, { duration: 1500 })
 const accountData = useTransition(accountTotal, { duration: 1500 })
-const userData = useTransition(userTotal, { duration: 1500 })
 
 const senderData = ref(null)
-const userLineData = reactive({
-  xdata: [],
-  sdata: []
-})
 
 const emailColumnData = {
   receiveData: [],
@@ -175,9 +160,9 @@ const topic = computed(() => ({
 let daySendTotal = 0
 let leaveWidth = 0
 let senderPie = null
-let increaseLine = null
 let emailColumn = null
 let sendGauge = null
+let initTimer = null
 let first = true
 let boxKey = ref(0)
 let senderPieLeft = window.innerWidth < 500 ? `${window.innerWidth - 110}` : '72%'
@@ -196,24 +181,18 @@ onMounted(() => {
     receiveTotal.value = data.numberCount.receiveTotal
     sendTotal.value = data.numberCount.sendTotal
     accountTotal.value = data.numberCount.accountTotal
-    userTotal.value = data.numberCount.userTotal
     numberCount.normalReceiveTotal = data.numberCount.normalReceiveTotal
     numberCount.normalSendTotal = data.numberCount.normalSendTotal
     numberCount.normalAccountTotal = data.numberCount.normalAccountTotal
-    numberCount.normalUserTotal = data.numberCount.normalUserTotal
     numberCount.delReceiveTotal = data.numberCount.delReceiveTotal
     numberCount.delSendTotal = data.numberCount.delSendTotal
     numberCount.delAccountTotal = data.numberCount.delAccountTotal
-    numberCount.delUserTotal = data.numberCount.delUserTotal
     senderData.value = data.receiveRatio.nameRatio.map(item => {
       return {
         name: item.name || ' ',
         value: item.total
       }
     })
-
-    userLineData.xdata = data.userDayCount.map(item => dayjs(item.date).format("M.D"));
-    userLineData.sdata = data.userDayCount.map(item => item.total)
 
     emailColumnData.daysData = data.emailDayCount.receiveDayCount.map(item => dayjs(item.date).format("M.D"))
     emailColumnData.receiveData = data.emailDayCount.receiveDayCount.map(item => item.total)
@@ -222,22 +201,26 @@ onMounted(() => {
     analysisLoading.value = false
     initPicture();
     first = false
+  }).catch(() => {
+    analysisLoading.value = false
   })
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
+  clearTimeout(initTimer)
+  widthChange.cancel()
+  senderPie?.dispose()
+  senderPie = null
+  emailColumn?.dispose()
+  emailColumn = null
+  sendGauge?.dispose()
+  sendGauge = null
 })
 
 const widthChange = debounce(initPicture, 500, {
   leading: false,
   trailing: true
-})
-
-watch(() => uiStore.asideShow, () => {
-  if (window.innerWidth > 1024) {
-    widthChange()
-  }
 })
 
 onActivated(() => {
@@ -254,6 +237,8 @@ onActivated(() => {
 
 onDeactivated(() => {
   leaveWidth = window.innerWidth
+  clearTimeout(initTimer)
+  widthChange.cancel()
 })
 
 watch(() => uiStore.dark, () => {
@@ -265,7 +250,8 @@ watch(() => uiStore.dark, () => {
 function initPicture() {
   if (route.name !== 'analysis') return
   boxKey.value++
-  setTimeout(() => {
+  clearTimeout(initTimer)
+  initTimer = setTimeout(() => {
     createSenderPie()
     createEmailColumnChart();
     createSendGauge();
@@ -341,91 +327,6 @@ function createSenderPie() {
     ]
   }
   senderPie.setOption(option)
-}
-
-function createIncreaseLine() {
-  const el = document.querySelector(".increase-line")
-  if (!el) return
-  if (increaseLine) {
-    increaseLine.dispose()
-  }
-  increaseLine = echarts.init(el)
-
-  let option = {
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: {
-        type: 'line',
-        lineStyle: { color: topic.value.crossColor, type: 'dashed' }
-      },
-      formatter: params => {
-        let result = ''
-        params.forEach(item => {
-          result = `${item.marker} ${t('growthTotalUsers')} ${item.value}`;
-        });
-        return result;
-      },
-      backgroundColor: topic.value.background,
-      borderColor: topic.value.splitLineColor,
-      borderWidth: 1,
-      padding: [8, 12],
-      textStyle: { color: topic.value.color }
-    },
-    grid: { top: '12%', right: '20', left: '35', bottom: '32' },
-    xAxis: {
-      type: 'category',
-      data: userLineData.xdata,
-      axisTick: { show: false },
-      axisLine: { lineStyle: { color: topic.value.splitLineColor, width: 1 } },
-      axisLabel: {
-        color: topic.value.axisColor,
-        fontSize: 11.5,
-        formatter: (value, index) => {
-          if (index === 0) return '      ' + value;
-          if (index === userLineData.xdata.length - 1) return value + '   '
-          return value;
-        }
-      },
-      boundaryGap: false,
-    },
-    yAxis: {
-      type: 'value',
-      axisLabel: { margin: 8, color: topic.value.axisColor, fontSize: 11.5 },
-      boundaryGap: [0, 0.1],
-      max: (params) => params.max < 8 ? 10 : undefined,
-      axisLine: { show: false },
-      splitLine: {
-        show: true,
-        lineStyle: { type: 'dashed', color: topic.value.scaleLineColor }
-      }
-    },
-    series: [
-      {
-        data: userLineData.sdata,
-        type: 'line',
-        smooth: 0.35,
-        symbol: 'none',
-        lineStyle: { color: '#2563EB', width: 2.5 },
-        areaStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: 'rgba(37, 99, 235, 0.28)' },
-            { offset: 1, color: 'rgba(37, 99, 235, 0.01)' }
-          ])
-        },
-        color: ['#2563EB'],
-      }
-    ]
-  };
-  increaseLine.setOption(option);
-
-  let max = increaseLine.getModel().getComponent('yAxis', 0).axis.scale.getExtent()[1];
-  let left = 35
-  if (max > 99) left = 42
-  if (max > 999) left = 51
-  if (max > 9999) left = 58
-  if (max > 99999) left = 66
-
-  increaseLine.setOption({ grid: { left } });
 }
 
 function createEmailColumnChart() {

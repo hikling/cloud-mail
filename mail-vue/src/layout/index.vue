@@ -6,6 +6,7 @@
       :theme-id="uiStore.auroraTheme"
       :dark="uiStore.dark"
       calmer
+      :paused="isSolidBackdrop || tabHidden"
     />
     <div v-else class="workspace-custom-bg" :style="customBgStyle" aria-hidden="true">
       <div class="workspace-custom-scrim"></div>
@@ -25,7 +26,7 @@
 import Header from '@/layout/header/index.vue'
 import Main from '@/layout/main/index.vue'
 import AuroraBackdrop from '@/components/aurora-backdrop/index.vue'
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useUiStore } from '@/store/ui.js'
 import { useSettingStore } from '@/store/setting.js'
 import { cvtR2Url } from '@/utils/convert.js'
@@ -34,6 +35,17 @@ import writer from '@/layout/write/index.vue'
 const uiStore = useUiStore()
 const settingStore = useSettingStore()
 const writerRef = ref({})
+const tabHidden = ref(typeof document !== 'undefined' && document.visibilityState === 'hidden')
+
+const isSolidBackdrop = computed(() => {
+  const rawVal = Number(settingStore.settings.loginOpacity)
+  const alpha = Number.isFinite(rawVal) ? Math.min(1, Math.max(0.3, rawVal)) : 0.88
+  return alpha >= 0.995
+})
+
+function onVisibilityChange() {
+  tabHidden.value = document.visibilityState === 'hidden'
+}
 
 const customBgStyle = computed(() => {
   if (!settingStore.settings.background) return {}
@@ -95,6 +107,11 @@ const workspaceThemeVars = computed(() => {
 
 onMounted(() => {
   uiStore.writerRef = writerRef
+  document.addEventListener('visibilitychange', onVisibilityChange)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('visibilitychange', onVisibilityChange)
 })
 </script>
 

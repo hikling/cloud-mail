@@ -177,6 +177,7 @@ const router = useRouter()
 const sendNameRef = ref(null)
 const senderWrapped = ref(false)
 let senderResizeObserver = null
+let clearStarTimer = null
 
 const canDelete = computed(() =>
   emailStore.contentData.delType === 'physics' ? hasPerm('all-email:delete') : hasPerm('email:delete')
@@ -184,6 +185,14 @@ const canDelete = computed(() =>
 
 const showPreview = ref(false)
 const srcList = reactive([])
+
+if (!emailStore.contentData.email && emailStore.contentMeta?.emailId) {
+  emailStore.contentData.delType = emailStore.contentMeta.delType
+  emailStore.contentData.showStar = emailStore.contentMeta.showStar
+  emailStore.contentData.showReply = emailStore.contentMeta.showReply
+  emailStore.contentData.showUnread = emailStore.contentMeta.showUnread
+  emailStore.contentData.email = emailStore.toContentEmail({ emailId: emailStore.contentMeta.emailId })
+}
 
 const email = computed(() => emailStore.contentData.email || {
   emailId: 0,
@@ -306,6 +315,7 @@ onMounted(() => {
 onUnmounted(() => {
   emailStore.contentData.showUnread = false;
   readRequesting = false
+  clearTimeout(clearStarTimer)
   window.removeEventListener('keydown', handleKeyDown);
   senderResizeObserver?.disconnect()
 })
@@ -330,7 +340,12 @@ async function openForward() {
 }
 
 function toMessage(message) {
-  return message ? JSON.parse(message).message : '';
+  if (!message) return ''
+  try {
+    return JSON.parse(message)?.message || ''
+  } catch {
+    return String(message)
+  }
 }
 
 function formatImage(content) {
@@ -348,13 +363,17 @@ function showImage(key) {
 }
 
 function isImage(filename) {
-  return ['png', 'jpg', 'jpeg', 'bmp', 'gif','jfif'].includes(getExtName(filename))
+  return ['png', 'jpg', 'jpeg', 'bmp', 'gif', 'jfif', 'webp', 'avif'].includes(getExtName(filename))
 }
 
 function formateReceive(recipient) {
   if (!recipient) return ''
-  recipient = JSON.parse(recipient)
-  return recipient.map(item => item.address).join(', ')
+  try {
+    const parsed = JSON.parse(recipient)
+    return Array.isArray(parsed) ? parsed.map(item => item.address).join(', ') : ''
+  } catch {
+    return ''
+  }
 }
 
 function changeStar() {
@@ -363,7 +382,8 @@ function changeStar() {
     starCancel(email.value.emailId).then(() => {
       email.value.isStar = 0;
       emailStore.cancelStarEmailId = email.value.emailId
-      setTimeout(() => emailStore.cancelStarEmailId = 0)
+      clearTimeout(clearStarTimer)
+      clearStarTimer = setTimeout(() => emailStore.cancelStarEmailId = 0)
       emailStore.starScroll?.deleteEmail([email.value.emailId])
     }).catch((e) => {
       console.error(e)
@@ -374,7 +394,8 @@ function changeStar() {
     starAdd(email.value.emailId).then(() => {
       email.value.isStar = 1;
       emailStore.addStarEmailId = email.value.emailId
-      setTimeout(() => emailStore.addStarEmailId = 0)
+      clearTimeout(clearStarTimer)
+      clearStarTimer = setTimeout(() => emailStore.addStarEmailId = 0)
       emailStore.starScroll?.addItem(email.value)
     }).catch((e) => {
       console.error(e)
@@ -392,28 +413,17 @@ const handleDelete = () => {
     confirmButtonText: t('confirm'),
     cancelButtonText: t('cancel'),
     type: 'warning'
-  }).then(() => {
-    if (emailStore.contentData.delType === 'logic') {
-      emailDelete(email.value.emailId).then(() => {
-        ElMessage({
-          message: t('delSuccessMsg'),
-          type: 'success',
-          plain: true,
-        })
-        emailStore.deleteIds = [email.value.emailId]
-      })
-    } else {
-      allEmailDelete(email.value.emailId).then(() => {
-        ElMessage({
-          message: t('delSuccessMsg'),
-          type: 'success',
-          plain: true,
-        })
-        emailStore.deleteIds = [email.value.emailId]
-      })
-    }
+  }).then(async () => {
+    const delFn = emailStore.contentData.delType === 'logic' ? emailDelete : allEmailDelete
+    await delFn(email.value.emailId)
+    ElMessage({
+      message: t('delSuccessMsg'),
+      type: 'success',
+      plain: true,
+    })
+    emailStore.deleteIds = [email.value.emailId]
     router.back()
-  })
+  }).catch(() => {})
 }
 </script>
 

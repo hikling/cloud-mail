@@ -1,9 +1,9 @@
-import {useUserStore} from "@/store/user.js";
+import { useUserStore } from "@/store/user.js";
 
 export default {
     mounted(el, binding) {
         const userStore = useUserStore();
-        const permKeys = userStore.user.permKeys;
+        const permKeys = userStore.user?.permKeys || [];
         const value = binding.value;
 
         if (permKeys.includes('*')) {
@@ -18,21 +18,21 @@ export default {
             el.parentNode && el.parentNode.removeChild(el);
         }
     }
-}
+};
 
 export function hasPerm(permKey) {
-    const {permKeys} = useUserStore().user;
+    const permKeys = useUserStore().user?.permKeys || [];
     return permKeys.includes('*') || permKeys.includes(permKey);
 }
 
-
 export function permsToRouter(permKeys) {
-    const routerList = []
+    const keys = Array.isArray(permKeys) ? permKeys : [];
+    const routerList = [];
     Object.keys(routers).forEach(perm => {
-        if (permKeys.includes(perm) || permKeys.includes('*')) {
-            routerList.push(...routers[perm])
+        if (keys.includes(perm) || keys.includes('*')) {
+            routerList.push(...routers[perm]);
         }
-    })
+    });
     return routerList;
 }
 
@@ -89,4 +89,4 @@ const routers = {
             menu: true
         }
     }]
-}
+};

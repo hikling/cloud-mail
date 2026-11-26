@@ -1,5 +1,5 @@
 <template>
-  <div class="aurora-backdrop" :class="{ 'is-calm': calmer }" :style="backdropVars" aria-hidden="true">
+  <div class="aurora-backdrop" :class="{ 'is-calm': calmer, 'is-paused': paused }" :style="backdropVars" aria-hidden="true">
     <div class="aurora-canvas"></div>
     <div class="aurora-orb orb-1"></div>
     <div class="aurora-orb orb-2"></div>
@@ -29,6 +29,10 @@ const props = defineProps({
     default: false,
   },
   calmer: {
+    type: Boolean,
+    default: false,
+  },
+  paused: {
     type: Boolean,
     default: false,
   },
@@ -169,6 +173,13 @@ const backdropVars = computed(() => {
 @keyframes auBeamSweep {
   0% { transform: translateX(-16%) rotate(-6deg); }
   100% { transform: translateX(14%) rotate(-6deg); }
+}
+
+.aurora-backdrop.is-paused {
+  .aurora-orb,
+  .aurora-beam {
+    animation-play-state: paused;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

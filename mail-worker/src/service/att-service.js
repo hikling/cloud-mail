@@ -1,6 +1,6 @@
 import orm from '../entity/orm';
 import { att } from '../entity/att';
-import { and, eq, isNull, inArray, desc } from 'drizzle-orm';
+import { and, eq, inArray, desc } from 'drizzle-orm';
 import r2Service from './r2-service';
 import constant from '../const/constant';
 import fileUtils from '../utils/file-utils';
@@ -10,27 +10,31 @@ import { v4 as uuidv4 } from 'uuid';
 import domainUtils from '../utils/domain-uitls';
 import settingService from "./setting-service";
 import proxyService from './proxy-service';
-import { ATT_CACHE_CONTROL, isDangerousAttType, isSafeInlineAtt } from '../utils/att-headers';
+import { IMMUTABLE_CACHE_CONTROL, isDangerousAttType, isSafeInlineAtt, sanitizeDispositionFilename } from '../utils/att-headers';
+
+const CHUNK_SIZE = 90;
+const ALLOWED_ATT_FIELDS = new Set(['user_id', 'email_id', 'account_id']);
 
 const attService = {
 
 	async addAtt(c, attachments) {
 
-		for (let attachment of attachments) {
+		for (const attachment of attachments) {
 
-			let metadate = {
+			const safeFilename = sanitizeDispositionFilename(attachment.filename);
+			const metadate = {
 				contentType: isDangerousAttType(attachment.mimeType)
 					? 'application/octet-stream'
 					: attachment.mimeType,
-			}
+			};
 
 			if (attachment.contentId) {
-				metadate.cacheControl = ATT_CACHE_CONTROL
+				metadate.cacheControl = IMMUTABLE_CACHE_CONTROL;
 				metadate.contentDisposition = isSafeInlineAtt(attachment.mimeType)
-					? `inline;filename=${attachment.filename}`
-					: `attachment;filename=${attachment.filename}`
+					? `inline; filename="${safeFilename}"`
+					: `attachment; filename="${safeFilename}"`;
 			} else {
-				metadate.contentDisposition = `attachment;filename=${attachment.filename}`
+				metadate.contentDisposition = `attachment; filename="${safeFilename}"`;
 			}
 
 			await r2Service.putObj(c, attachment.key, attachment.content, metadate);
@@ -40,20 +44,7 @@ const attService = {
 		await orm(c).insert(att).values(attachments).run();
 	},
 
-	list(c, params, userId) {
-		const { emailId } = params;
-
-		return orm(c).select().from(att).where(
-			and(
-				eq(att.emailId, emailId),
-				eq(att.userId, userId),
-				eq(att.type, attConst.type.ATT),
-				isNull(att.contentId)
-			)
-		).all();
-	},
-
-	async toImageUrlHtml(c, content) {
+	async toImageUrlHtml(c, content, userId) {
 
 		const { r2Domain } = await settingService.query(c);
 
@@ -75,16 +66,15 @@ const attService = {
 
 				img.setAttribute('src', 'cid:' + cid);
 
-				const attData = {};
-				attData.key = key;
-				attData.filename = file.name;
-				attData.mimeType = file.type;
-				attData.size = file.size;
-				attData.buff = buff;
-				attData.content = fileUtils.base64ToDataStr(src);
-				attData.contentId = cid;
-
-				imageDataList.push(attData);
+				imageDataList.push({
+					key,
+					filename: sanitizeDispositionFilename(file.name),
+					mimeType: file.type,
+					size: file.size,
+					buff,
+					content: fileUtils.base64ToDataStr(src),
+					contentId: cid
+				});
 			}
 
 			// TinyMCE 可能把路径收成 ../attachments 或 /attachments
@@ -100,22 +90,14 @@ const attService = {
 			//邮件正文站内图片转cid附件
 			if (fromOss || attKey) {
 
-				const cid = uuidv4().replace(/-/g, '')
+				const cid = uuidv4().replace(/-/g, '');
 				img.setAttribute('src', 'cid:' + cid);
 
-				const attData = {};
-
-				if (fromOss) {
-					attData.key = src.replace(ossDomain + '/','');
-				}
-
-				if (attKey) {
-					attData.key = attKey;
-				}
-
-				attData.contentId = cid;
-				attData.type = attConst.type.EMBED;
-				imageDataList.push(attData);
+				imageDataList.push({
+					key: fromOss ? src.replace(ossDomain + '/', '') : attKey,
+					contentId: cid,
+					type: attConst.type.EMBED
+				});
 
 			}
 
@@ -129,17 +111,17 @@ const attService = {
 			}
 		}
 
-		//查询已有内嵌url图片信息
-		const keys = [...new Set(imageDataList.filter(item => !item.content).map(item => item.key))];
-		const dbImageList  = await this.selectOneByKeys(c, keys);
+		// 查询已有内嵌 URL 图片信息（强制校验归属 userId，防止越权读取他人附件）
+		const keys = [...new Set(imageDataList.filter(item => !item.content && item.key).map(item => item.key))];
+		const dbImageList = await this.selectOneByKeys(c, keys, userId);
 
-		//设置给当前附件
+		// 设置给当前附件
 		await Promise.all(imageDataList.map(async image => {
 			if (image.content) {
 				return;
 			}
 
-			const dbImage = dbImageList.find(dbImage => image.key === dbImage.key);
+			const dbImage = dbImageList.find(dbItem => image.key === dbItem.key);
 			if (!dbImage) {
 				return;
 			}
@@ -155,7 +137,7 @@ const attService = {
 			}
 
 			image.content = obj instanceof ArrayBuffer ? obj : await obj.arrayBuffer();
-		}))
+		}));
 
 		imageDataList = imageDataList.filter(image => image.content);
 
@@ -166,32 +148,39 @@ const attService = {
 
 		const attDataList = [];
 
-		for (let att of attList) {
-			att.buff = fileUtils.base64ToUint8Array(att.content);
-			att.key = constant.ATTACHMENT_PREFIX + await fileUtils.getBuffHash(att.buff) + fileUtils.getExtFileName(att.filename);
-			const attData = { userId, accountId, emailId };
-			attData.key = att.key;
-			attData.size = att.buff.length;
-			attData.filename = att.filename;
-			attData.mimeType = att.type;
-			attData.type = attConst.type.ATT;
-			attDataList.push(attData);
+		for (const item of attList) {
+			const safeFilename = sanitizeDispositionFilename(item.filename);
+			item.buff = fileUtils.base64ToUint8Array(item.content);
+			item.key = constant.ATTACHMENT_PREFIX + await fileUtils.getBuffHash(item.buff) + fileUtils.getExtFileName(safeFilename);
+			attDataList.push({
+				userId,
+				accountId,
+				emailId,
+				key: item.key,
+				size: item.buff.length,
+				filename: safeFilename,
+				mimeType: item.type,
+				type: attConst.type.ATT
+			});
 		}
 
 		await orm(c).insert(att).values(attDataList).run();
 
-		for (let att of attList) {
-			await r2Service.putObj(c, att.key, att.buff, {
-				contentType: att.type,
-				contentDisposition: `attachment;filename=${att.filename}`
+		for (const item of attList) {
+			const safeFilename = sanitizeDispositionFilename(item.filename);
+			await r2Service.putObj(c, item.key, item.buff, {
+				contentType: isDangerousAttType(item.type) ? 'application/octet-stream' : item.type,
+				cacheControl: IMMUTABLE_CACHE_CONTROL,
+				contentDisposition: `attachment; filename="${safeFilename}"`
 			});
+			delete item.buff;
 		}
 
 	},
 
 	async saveArticleAtt(c, attDataList, userId, accountId, emailId) {
 
-		for (let attData of attDataList) {
+		for (const attData of attDataList) {
 			attData.userId = userId;
 			attData.emailId = emailId;
 			attData.accountId = accountId;
@@ -199,14 +188,15 @@ const attService = {
 			if (!attData.buff) {
 				continue;
 			}
+			const safeFilename = sanitizeDispositionFilename(attData.filename);
 			await r2Service.putObj(c, attData.key, attData.buff, {
 				contentType: isDangerousAttType(attData.mimeType)
 					? 'application/octet-stream'
 					: attData.mimeType,
-				cacheControl: ATT_CACHE_CONTROL,
+				cacheControl: IMMUTABLE_CACHE_CONTROL,
 				contentDisposition: isSafeInlineAtt(attData.mimeType)
-					? `inline;filename=${attData.filename}`
-					: `attachment;filename=${attData.filename}`
+					? `inline; filename="${safeFilename}"`
+					: `attachment; filename="${safeFilename}"`
 			});
 			delete attData.buff;
 		}
@@ -223,42 +213,64 @@ const attService = {
 		await this.removeAttByField(c, 'email_id', emailIds);
 	},
 
-	selectByEmailIds(c, emailIds) {
-		return orm(c).select().from(att).where(
-			and(
-				inArray(att.emailId, emailIds),
-				eq(att.type, attConst.type.ATT)
-			))
-			.all();
+	async selectByEmailIds(c, emailIds) {
+		if (!emailIds || emailIds.length === 0) return [];
+		if (emailIds.length <= CHUNK_SIZE) {
+			return orm(c).select().from(att).where(
+				and(
+					inArray(att.emailId, emailIds),
+					eq(att.type, attConst.type.ATT)
+				)
+			).all();
+		}
+		const allRows = [];
+		for (let i = 0; i < emailIds.length; i += CHUNK_SIZE) {
+			const chunk = emailIds.slice(i, i + CHUNK_SIZE);
+			const rows = await orm(c).select().from(att).where(
+				and(inArray(att.emailId, chunk), eq(att.type, attConst.type.ATT))
+			).all();
+			allRows.push(...rows);
+		}
+		return allRows;
 	},
 
 	async removeAttByField(c, fieldName, fieldValues) {
+		if (!ALLOWED_ATT_FIELDS.has(fieldName)) {
+			throw new Error(`Invalid attachment field: ${fieldName}`);
+		}
+		if (!Array.isArray(fieldValues) || fieldValues.length === 0) return;
 
-		const sqlList = [];
+		const candidateKeys = new Set();
 
-		fieldValues.forEach(value => {
+		for (let i = 0; i < fieldValues.length; i += CHUNK_SIZE) {
+			const chunk = fieldValues.slice(i, i + CHUNK_SIZE);
+			const placeholders = chunk.map(() => '?').join(', ');
+			const [keyRes] = await c.env.db.batch([
+				c.env.db.prepare(`SELECT DISTINCT key FROM attachments WHERE ${fieldName} IN (${placeholders})`).bind(...chunk),
+				c.env.db.prepare(`DELETE FROM attachments WHERE ${fieldName} IN (${placeholders})`).bind(...chunk)
+			]);
+			for (const row of keyRes.results || []) {
+				if (row.key) candidateKeys.add(row.key);
+			}
+		}
 
-			sqlList.push(
+		if (candidateKeys.size === 0) return;
 
-				c.env.db.prepare(
-					`SELECT a.key, a.att_id
-						FROM attachments a
-							   JOIN (SELECT key
-									 FROM attachments
-									 GROUP BY key
-									 HAVING COUNT (*) = 1) t
-									ON a.key = t.key
-						WHERE a.${fieldName} = ?;`
-					).bind(value)
-			)
+		const keysToCheck = [...candidateKeys];
+		const stillUsedKeys = new Set();
 
-			sqlList.push(c.env.db.prepare(`DELETE FROM attachments WHERE ${fieldName} = ?`).bind(value))
+		for (let i = 0; i < keysToCheck.length; i += CHUNK_SIZE) {
+			const chunk = keysToCheck.slice(i, i + CHUNK_SIZE);
+			const placeholders = chunk.map(() => '?').join(', ');
+			const res = await c.env.db.prepare(
+				`SELECT DISTINCT key FROM attachments WHERE key IN (${placeholders})`
+			).bind(...chunk).all();
+			for (const row of res.results || []) {
+				stillUsedKeys.add(row.key);
+			}
+		}
 
-		});
-
-		const attListResult = await c.env.db.batch(sqlList);
-
-		const delKeyList = attListResult.flatMap(r => r.results ? r.results.map(row => row.key) : []);
+		const delKeyList = keysToCheck.filter(k => !stillUsedKeys.has(k));
 
 		if (delKeyList.length > 0) {
 			try {
@@ -267,7 +279,6 @@ const attService = {
 				console.error('删除附件文件失败：', e);
 			}
 		}
-
 	},
 
 	async batchDelete(c, keys) {
@@ -279,18 +290,21 @@ const attService = {
 			const batch = keys.slice(i, i + BATCH_SIZE);
 			await r2Service.delete(c, batch);
 		}
-
 	},
 
 	async removeByAccountId(c, accountId) {
-		await this.removeAttByField(c, "account_id", [accountId])
+		await this.removeAttByField(c, "account_id", [accountId]);
 	},
 
-	selectOneByKeys(c, keys) {
+	selectOneByKeys(c, keys, userId) {
 		if (!keys || keys.length === 0) {
-			return []
+			return [];
 		}
-		return orm(c).select().from(att).where(inArray(att.key, keys)).orderBy(desc(att.attId)).groupBy(att.key).all();
+		const conds = [inArray(att.key, keys.slice(0, CHUNK_SIZE))];
+		if (userId != null) {
+			conds.push(eq(att.userId, userId));
+		}
+		return orm(c).select().from(att).where(and(...conds)).orderBy(desc(att.attId)).groupBy(att.key).all();
 	},
 
 	// attachments/、/attachments/、../attachments/ 都收成存储 key。

@@ -256,8 +256,9 @@
 
 <script setup>
 import router from "@/router";
-import {logout} from "@/request/login.js";
-import {Icon} from "@iconify/vue";
+import { logout } from "@/request/login.js";
+import { clearClientSession } from "@/utils/session.js";
+import { Icon } from "@iconify/vue";
 import {useUiStore} from "@/store/ui.js";
 import {useUserStore} from "@/store/user.js";
 import {useRoute} from "vue-router";
@@ -429,11 +430,10 @@ function openSend() {
 
 function clickLogout() {
   logoutLoading.value = true
-  logout().then(() => {
-    localStorage.removeItem("token")
-    router.replace('/login')
-  }).finally(() => {
+  logout().catch(() => {}).finally(() => {
+    clearClientSession()
     logoutLoading.value = false
+    router.replace('/login')
   })
 }
 

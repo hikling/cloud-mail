@@ -1,11 +1,17 @@
 import { parseHTML } from 'linkedom';
 
-export default function emailHtmlTemplate(html) {
+const BLOCKED_TAGS = new Set(['SCRIPT', 'IFRAME', 'OBJECT', 'EMBED', 'LINK', 'META', 'BASE', 'FRAME', 'FORM']);
 
-	const { document } = parseHTML(html);
-	document.querySelectorAll('script').forEach(script => script.remove());
-	// 去掉内联事件和 javascript: 伪协议，避免 innerHTML 后再执行。
+export default function emailHtmlTemplate(html, nonce = '') {
+
+	const { document } = parseHTML(html || '');
+	document.querySelectorAll('script, iframe, object, embed, link, meta, base, frame, form').forEach(node => node.remove());
+	// 去掉内联事件、危险协议与外链 CSS url，避免 innerHTML 后再执行或绕过代理泄露 IP。
 	document.querySelectorAll('*').forEach(el => {
+		if (BLOCKED_TAGS.has(el.tagName)) {
+			el.remove();
+			return;
+		}
 		for (const name of el.getAttributeNames()) {
 			const lower = name.toLowerCase();
 			if (lower.startsWith('on') || lower === 'srcdoc') {
@@ -21,9 +27,14 @@ export default function emailHtmlTemplate(html) {
 			}
 		}
 	});
-	html = document.toString();
-	html = html.replace(/{{domain}}/g, '/');
-	const safeHtmlJson = JSON.stringify(html).replace(/</g, '\\u003C');
+	document.querySelectorAll('style').forEach(styleEl => {
+		styleEl.textContent = sanitizeCssText(styleEl.textContent || '');
+	});
+	const bodyStyle = sanitizeCssText(document.body?.getAttribute('style') || '');
+	const bodyHtml = (document.body ? document.body.innerHTML : document.toString()).replace(/{{domain}}/g, '/');
+	const safeHtmlJson = JSON.stringify(bodyHtml).replace(/</g, '\\u003C');
+	const safeBodyStyleJson = JSON.stringify(bodyStyle).replace(/</g, '\\u003C');
+	const nonceAttr = nonce ? ` nonce="${nonce}"` : '';
 
 	return `<!DOCTYPE html>
 <html lang='en' >
@@ -39,10 +50,10 @@ export default function emailHtmlTemplate(html) {
         }
 
         .content-box {
-        		padding: 15px 10px;
+            padding: 15px 10px;
             width: 100%;
             height: 100%;
-            overflow: auto; /* 改为 auto 允许滚动 */
+            overflow: auto;
             font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
 
@@ -57,69 +68,63 @@ export default function emailHtmlTemplate(html) {
         <div id='container' class='content-html'></div>
     </div>
 
-    <script>
+    <script${nonceAttr}>
 
-        function renderHTML(html) {
+        function renderHTML(bodyHtml, bodyStyle) {
             const container = document.getElementById('container');
             const shadowRoot = container.attachShadow({ mode: 'open' });
 
-            // 提取 <body> 的 style 属性
-            const bodyStyleRegex = /<body[^>]*style="([^"]*)"[^>]*>/i;
-            const bodyStyleMatch = html.match(bodyStyleRegex);
-            const bodyStyle = bodyStyleMatch ? bodyStyleMatch[1] : '';
+            const style = document.createElement('style');
+            style.textContent = \`
+                :host {
+                    all: initial;
+                    width: 100%;
+                    height: 100%;
+                    font-family: Inter, -apple-system, BlinkMacSystemFont,
+                                'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                    font-size: 14px;
+                    line-height: 1.5;
+                    color: #13181D;
+                    word-break: break-word;
+                    overflow: auto;
+                }
 
-            // 移除 <body> 标签
-            const cleanedHtml = html.replace(/<\\/?body[^>]*>/gi, '');
+                h1, h2, h3, h4 {
+                    font-size: 18px;
+                    font-weight: 700;
+                }
 
-            // 渲染内容
-            shadowRoot.innerHTML = \`
-                <style>
-                    :host {
-                        all: initial;
-                        width: 100%;
-                        height: 100%;
-                        font-family: Inter, -apple-system, BlinkMacSystemFont,
-                                    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-                        font-size: 14px;
-                        line-height: 1.5;
-                        color: #13181D;
-                        word-break: break-word;
-                        overflow: auto; /* 添加滚动 */
-                    }
+                p {
+                    margin: 0;
+                }
 
-                    h1, h2, h3, h4 {
-                        font-size: 18px;
-                        font-weight: 700;
-                    }
+                a {
+                    text-decoration: none;
+                    color: #0E70DF;
+                }
 
-                    p {
-                        margin: 0;
-                    }
+                .shadow-content {
+                    position: relative;
+                    background: #FFFFFF;
+                    width: fit-content;
+                    height: fit-content;
+                    min-width: 100%;
+                }
 
-                    a {
-                        text-decoration: none;
-                        color: #0E70DF;
-                    }
-
-                    .shadow-content {
-                        background: #FFFFFF;
-                        width: fit-content;
-                        height: fit-content;
-                        min-width: 100%;
-                        \${bodyStyle ? bodyStyle : ''} /* 注入 body 的 style */
-                    }
-
-                    img:not(table img) {
-                        max-width: 100% !important;
-                        height: auto !important;
-                    }
-                </style>
-                <div class="shadow-content">
-                    \${cleanedHtml}
-                </div>
+                img:not(table img) {
+                    max-width: 100% !important;
+                    height: auto !important;
+                }
             \`;
 
-            // 自动缩放
+            const wrapper = document.createElement('div');
+            wrapper.className = 'shadow-content';
+            if (bodyStyle) {
+                wrapper.style.cssText = bodyStyle;
+            }
+            wrapper.innerHTML = bodyHtml;
+
+            shadowRoot.replaceChildren(style, wrapper);
             autoScale(shadowRoot, container);
         }
 
@@ -143,12 +148,22 @@ export default function emailHtmlTemplate(html) {
             hostElement.style.zoom = scale;
         }
 
-        // 使用示例
-        const exampleHtml = ${safeHtmlJson};
-
-        // 渲染HTML
-        renderHTML(exampleHtml);
+        renderHTML(${safeHtmlJson}, ${safeBodyStyleJson});
     </script>
 </body>
-</html>`
+</html>`;
+}
+
+function sanitizeCssText(css) {
+	return String(css)
+		.replace(/<\s*\/?\s*style/gi, '')
+		.replace(/@import\b[^;]*(;|$)/gi, '')
+		.replace(/\bposition\s*:\s*fixed\b/gi, 'position: relative')
+		.replace(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^)"'\s]+))\s*\)/gi, (full, dq, sq, uq) => {
+			const val = (dq ?? sq ?? uq ?? '').trim();
+			if (/^(https?:)?\/\//i.test(val) && !val.startsWith('/proxy?')) {
+				return 'none';
+			}
+			return full;
+		});
 }

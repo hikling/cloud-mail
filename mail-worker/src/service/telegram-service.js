@@ -1,11 +1,6 @@
 import orm from '../entity/orm';
 import email from '../entity/email';
 import settingService from './setting-service';
-import dayjs from 'dayjs';
-import utc from 'dayjs/plugin/utc';
-import timezone from 'dayjs/plugin/timezone';
-dayjs.extend(utc);
-dayjs.extend(timezone);
 import { eq } from 'drizzle-orm';
 import jwtUtils from '../utils/jwt-utils';
 import emailMsgTemplate from '../template/email-msg';
@@ -14,16 +9,18 @@ import emailHtmlTemplate from '../template/email-html';
 import domainUtils from "../utils/domain-uitls";
 import proxyService from './proxy-service';
 
+const TG_PREVIEW_TTL = 60 * 60 * 24 * 7;
+
 const telegramService = {
 
 	async getEmailContent(c, params) {
 
-		const { token } = params
-
+		const { token } = params;
+		const nonce = crypto.randomUUID().replace(/-/g, '');
 		const result = await jwtUtils.verifyToken(c, token);
 
-		if (!result) {
-			return emailTextTemplate('Access denied')
+		if (!result || result.purpose !== 'tg_preview' || !result.emailId) {
+			return { html: emailTextTemplate('Access denied'), nonce };
 		}
 
 		const emailRow = await orm(c).select().from(email).where(eq(email.emailId, result.emailId)).get();
@@ -33,13 +30,13 @@ const telegramService = {
 			if (emailRow.content) {
 				// Telegram 网页预览：外链图改成 /proxy?url=，避免暴露打开者 IP。
 				const html = await proxyService.rewriteHtml(c, emailRow.content);
-				return emailHtmlTemplate(html || '')
+				return { html: emailHtmlTemplate(html || '', nonce), nonce };
 			} else {
-				return emailTextTemplate(emailRow.text || '')
+				return { html: emailTextTemplate(emailRow.text || ''), nonce };
 			}
 
 		} else {
-			return emailTextTemplate('The email does not exist')
+			return { html: emailTextTemplate('The email does not exist'), nonce };
 		}
 
 	},
@@ -48,9 +45,16 @@ const telegramService = {
 
 		const { tgBotToken, tgChatId, customDomain, tgMsgTo, tgMsgFrom, tgMsgText } = await settingService.query(c);
 
-		const tgChatIds = tgChatId.split(',');
+		if (!tgBotToken || !/^\d+:[A-Za-z0-9_-]{20,}$/.test(tgBotToken)) {
+			return;
+		}
 
-		const jwtToken = await jwtUtils.generateToken(c, { emailId: email.emailId })
+		const tgChatIds = String(tgChatId || '').split(',').map(s => s.trim()).filter(Boolean);
+		if (!tgChatIds.length) {
+			return;
+		}
+
+		const jwtToken = await jwtUtils.generateToken(c, { emailId: email.emailId, purpose: 'tg_preview' }, TG_PREVIEW_TTL);
 
 		const webAppUrl = customDomain ? `${domainUtils.toOssDomain(customDomain)}/api/telegram/getEmail/${jwtToken}` : 'https://www.cloudflare.com/404'
 		const inlineKeyboard = [
@@ -75,6 +79,7 @@ const telegramService = {
 			try {
 				const res = await fetch(`https://api.telegram.org/bot${tgBotToken}/sendMessage`, {
 					method: 'POST',
+					signal: AbortSignal.timeout(8_000),
 					headers: {
 						'Content-Type': 'application/json'
 					},

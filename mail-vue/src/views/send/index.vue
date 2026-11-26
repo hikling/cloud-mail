@@ -50,10 +50,12 @@ watch(
 )
 
 function jumpContent(email) {
-  emailStore.contentData.email = emailStore.toContentEmail(email)
-  emailStore.contentData.delType = 'logic'
-  emailStore.contentData.showStar = true
-  emailStore.contentData.showReply = true
+  emailStore.setContentEmail(emailStore.toContentEmail(email), {
+    delType: 'logic',
+    showStar: true,
+    showReply: true,
+    showUnread: false,
+  })
   router.push({name: 'content', params: {mailbox: 'sent'}})
 }
 

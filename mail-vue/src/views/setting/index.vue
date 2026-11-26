@@ -81,7 +81,7 @@
             </section>
           </aside>
 
-          <!-- Right Column: Account Settings + Appearance & Language + Notice -->
+          <!-- Right Column: Account Settings + Appearance & Language -->
           <main class="main-col">
             <!-- Profile & Security -->
             <section class="panel-card">
@@ -230,7 +230,8 @@ import {accountSetName} from "@/request/account.js";
 import {useAccountStore} from "@/store/account.js";
 import {useI18n} from "vue-i18n";
 import {useSettingStore} from "@/store/setting.js";
-import {useUiStore} from "@/store/ui.js";
+import {clearClientSession} from "@/utils/session.js";
+import {setExtend} from "@/utils/day.js";
 import {hasPerm} from "@/perm/perm.js";
 import ThemeSelector from "@/components/theme-selector/index.vue";
 import AuroraPicker from "@/components/aurora-picker/index.vue";
@@ -238,7 +239,6 @@ import AuroraPicker from "@/components/aurora-picker/index.vue";
 const { t } = useI18n()
 const accountStore = useAccountStore()
 const settingStore = useSettingStore()
-const uiStore = useUiStore()
 const userStore = useUserStore();
 const setPwdLoading = ref(false)
 const setNameShow = ref(false)
@@ -322,14 +322,8 @@ function setName() {
 }
 
 function changeLang(lang) {
-  let setting = {}
-  try {
-    setting = JSON.parse(localStorage.getItem('setting') || '{}')
-  } catch (e) {
-    setting = {}
-  }
-  localStorage.setItem('setting', JSON.stringify({...setting, lang}))
-  window.location.reload()
+  setExtend(lang === 'en' ? 'en' : 'zh-cn')
+  settingStore.lang = lang
 }
 
 const pwdShow = ref(false)
@@ -345,7 +339,7 @@ const deleteConfirm = () => {
     type: 'warning'
   }).then(() => {
     userDelete().then(() => {
-      localStorage.removeItem('token');
+      clearClientSession();
       router.replace('/login');
       ElMessage({
         message: t('delSuccessMsg'),

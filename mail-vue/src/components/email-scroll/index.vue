@@ -414,17 +414,25 @@ let scrollTop = 0
 const latestEmail = ref(null)
 const scrollbarRef = ref(null)
 const isMacOS = /Mac/.test(navigator.platform) && navigator.maxTouchPoints <= 1
-let reqLock = false
+let latestReqSeq = 0
+let paginationInFlight = false
 let isMobile = ref(innerWidth < 1367)
 let skeletonRows = 0
 const timePaddingRight = ref('');
 const keyCount = ref(0);
 const dropdownRef = ref(null);
 const dropdownCloseLock = ref(false);
+let dropdownCloseTimer = null;
 const dropdownShow = ref(false);
 const rightClickEmail = ref({});
 const MAX_SELECT_COUNT = 95;
-const checkedEmailCount = ref(0);
+const checkedEmailCount = computed(() => {
+  let count = 0;
+  for (const item of emailList) {
+    if (item.checked) count++;
+  }
+  return count;
+});
 const isSelectMax = computed(() => checkedEmailCount.value >= MAX_SELECT_COUNT);
 const copiedCodeId = ref(null);
 let copiedCodeTimer = null;
@@ -524,6 +532,7 @@ onUnmounted(() => {
   window.removeEventListener('wheel', handleWheel)
   clearInterval(timer)
   clearTimeout(copiedCodeTimer)
+  clearTimeout(dropdownCloseTimer)
 })
 
 getEmailList()
@@ -591,14 +600,10 @@ watch(() => arrivedState.bottom, (isBottom) => {
 });
 
 watch(
-    () => emailList.map(item => item.checked),
+    [checkedEmailCount, () => emailList.length],
     () => {
-      checkedEmailCount.value = emailList.length
-      if (emailList.length > 0) {
-        updateCheckStatus();
-      }
-    },
-    {deep: true}
+      updateCheckStatus();
+    }
 );
 
 watch(() => emailStore.deleteIds, () => {
@@ -644,7 +649,8 @@ async function openForward(email) {
 function visibleChange(e) {
   dropdownShow.value = e;
   dropdownCloseLock.value = true;
-  setTimeout(() => {
+  clearTimeout(dropdownCloseTimer);
+  dropdownCloseTimer = setTimeout(() => {
     dropdownCloseLock.value = false;
   },1500)
 
@@ -680,7 +686,7 @@ function updateHasScrollbar() {
       timePaddingRight.value = '16px'
       return
     }
-    const doc = document.querySelector('.virtual');
+    const doc = scrollbarRef.value?.wrapRef || document.querySelector('.virtual');
     if (doc) {
       if (doc.scrollHeight > doc.clientHeight) {
         timePaddingRight.value = '10px';
@@ -848,7 +854,7 @@ function addItem(email) {
     return false;
   }
 
-  email.formatCreateTime = fromNow(email.formatCreateTime);
+  email.formatCreateTime = fromNow(email.createTime);
 
   if (props.timeSort) {
     if (noLoading.value) {
@@ -910,8 +916,7 @@ function getSelectedDraftsIds() {
 }
 
 function updateCheckStatus() {
-  const checkedCount = emailList.filter(item => item.checked).length;
-  checkedEmailCount.value = checkedCount;
+  const checkedCount = checkedEmailCount.value;
   const atMax = checkedCount >= MAX_SELECT_COUNT;
   checkAll.value = emailList.length > 0 && (checkedCount === emailList.length || atMax);
   isIndeterminate.value = checkedCount > 0 && !checkAll.value;
@@ -946,21 +951,21 @@ function jumpDetails(email) {
 }
 
 function getEmailList(refresh = false) {
-  if (reqLock) return Promise.resolve(false);
   let emailId = emailList.length > 0 ? emailList.at(-1).emailId : 0;
-  reqLock = true
 
   if (!refresh) {
-    if (loading.value || noLoading.value) {
-      reqLock = false
+    if (loading.value || noLoading.value || paginationInFlight) {
       return Promise.resolve(false)
     }
+    paginationInFlight = true
   } else {
     getSkeletonRows()
     emailId = 0
     loading.value = true
     scrollTop = 0
+    paginationInFlight = false
   }
+  const reqSeq = ++latestReqSeq
 
   if (emailList.length === 0) {
     loading.value = true
@@ -970,11 +975,13 @@ function getEmailList(refresh = false) {
   let start = Date.now();
 
   return props.getEmailList(emailId, queryParam.size).then(async data => {
+    if (reqSeq !== latestReqSeq) return false;
     let end = Date.now();
     let duration = end - start;
     if (duration < 300 && !emailId) {
       await sleep(300 - duration)
     }
+    if (reqSeq !== latestReqSeq) return false;
     firstLoad.value = false
 
     let list = data.list.map(item => ({
@@ -989,7 +996,7 @@ function getEmailList(refresh = false) {
     latestEmail.value = data.latestEmail
     handleList(list);
     emailList.push(...list);
-    if (refresh) scrollbarRef.value?.setScrollTop(0);
+    if (refresh) scrollbarRef.value?.setScrollTop?.(0);
 
     noLoading.value = data.list.length < queryParam.size;
     followLoading.value = data.list.length >= queryParam.size;
@@ -997,8 +1004,10 @@ function getEmailList(refresh = false) {
     total.value = data.total;
     return true;
   }).finally(() => {
-    loading.value = false
-    reqLock = false
+    if (reqSeq === latestReqSeq) {
+      loading.value = false
+      paginationInFlight = false
+    }
   })
 }
 

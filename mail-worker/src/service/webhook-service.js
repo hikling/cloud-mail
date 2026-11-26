@@ -1,4 +1,5 @@
 import domainUtils from '../utils/domain-uitls';
+import { isSafeExternalUrl } from './setting-service';
 
 const webhookService = {
 
@@ -6,13 +7,15 @@ const webhookService = {
 
 		webhookUrl = domainUtils.toOssDomain(webhookUrl);
 
-		if (!webhookUrl) {
+		if (!webhookUrl || !isSafeExternalUrl(webhookUrl)) {
 			return;
 		}
 
-		retry = Number(retry);
-		if (isNaN(retry) || retry < 0) {
+		retry = Math.trunc(Number(retry));
+		if (!Number.isFinite(retry) || retry < 0) {
 			retry = 0;
+		} else if (retry > 5) {
+			retry = 5;
 		}
 
 		const headers = {
@@ -42,11 +45,13 @@ const webhookService = {
 			try {
 				const res = await fetch(webhookUrl, {
 					method: 'POST',
+					signal: AbortSignal.timeout(8_000),
 					headers,
 					body
 				});
 
 				if (res.ok) {
+					await res.body?.cancel();
 					return;
 				}
 

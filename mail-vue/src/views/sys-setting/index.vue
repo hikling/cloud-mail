@@ -466,13 +466,13 @@
       </div>
 
       <!-- Dialogs -->
-      <el-dialog v-model="editTitleShow" :title="$t('changeTitle')" width="360" @closed="editTitle = setting.title">
+      <el-dialog v-model="editTitleShow" :title="$t('changeTitle')" width="360" append-to-body align-center @closed="editTitle = setting.title">
         <form @submit.prevent>
           <el-input type="text" :placeholder="$t('websiteTitle')" v-model="editTitle" @keyup.enter="saveTitle"/>
           <el-button type="primary" :loading="settingLoading" @click="saveTitle">{{ $t('save') }}</el-button>
         </form>
       </el-dialog>
-      <el-dialog v-model="resendTokenFormShow" :title="$t('resendToken')" width="360" @closed="cleanResendTokenForm">
+      <el-dialog v-model="resendTokenFormShow" :title="$t('resendToken')" width="360" append-to-body align-center @closed="cleanResendTokenForm">
         <form @submit.prevent>
           <el-select style="margin-bottom: 14px" v-model="resendTokenForm.domain" placeholder="Select">
             <el-option
@@ -486,19 +486,19 @@
           <el-button type="primary" :loading="settingLoading" @click="saveResendToken">{{ $t('save') }}</el-button>
         </form>
       </el-dialog>
-      <el-dialog v-model="turnstileShow" :title="$t('addTurnstileSecret')" width="360"
+      <el-dialog v-model="turnstileShow" :title="$t('addTurnstileSecret')" width="360" append-to-body align-center
                  @closed="turnstileForm.secretKey = '';turnstileForm.siteKey = ''">
         <form @submit.prevent>
-          <el-input type="text" placeholder="Site key" v-model="turnstileForm.siteKey" @keyup.enter="saveTurnstileKey"/>
-          <el-input type="text" style="margin-top: 14px" placeholder="Secret key" v-model="turnstileForm.secretKey" @keyup.enter="saveTurnstileKey"/>
+          <el-input type="text" :placeholder="maskSiteKey(setting.siteKey) || 'Site key'" v-model="turnstileForm.siteKey" @keyup.enter="saveTurnstileKey"/>
+          <el-input type="text" style="margin-top: 14px" :placeholder="setting.secretKey || 'Secret key'" v-model="turnstileForm.secretKey" @keyup.enter="saveTurnstileKey"/>
           <el-button type="primary" :loading="settingLoading" @click="saveTurnstileKey">{{ $t('save') }}</el-button>
         </form>
       </el-dialog>
-      <el-dialog v-model="oauthSettingShow" :title="$t('oauthSetting') + ' - ' + oauthForm.label" width="360"
+      <el-dialog v-model="oauthSettingShow" :title="$t('oauthSetting') + ' - ' + oauthForm.label" width="360" append-to-body align-center
                  @closed="oauthForm.clientId = ''; oauthForm.clientSecret = ''; oauthForm.switch = 1">
         <div class="dialog-content">
           <el-input type="text" :placeholder="$t('clientId')" v-model="oauthForm.clientId"/>
-          <el-input type="text" style="margin-top: 14px" :placeholder="$t('clientSecret')" v-model="oauthForm.clientSecret"/>
+          <el-input type="text" style="margin-top: 14px" :placeholder="setting[oauthForm.key + 'ClientSecret'] || $t('clientSecret')" v-model="oauthForm.clientSecret"/>
         </div>
         <template #footer>
           <div class="dialog-footer">
@@ -511,6 +511,8 @@
       <el-dialog
           v-model="showSetBackground"
           class="cut-dialog"
+          append-to-body
+          align-center
           @closed="closedSetBackground"
       >
         <template #header>
@@ -547,6 +549,8 @@
       <el-dialog
           v-model="tgSettingShow"
           class="forward-dialog"
+          append-to-body
+          align-center
       >
         <template #header>
           <div class="forward-head">
@@ -608,6 +612,8 @@
       <el-dialog
           v-model="thirdEmailShow"
           class="forward-dialog"
+          append-to-body
+          align-center
       >
         <template #header>
           <div class="forward-head">
@@ -634,6 +640,8 @@
       <el-dialog
           v-model="webhookShow"
           class="forward-dialog"
+          append-to-body
+          align-center
           @closed="webhookFormatShow = false"
       >
         <template #header>
@@ -646,7 +654,7 @@
         </template>
         <div class="forward-set-body">
           <el-input :placeholder="$t('webhookUrl')" v-model="webhookUrl" @keyup.enter="webhookSave"></el-input>
-          <el-input :placeholder="$t('webhookSecret')" v-model="webhookSecret" @keyup.enter="webhookSave"></el-input>
+          <el-input :placeholder="setting.webhookSecret || $t('webhookSecret')" v-model="webhookSecret" @keyup.enter="webhookSave"></el-input>
           <div class="tg-msg-label">
             <span>{{ t('webhookRetry') }}</span>
             <el-input-number v-model="webhookRetry" :min="0" :max="5" controls-position="right"/>
@@ -676,6 +684,8 @@ Authorization: &lt;secret&gt;</pre>
       <el-dialog
           v-model="forwardRulesShow"
           class="forward-dialog"
+          append-to-body
+          align-center
       >
         <template #header>
           <div class="forward-head">
@@ -701,7 +711,7 @@ Authorization: &lt;secret&gt;</pre>
           </div>
         </template>
       </el-dialog>
-      <el-dialog class="resend-table" v-model="showResendList" :title="$t('resendTokenList')">
+      <el-dialog class="resend-table" v-model="showResendList" :title="$t('resendTokenList')" append-to-body align-center>
         <el-table :data="resendList">
           <el-table-column :min-width="emailColumnWidth" property="key" :label="$t('domain')"
                            :show-overflow-tooltip="true"/>
@@ -709,28 +719,15 @@ Authorization: &lt;secret&gt;</pre>
                            :show-overflow-tooltip="true"/>
         </el-table>
       </el-dialog>
-      <el-dialog v-model="regVerifyCountShow" :title="$t('rulesVerifyTitle',{count: regVerifyCount})"
-                 @closed="regVerifyCount = setting.regVerifyCount">
-        <form @submit.prevent>
-          <el-input-number type="text" v-model="regVerifyCount" :min="1" @keyup.enter="saveRegVerifyCount"/>
-          <el-button type="primary" :loading="settingLoading" @click="saveRegVerifyCount">{{ $t('save') }}</el-button>
-        </form>
-      </el-dialog>
       <el-dialog v-model="loginVerifyCountShow" :title="$t('rulesVerifyTitle',{count: loginVerifyCount})"
+                 append-to-body align-center
                  @closed="loginVerifyCount = setting.loginVerifyCount">
         <form @submit.prevent="saveLoginVerifyCount">
           <el-input-number v-model="loginVerifyCount" :min="1" :precision="0"/>
           <el-button native-type="submit" type="primary" :loading="settingLoading">{{ $t('save') }}</el-button>
         </form>
       </el-dialog>
-      <el-dialog v-model="addVerifyCountShow" :title="$t('rulesVerifyTitle',{count: addVerifyCount})"
-                 @closed="addVerifyCount = setting.addVerifyCount">
-        <form @submit.prevent>
-          <el-input-number type="text" v-model="addVerifyCount" :min="1" @keyup.enter="saveAddVerifyCount"/>
-          <el-button type="primary" :loading="settingLoading" @click="saveAddVerifyCount">{{ $t('save') }}</el-button>
-        </form>
-      </el-dialog>
-      <el-dialog v-model="addS3Show" :title="t('s3Configuration')" width="360" @closed="resetAddS3Form">
+      <el-dialog v-model="addS3Show" :title="t('s3Configuration')" width="360" append-to-body align-center @closed="resetAddS3Form">
         <form @submit.prevent>
           <el-input class="dialog-input" type="text" placeholder="Bucket" v-model="s3.bucket" @keyup.enter="saveS3"/>
           <el-input class="dialog-input" type="text" placeholder="Endpoint" v-model="s3.endpoint" @keyup.enter="saveS3"/>
@@ -754,22 +751,7 @@ Authorization: &lt;secret&gt;</pre>
           </div>
         </form>
       </el-dialog>
-      <el-dialog v-model="emailPrefixShow" :title="t('emailPrefix')" @closed="resetEmailPrefix">
-        <div class="email-prefix">
-          <div>{{ t('atLeast') }}</div>
-          <el-input-number v-model="minEmailPrefix" :min="1" :max="20" style="width: 150px" @keyup.enter="saveEmailPrefix">
-            <template #suffix>
-              <span>{{ t('character') }}</span>
-            </template>
-          </el-input-number>
-        </div>
-        <div class="prefix-filter">
-          <div style="margin-bottom: 10px;">{{ t('mustNotContain') }}</div>
-          <el-input-tag style="margin-bottom: 14px;" v-model="emailPrefixFilter"/>
-        </div>
-        <el-button type="primary" style="width: 100%;" :loading="settingLoading" @click="saveEmailPrefix">{{ $t('save') }}</el-button>
-      </el-dialog>
-      <el-dialog v-model="blackFormShow" class="forward-dialog" @closed="resetBlackList">
+      <el-dialog v-model="blackFormShow" class="forward-dialog" append-to-body align-center @closed="resetBlackList">
         <template #header>
           <div class="forward-head">
             <span class="forward-set-title">{{ $t('blackList') }}</span>
@@ -791,7 +773,7 @@ Authorization: &lt;secret&gt;</pre>
         </el-form>
         <el-button type="primary" style="width: 100%;" :loading="settingLoading" @click="saveBlackList">{{ $t('save') }}</el-button>
       </el-dialog>
-      <el-dialog v-model="autoCleanShow" :title="t('autoClean')" class="forward-dialog" @closed="resetAutoClean">
+      <el-dialog v-model="autoCleanShow" :title="t('autoClean')" class="forward-dialog" append-to-body align-center @closed="resetAutoClean">
         <el-form>
           <el-form-item :label="t('autoCleanDays')" label-position="top">
             <el-input-number v-model="autoCleanDays" :min="0" :max="3650" style="width: 100%"/>
@@ -807,7 +789,7 @@ Authorization: &lt;secret&gt;</pre>
         </el-form>
         <el-button type="primary" style="width: 100%;" :loading="settingLoading" @click="saveAutoClean">{{ $t('save') }}</el-button>
       </el-dialog>
-      <el-dialog v-model="aiCodeFilterShow" class="forward-dialog" @closed="resetAiCodeFilter">
+      <el-dialog v-model="aiCodeFilterShow" class="forward-dialog" append-to-body align-center @closed="resetAiCodeFilter">
         <template #header>
           <div class="forward-head">
             <span class="forward-set-title">{{ $t('codeRecognitionRules') }}</span>
@@ -828,7 +810,7 @@ Authorization: &lt;secret&gt;</pre>
 </template>
 
 <script setup>
-import {computed, defineOptions, nextTick, reactive, ref} from "vue";
+import {computed, defineOptions, nextTick, onBeforeUnmount, reactive, ref} from "vue";
 import {deleteBackground, setBackground, setBlackList, settingQuery, settingSet} from "@/request/setting.js";
 import {useSettingStore} from "@/store/setting.js";
 import {useUiStore} from "@/store/ui.js";
@@ -890,7 +872,6 @@ const tgSettingShow = ref(false)
 const thirdEmailShow = ref(false)
 const webhookShow = ref(false)
 const forwardRulesShow = ref(false)
-const emailPrefixShow = ref(false)
 const showResendList = ref(false)
 const settingStore = useSettingStore();
 const uiStore = useUiStore();
@@ -904,20 +885,15 @@ const opacityPresets = [
   { labelKey: 'opacityPresetBalanced', value: 0.85 },
   { labelKey: 'opacityPresetSolid', value: 1.0 },
 ]
-const minEmailPrefix = ref(0)
-const emailPrefixFilter = ref([])
 const autoCleanDays = ref(0)
 const autoCleanExclude = ref([])
 const backgroundUrl = ref('')
-let backgroundFile = {}
+let backgroundFile = null
+let backgroundObjectUrl = ''
 const showSetBackground = ref(false)
-let regVerifyCount = ref(1)
 const loginVerifyCount = ref(1)
-let addVerifyCount = ref(1)
 let backup = '{}'
 const addS3Show = ref(false)
-const addVerifyCountShow = ref(false)
-const regVerifyCountShow = ref(false)
 const loginVerifyCountShow = ref(false)
 const resendTokenForm = reactive({
   domain: '',
@@ -950,12 +926,6 @@ const s3 = reactive({
   s3SecretKey: '',
   forcePathStyle: 1
 })
-
-const regKeyOptions = computed(() => [
-  {label: t('enable'), value: 0},
-  {label: t('disable'), value: 1},
-  {label: t('optional'), value: 2},
-])
 
 const blackListForm = ref({
   blackSubject: [],
@@ -1014,31 +984,17 @@ function getSettings() {
     settingStore.domainList = settingData.domainList;
     resendTokenForm.domain = setting.value.domainList[0]
     loginOpacity.value = setting.value.loginOpacity
-    minEmailPrefix.value = setting.value.minEmailPrefix
     firstLoading.value = false
     backgroundUrl.value = setting.value.background?.startsWith('http') ? setting.value.background : ''
     editTitle.value = setting.value.title
-    addVerifyCount.value = setting.value.addVerifyCount
-    regVerifyCount.value = setting.value.regVerifyCount
     loginVerifyCount.value = setting.value.loginVerifyCount
     resetAddS3Form()
-    resetEmailPrefix()
     resetBlackList()
     resetAiCodeFilter()
     nextTick(() => {
       settingReady.value = true
     })
   })
-}
-
-function openAddVerifyCount() {
-  if (settingLoading.value) return
-  addVerifyCountShow.value = true
-}
-
-function openRegVerifyCount() {
-  if (settingLoading.value) return
-  regVerifyCountShow.value = true
 }
 
 function openLoginVerifyCount() {
@@ -1077,7 +1033,38 @@ const resendList = computed(() => {
   return list;
 });
 
+const UPDATE_CACHE_KEY = 'cloudmail_update_cache'
+const UPDATE_CACHE_TTL_MS = 30 * 60 * 1000
+
+function readUpdateCache() {
+  try {
+    const raw = sessionStorage.getItem(UPDATE_CACHE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed || Date.now() - Number(parsed.ts) > UPDATE_CACHE_TTL_MS) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function writeUpdateCache(payload) {
+  try {
+    sessionStorage.setItem(UPDATE_CACHE_KEY, JSON.stringify({ ...payload, ts: Date.now() }))
+  } catch {}
+}
+
 async function getUpdate() {
+  const cached = readUpdateCache()
+  if (cached) {
+    latestVersion.value = cached.latestVersion || ''
+    versionLink.value = cached.versionLink || versionLink.value
+    hasUpdate.value = Boolean(cached.hasUpdate)
+    if (!buildGitTag && !buildGitSha && cached.currentVersion) {
+      currentVersion.value = cached.currentVersion
+    }
+    return
+  }
   try {
     const releaseRes = await axios.get(`https://api.github.com/repos/${GITHUB_REPO}/releases/latest`, {
       timeout: 6000,
@@ -1090,6 +1077,7 @@ async function getUpdate() {
         versionLink.value = releaseRes.data.html_url || `${GITHUB_URL}/releases`
         if (buildGitTag) {
           hasUpdate.value = remoteTag !== buildGitTag
+          writeUpdateCache({ latestVersion: latestVersion.value, versionLink: versionLink.value, hasUpdate: hasUpdate.value })
           return
         }
       }
@@ -1115,24 +1103,16 @@ async function getUpdate() {
           versionLink.value = `${GITHUB_URL}/commits/main`
         }
       }
+      writeUpdateCache({
+        latestVersion: latestVersion.value,
+        versionLink: versionLink.value,
+        hasUpdate: hasUpdate.value,
+        currentVersion: currentVersion.value
+      })
     }
   } catch {
     // Ignore transient GitHub API errors or rate limits
   }
-}
-
-function saveAddVerifyCount() {
-  if (!addVerifyCount.value) {
-    addVerifyCount.value = 1
-  }
-  editSetting({addVerifyCount: addVerifyCount.value})
-}
-
-function saveRegVerifyCount() {
-  if (!regVerifyCount.value) {
-    regVerifyCount.value = 1
-  }
-  editSetting({regVerifyCount: regVerifyCount.value})
 }
 
 function saveLoginVerifyCount() {
@@ -1147,9 +1127,17 @@ const compareByLengthAndUpperCase = (a, b, key) => {
   return a[key].length > b[key].length ? a : b;
 };
 
+function revokeBackgroundUrl() {
+  if (backgroundObjectUrl) {
+    URL.revokeObjectURL(backgroundObjectUrl)
+    backgroundObjectUrl = ''
+  }
+}
 
 function closedSetBackground() {
+  revokeBackgroundUrl()
   backgroundImage.value = ''
+  backgroundFile = null
   localUpShow.value = false
   backgroundUrl.value = setting.value.background?.startsWith('http') ? setting.value.background : ''
 }
@@ -1187,12 +1175,8 @@ function openWebhookSetting() {
   webhookStatus.value = setting.value.webhookStatus
   webhookUrl.value = setting.value.webhookUrl || ''
   webhookRetry.value = setting.value.webhookRetry ?? 0
-  webhookSecret.value = setting.value.webhookSecret || ''
+  webhookSecret.value = ''
   webhookShow.value = true
-}
-
-function openEmailPrefix() {
-  emailPrefixShow.value = true
 }
 
 function openAutoClean() {
@@ -1323,8 +1307,10 @@ function webhookSave() {
   const form = {
     webhookStatus: webhookStatus.value,
     webhookUrl: url,
-    webhookRetry: retry,
-    webhookSecret: webhookSecret.value.trim()
+    webhookRetry: retry
+  }
+  if (webhookSecret.value.trim()) {
+    form.webhookSecret = webhookSecret.value.trim()
   }
   editSetting(form)
 }
@@ -1356,11 +1342,6 @@ function doOpacityChange(skipBackup = false) {
   editSetting({ loginOpacity: loginOpacity.value }, false)
 }
 
-function resetEmailPrefix() {
-  minEmailPrefix.value = setting.value.minEmailPrefix
-  emailPrefixFilter.value = setting.value.emailPrefixFilter
-}
-
 function resetBlackList() {
   blackListForm.value.blackFrom = setting.value.blackFrom ? setting.value.blackFrom.split(',') : []
   blackListForm.value.blackContent = setting.value.blackContent ? setting.value.blackContent.split(',') : []
@@ -1376,13 +1357,6 @@ function resetAutoClean() {
 
 function resetAiCodeFilter() {
   aiCodeFilter.value = setting.value.aiCodeFilter ? setting.value.aiCodeFilter.split(',') : []
-}
-
-function saveEmailPrefix() {
-  const form = {}
-  form.minEmailPrefix = minEmailPrefix.value
-  form.emailPrefixFilter = emailPrefixFilter.value
-  editSetting(form, true)
 }
 
 function saveAutoClean() {
@@ -1489,7 +1463,7 @@ function openOauthSetting(p) {
   oauthForm.key = p.key
   oauthForm.label = p.label
   oauthForm.clientId = setting.value[p.key + 'ClientId'] || ''
-  oauthForm.clientSecret = setting.value[p.key + 'ClientSecret'] || ''
+  oauthForm.clientSecret = ''
   oauthForm.switch = setting.value[p.key + 'Switch'] ?? 1
   oauthSettingShow.value = true
 }
@@ -1497,15 +1471,23 @@ function openOauthSetting(p) {
 function saveOauth() {
   const form = {}
   form[oauthForm.key + 'ClientId'] = oauthForm.clientId
-  form[oauthForm.key + 'ClientSecret'] = oauthForm.clientSecret
+  if (oauthForm.clientSecret) {
+    form[oauthForm.key + 'ClientSecret'] = oauthForm.clientSecret
+  }
   form[oauthForm.key + 'Switch'] = oauthForm.switch
   editSetting(form)
 }
 
 function saveTurnstileKey() {
   const settingForm = {}
-  settingForm.siteKey = turnstileForm.siteKey
-  settingForm.secretKey = turnstileForm.secretKey
+  const siteKey = turnstileForm.siteKey.trim()
+  const secretKey = turnstileForm.secretKey.trim()
+  if (siteKey) settingForm.siteKey = siteKey
+  if (secretKey) settingForm.secretKey = secretKey
+  if (!Object.keys(settingForm).length) {
+    turnstileShow.value = false
+    return
+  }
   editSetting(settingForm)
 }
 
@@ -1514,23 +1496,24 @@ async function saveBackground() {
   if (settingLoading.value) return
 
   let image = ''
-
-  if (localUpShow.value) {
-    image = await fileToBase64(backgroundFile, true);
-  } else {
-    if (backgroundUrl.value && !backgroundUrl.value.startsWith('http')) {
-      ElMessage({
-        message: t('imageLinkErrorMsg'),
-        type: "error",
-        plain: true
-      })
-      return
-    }
-    image = backgroundUrl.value
-  }
   settingLoading.value = true
+  try {
+    if (localUpShow.value) {
+      if (!backgroundFile) return
+      image = await fileToBase64(backgroundFile, true);
+    } else {
+      if (backgroundUrl.value && !backgroundUrl.value.startsWith('http')) {
+        ElMessage({
+          message: t('imageLinkErrorMsg'),
+          type: "error",
+          plain: true
+        })
+        return
+      }
+      image = backgroundUrl.value
+    }
 
-  setBackground(image).then(key => {
+    const key = await setBackground(image)
     setting.value.background = key
     showSetBackground.value = false
     ElMessage({
@@ -1538,11 +1521,14 @@ async function saveBackground() {
       type: "success",
       plain: true
     })
+    revokeBackgroundUrl()
+    backgroundFile = null
     localUpShow.value = false
     backgroundImage.value = ''
-  }).finally(() => {
+  } catch {
+  } finally {
     settingLoading.value = false
-  })
+  }
 
 }
 
@@ -1554,13 +1540,19 @@ function openCut() {
   const doc = document.createElement('input')
   doc.setAttribute('type', 'file')
   doc.setAttribute('accept', 'image/*')
-  doc.click()
-  doc.onchange = async (e) => {
-    backgroundFile = e.target.files[0]
-    backgroundImage.value = URL.createObjectURL(e.target.files[0])
+  doc.onchange = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    revokeBackgroundUrl()
+    backgroundFile = file
+    backgroundObjectUrl = URL.createObjectURL(file)
+    backgroundImage.value = backgroundObjectUrl
     localUpShow.value = true
   }
+  doc.click()
 }
+
+onBeforeUnmount(revokeBackgroundUrl)
 
 function openResendForm() {
   resendTokenFormShow.value = true
@@ -1588,7 +1580,14 @@ function backupSetting() {
   delete settingForm.resendTokens
   delete settingForm.siteKey
   delete settingForm.secretKey
-  backup = JSON.stringify(setting.value)
+  delete settingForm.s3AccessKey
+  delete settingForm.s3SecretKey
+  delete settingForm.tgBotToken
+  delete settingForm.webhookSecret
+  delete settingForm.linuxdoClientSecret
+  delete settingForm.githubClientSecret
+  delete settingForm.googleClientSecret
+  backup = JSON.stringify(settingForm)
 }
 
 function cleanResendTokenForm() {
@@ -1610,11 +1609,16 @@ function change(e) {
   delete settingForm.s3SecretKey
   delete settingForm.tgBotToken
   delete settingForm.resendTokens
+  delete settingForm.webhookSecret
+  delete settingForm.linuxdoClientSecret
+  delete settingForm.githubClientSecret
+  delete settingForm.googleClientSecret
   editSetting(settingForm, false)
 }
 
 function changeField(key, value) {
   if (!settingReady.value || settingLoading.value) return
+  backupSetting()
   setting.value[key] = value
   editSetting({[key]: value}, false)
 }
@@ -1627,6 +1631,7 @@ function jump(href) {
   const doc = document.createElement('a')
   doc.href = href
   doc.target = '_blank'
+  doc.rel = 'noopener noreferrer'
   doc.click()
 }
 
@@ -1654,11 +1659,8 @@ function editSetting(settingForm, refreshStatus = true) {
     thirdEmailShow.value = false
     webhookShow.value = false
     forwardRulesShow.value = false
-    addVerifyCountShow.value = false
-    regVerifyCountShow.value = false
     loginVerifyCountShow.value = false
     addS3Show.value = false
-    emailPrefixShow.value = false
     aiCodeFilterShow.value = false
     autoCleanShow.value = false
     oauthSettingShow.value = false
@@ -2448,12 +2450,6 @@ function editSetting(settingForm, refreshStatus = true) {
   align-items: center;
 }
 
-.notice-footer-btns {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .webhook-footer-right {
   display: flex;
   align-items: center;
@@ -2475,29 +2471,6 @@ function editSetting(settingForm, refreshStatus = true) {
 
   &.open {
     transform: rotate(180deg);
-  }
-}
-
-.notice-popup-item {
-  margin-top: 14px;
-}
-
-.notice-line-item {
-  margin-top: 14px;
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 12px;
-
-  > * {
-    width: 100%;
-  }
-
-  @media (max-width: 840px) {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  @media (max-width: 580px) {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -2528,17 +2501,6 @@ function editSetting(settingForm, refreshStatus = true) {
   width: 500px !important;
 
   @media (max-width: 540px) {
-    width: calc(100% - 40px) !important;
-    margin-right: 20px !important;
-    margin-left: 20px !important;
-  }
-}
-
-:deep(.notice-popup.el-dialog) {
-  min-height: 300px;
-  width: 820px !important;
-
-  @media (max-width: 860px) {
     width: calc(100% - 40px) !important;
     margin-right: 20px !important;
     margin-left: 20px !important;

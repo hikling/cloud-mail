@@ -1,8 +1,7 @@
-import {createRouter, createWebHistory} from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import NProgress from 'nprogress';
-import {useUiStore} from "@/store/ui.js";
-import {useSettingStore} from "@/store/setting.js";
-import {cvtR2Url} from "@/utils/convert.js";
+import { useUiStore } from "@/store/ui.js";
+import { clearClientSession } from "@/utils/session.js";
 
 const routes = [
     {
@@ -64,17 +63,11 @@ const routes = [
         component: () => import('@/views/login/index.vue')
     },
     {
-        path: '/test',
-        name: 'test',
-        component: () => import('@/views/test/index.vue')
-    },
-    {
         path: '/:pathMatch(.*)*',
         name: '404',
         component: () => import('@/views/404/index.vue')
     }
 ]
-
 
 const router = createRouter({
     history: createWebHistory(import.meta.env.BASE_URL),
@@ -82,13 +75,23 @@ const router = createRouter({
 })
 
 NProgress.configure({
-    showSpinner: false,   // 不显示旋转图标
-    trickleSpeed: 50,    // 自动递增速度
-    minimum: 0.1          // 最小百分比
+    showSpinner: false,
+    trickleSpeed: 50,
+    minimum: 0.1
 });
 
 let timer
 let first = true
+
+// 跨标签页同步退出登录状态，避免旧标签页残留前账号数据
+window.addEventListener('storage', (event) => {
+    if (event.key === 'token' && !event.newValue && localStorage.getItem('token') === null) {
+        clearClientSession()
+        if (router.currentRoute.value.name !== 'login') {
+            router.replace({ name: 'login' })
+        }
+    }
+})
 
 router.beforeEach((to, from, next) => {
 
@@ -105,7 +108,7 @@ router.beforeEach((to, from, next) => {
     const token = localStorage.getItem('token')
 
     if (!token && !to.path.startsWith('/login')) {
-        return next({name: 'login'})
+        return next({ name: 'login' })
     }
 
     if (!token && to.path.startsWith('/login')) {
@@ -113,43 +116,12 @@ router.beforeEach((to, from, next) => {
     }
 
     if (token && to.path.startsWith('/login')) {
-        return next(from.path)
+        return next(from.path && !from.path.startsWith('/login') ? from.path : '/')
     }
 
     next()
 
 })
-
-function loadBackground(next) {
-
-    const settingStore = useSettingStore();
-
-    if (settingStore.settings.background) {
-
-        const src = cvtR2Url(settingStore.settings.background);
-
-        const img = new Image();
-        img.src = src;
-
-        img.onload = () => {
-            next()
-        };
-
-        img.onerror = () => {
-            console.warn("背景图片加载失败:", img.src);
-            next()
-        };
-
-        setTimeout(() => {
-            console.warn("背景加载超时，已放行");
-            next()
-        }, 3000)
-
-    } else {
-        next()
-    }
-
-}
 
 router.afterEach((to) => {
 
@@ -167,10 +139,6 @@ router.afterEach((to) => {
         } else {
             uiStore.accountShow = false
         }
-    }
-
-    if (window.innerWidth < 1025) {
-        uiStore.asideShow = false
     }
 
     first = false

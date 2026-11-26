@@ -2,7 +2,7 @@ import { S3Client, PutObjectCommand, DeleteObjectsCommand, GetObjectCommand } fr
 import settingService from './setting-service';
 import domainUtils from '../utils/domain-uitls';
 import { settingConst } from '../const/entity-const';
-import { publicFileHeaders } from '../utils/att-headers';
+import { IMMUTABLE_CACHE_CONTROL, publicFileHeaders } from '../utils/att-headers';
 const s3Service = {
 
 	async putObj(c, key, content, metadata) {
@@ -11,20 +11,22 @@ const s3Service = {
 
 		const { bucket } = await settingService.query(c);
 
-		let obj = { Bucket: bucket, Key: key, Body: content,
-			CacheControl: metadata.cacheControl
+		let obj = {
+			Bucket: bucket,
+			Key: key,
+			Body: content
+		};
+
+		if (metadata?.cacheControl) {
+			obj.CacheControl = metadata.cacheControl;
 		}
 
-		if (metadata.cacheControl) {
-			obj.CacheControl = metadata.cacheControl
+		if (metadata?.contentDisposition) {
+			obj.ContentDisposition = metadata.contentDisposition;
 		}
 
-		if (metadata.contentDisposition) {
-			obj.ContentDisposition = metadata.contentDisposition
-		}
-
-		if (metadata.contentType) {
-			obj.ContentType = metadata.contentType
+		if (metadata?.contentType) {
+			obj.ContentType = metadata.contentType;
 		}
 
 		await client.send(new PutObjectCommand(obj))
@@ -56,7 +58,11 @@ const s3Service = {
 				// 使用 Web Crypto API 计算 MD5 校验和
 				const hashBuffer = await crypto.subtle.digest('MD5', data);
 				const hashArray = new Uint8Array(hashBuffer);
-				const contentMD5 = btoa(String.fromCharCode.apply(null, hashArray));
+				let bin = '';
+				for (let i = 0; i < hashArray.length; i++) {
+					bin += String.fromCharCode(hashArray[i]);
+				}
+				const contentMD5 = btoa(bin);
 
 				args.request.headers["Content-MD5"] = contentMD5;
 
@@ -87,7 +93,9 @@ const s3Service = {
 		return new Response(result.Body, {
 			headers: publicFileHeaders({
 				contentType: result.ContentType,
-				contentDisposition: result.ContentDisposition
+				contentDisposition: result.ContentDisposition,
+				cacheControl: result.CacheControl || ((key.startsWith('attachments/') || key.startsWith('static/')) ? IMMUTABLE_CACHE_CONTROL : undefined),
+				etag: result.ETag
 			})
 		});
 	},

@@ -240,7 +240,7 @@
 
 <script setup>
 import {Icon} from "@iconify/vue";
-import {computed, nextTick, reactive, ref, watch} from "vue";
+import {computed, nextTick, onUnmounted, reactive, ref, watch} from "vue";
 import {
   accountList,
   accountAdd,
@@ -329,6 +329,9 @@ const scrollbarRef = ref({})
 const copiedId = ref(null)
 let account = null
 let turnstileId = null
+let turnstileResetTimer = null
+let addFocusTimer = null
+let copiedResetTimer = null
 const botJsError = ref(false)
 let verifyToken = ''
 let verifyErrorCount = 0
@@ -393,7 +396,9 @@ window.onTurnstileError = (e) => {
   }
   verifyErrorCount++
   console.warn('人机验加载失败', e)
-  setTimeout(() => {
+  clearTimeout(turnstileResetTimer)
+  turnstileResetTimer = setTimeout(() => {
+    if (!showAdd.value) return
     nextTick(() => {
       if (!turnstileId) {
         turnstileId = window.turnstile.render('.add-email-turnstile')
@@ -407,6 +412,14 @@ window.onTurnstileError = (e) => {
 window.onTurnstileSuccess = (token) => {
   verifyToken = token;
 };
+
+onUnmounted(() => {
+  clearTimeout(turnstileResetTimer)
+  clearTimeout(addFocusTimer)
+  clearTimeout(copiedResetTimer)
+  delete window.onTurnstileError
+  delete window.onTurnstileSuccess
+})
 
 function getSkeletonRows() {
   if (accounts.length > 20) return skeletonRows = 20
@@ -459,13 +472,13 @@ function setAllReceive(account) {
   let allReceiveAccount = accounts.find(account => account.allReceive === AccountAllReceiveEnum.ENABLED);
   if (allReceiveAccount && allReceiveAccount.accountId !== account.accountId) allReceiveAccount.allReceive = AccountAllReceiveEnum.DISABLED;
   account.allReceive = account.allReceive === AccountAllReceiveEnum.DISABLED ? AccountAllReceiveEnum.ENABLED : AccountAllReceiveEnum.DISABLED;
-  accountSetAllReceive(account.accountId).catch(() => {
-    account.allReceive = account.allReceive === AccountAllReceiveEnum.DISABLED ? AccountAllReceiveEnum.ENABLED : AccountAllReceiveEnum.DISABLED;
-    if (allReceiveAccount) allReceiveAccount.allReceive = AccountAllReceiveEnum.ENABLED;
-  }).then(() => {
+  accountSetAllReceive(account.accountId).then(() => {
     changeAccount(account);
     emailStore.emailScroll?.refreshList();
     emailStore.sendScroll?.refreshList();
+  }).catch(() => {
+    account.allReceive = account.allReceive === AccountAllReceiveEnum.DISABLED ? AccountAllReceiveEnum.ENABLED : AccountAllReceiveEnum.DISABLED;
+    if (allReceiveAccount) allReceiveAccount.allReceive = AccountAllReceiveEnum.ENABLED;
   })
 }
 
@@ -534,8 +547,9 @@ function changeAccount(account) {
 function add() {
   addForm.suffix = addForm.suffix || settingStore.domainList[0]
   showAdd.value = true
-  setTimeout(() => {
-    addRef.value.focus()
+  clearTimeout(addFocusTimer)
+  addFocusTimer = setTimeout(() => {
+    addRef.value?.focus?.()
   }, 100)
 }
 
@@ -556,7 +570,8 @@ async function copyAccount(account, accountId) {
   try {
     await navigator.clipboard.writeText(account);
     copiedId.value = accountId
-    setTimeout(() => {
+    clearTimeout(copiedResetTimer)
+    copiedResetTimer = setTimeout(() => {
       if (copiedId.value === accountId) copiedId.value = null
     }, 1500)
     ElMessage({
@@ -598,7 +613,7 @@ function getAccountList() {
       noLoading.value = true
     }
     if (accounts.length === 0) {
-      accountStore.currentAccount = list[0]
+      accountStore.currentAccount = list[0] || {}
     }
 
     accounts.push(...list)

@@ -2,18 +2,31 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
 const base64url = (input) => {
-	const str = btoa(String.fromCharCode(...new Uint8Array(input)));
-	return str.replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+	const bytes = new Uint8Array(input);
+	let binary = '';
+	for (let i = 0; i < bytes.length; i += 0x8000) {
+		binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+	}
+	return btoa(binary).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
 };
 
 const base64urlDecode = (str) => {
-	str = str.replace(/-/g, '+').replace(/_/g, '/');
-	while (str.length % 4) str += '=';
-	return Uint8Array.from(atob(str), c => c.charCodeAt(0));
+	let padded = str.replace(/-/g, '+').replace(/_/g, '/');
+	while (padded.length % 4) padded += '=';
+	return Uint8Array.from(atob(padded), c => c.charCodeAt(0));
 };
+
+function requireJwtSecret(c) {
+	const secret = c?.env?.jwt_secret;
+	if (!secret || typeof secret !== 'string') {
+		throw new Error('Missing jwt_secret configuration');
+	}
+	return secret;
+}
 
 const jwtUtils = {
 	async generateToken(c, payload, expiresInSeconds) {
+		const secret = requireJwtSecret(c);
 		const header = {
 			alg: 'HS256',
 			typ: 'JWT'
@@ -34,7 +47,7 @@ const jwtUtils = {
 
 		const key = await crypto.subtle.importKey(
 			'raw',
-			encoder.encode(c.env.jwt_secret),
+			encoder.encode(secret),
 			{ name: 'HMAC', hash: 'SHA-256' },
 			false,
 			['sign']
@@ -48,14 +61,20 @@ const jwtUtils = {
 
 	async verifyToken(c, token) {
 		try {
-			const [headerB64, payloadB64, signatureB64] = token.split('.');
-
+			if (!token || typeof token !== 'string') return null;
+			const parts = token.split('.');
+			if (parts.length !== 3) return null;
+			const [headerB64, payloadB64, signatureB64] = parts;
 			if (!headerB64 || !payloadB64 || !signatureB64) return null;
 
+			const header = JSON.parse(decoder.decode(base64urlDecode(headerB64)));
+			if (header?.alg !== 'HS256') return null;
+
+			const secret = requireJwtSecret(c);
 			const data = `${headerB64}.${payloadB64}`;
 			const key = await crypto.subtle.importKey(
 				'raw',
-				encoder.encode(c.env.jwt_secret),
+				encoder.encode(secret),
 				{ name: 'HMAC', hash: 'SHA-256' },
 				false,
 				['verify']
@@ -77,9 +96,7 @@ const jwtUtils = {
 			if (payload.exp && payload.exp < now) return null;
 
 			return payload;
-
-		} catch (err) {
-			console.log(err)
+		} catch {
 			return null;
 		}
 	}

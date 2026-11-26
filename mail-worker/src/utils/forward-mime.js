@@ -57,10 +57,15 @@ function mimePart(contentType, body, extraHeaders = []) {
 }
 
 function filenameParam(filename = 'file') {
-	if (/^[\x20-\x7E]*$/.test(filename) && !/["\\]/.test(filename)) {
-		return `filename="${filename}"`;
+	const safe = String(filename).replace(/[\r\n\0]+/g, ' ').trim() || 'file';
+	if (/^[\x20-\x7E]*$/.test(safe) && !/["\\;]/.test(safe)) {
+		return `filename="${safe}"`;
 	}
-	return `filename*=UTF-8''${encodeURIComponent(filename)}`;
+	return `filename*=UTF-8''${encodeURIComponent(safe)}`;
+}
+
+function sanitizeHeaderValue(value) {
+	return String(value || '').replace(/[\r\n\0]+/g, ' ').trim();
 }
 
 const forwardMime = {
@@ -77,7 +82,10 @@ const forwardMime = {
 			'MIME-Version: 1.0'
 		];
 		if (params.sendType === 'reply' && params.messageId) {
-			headers.push(`In-Reply-To: ${params.messageId}`, `References: ${params.messageId}`);
+			const cleanMsgId = sanitizeHeaderValue(params.messageId);
+			if (cleanMsgId) {
+				headers.push(`In-Reply-To: ${cleanMsgId}`, `References: ${cleanMsgId}`);
+			}
 		}
 
 		const alt = `alt_${crypto.randomUUID().replace(/-/g, '')}`;

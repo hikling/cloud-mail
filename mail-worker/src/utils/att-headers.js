@@ -1,7 +1,7 @@
 // 公开对象（/oss、/attachments、/static）的响应头。
 // 只允许栅格图 inline；SVG/HTML 等一律当附件，并加 nosniff + CSP sandbox。
-// 内嵌附件保存、读取共用 4 小时。
 export const ATT_CACHE_CONTROL = 'public, max-age=14400';
+export const IMMUTABLE_CACHE_CONTROL = 'public, max-age=31536000, immutable';
 
 const SAFE_INLINE_TYPES = new Set([
 	'image/jpeg',
@@ -31,10 +31,17 @@ export function isDangerousAttType(contentType) {
 	return /svg|html|xml|javascript|ecmascript/.test(type);
 }
 
-export function publicFileHeaders({ contentType, contentDisposition } = {}) {
+export function sanitizeDispositionFilename(filename = 'file') {
+	return String(filename)
+		.replace(/[\r\n\0"\\]/g, '_')
+		.replace(/[;/]/g, '_')
+		.trim() || 'file';
+}
+
+export function publicFileHeaders({ contentType, contentDisposition, cacheControl, etag } = {}) {
 	const type = mimeTypeOf(contentType);
 	const safeInline = SAFE_INLINE_TYPES.has(type);
-	return {
+	const headers = {
 		'Content-Type': isDangerousAttType(type) || !type
 			? 'application/octet-stream'
 			: contentType,
@@ -43,15 +50,19 @@ export function publicFileHeaders({ contentType, contentDisposition } = {}) {
 			: toAttachmentDisposition(contentDisposition),
 		'X-Content-Type-Options': 'nosniff',
 		'Content-Security-Policy': 'sandbox',
-		'Cache-Control': ATT_CACHE_CONTROL
+		'Cache-Control': cacheControl || ATT_CACHE_CONTROL
 	};
+	if (etag) {
+		headers['ETag'] = etag.startsWith('"') || etag.startsWith('W/"') ? etag : `"${etag}"`;
+	}
+	return headers;
 }
 
 function toAttachmentDisposition(disposition) {
 	if (!disposition) {
 		return 'attachment';
 	}
-	const value = String(disposition);
+	const value = String(disposition).replace(/[\r\n\0]/g, '');
 	if (/^\s*inline\b/i.test(value)) {
 		return value.replace(/^\s*inline/i, 'attachment');
 	}

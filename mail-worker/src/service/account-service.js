@@ -119,15 +119,19 @@ const accountService = {
 		size = Number(size);
 		lastSort = Number(lastSort);
 
-		if (size > 30) {
+		if (!Number.isFinite(size) || size < 1) {
+			size = 20;
+		} else if (size > 30) {
 			size = 30;
+		} else {
+			size = Math.trunc(size);
 		}
 
-		if (!accountId) {
+		if (!Number.isFinite(accountId) || accountId < 0) {
 			accountId = 0;
 		}
 
-		if(Number.isNaN(lastSort)) {
+		if (Number.isNaN(lastSort)) {
 			lastSort = 9999999999;
 		}
 
@@ -150,10 +154,14 @@ const accountService = {
 
 	async delete(c, params, userId) {
 
-		let { accountId } = params;
+		const { accountId } = params;
 
 		const user = await userService.selectById(c, userId);
 		const accountRow = await this.selectById(c, accountId);
+
+		if (!accountRow || !user) {
+			throw new BizError(t('noUserAccount'));
+		}
 
 		if (accountRow.email === user.email) {
 			throw new BizError(t('delMyAccount'));
@@ -233,38 +241,49 @@ const accountService = {
 
 	async allAccount(c, params) {
 
-		let { userId, num, size } = params
+		let { userId, num, size } = params;
 
-		userId = Number(userId)
+		userId = Number(userId);
+		num = Number(num);
+		size = Number(size);
 
-		num = Number(num)
-		size = Number(size)
-
-		if (size > 30) {
+		if (!Number.isFinite(size) || size < 1) {
+			size = 20;
+		} else if (size > 30) {
 			size = 30;
+		} else {
+			size = Math.trunc(size);
 		}
 
-		num = (num - 1) * size;
+		if (!Number.isFinite(num) || num < 1) {
+			num = 1;
+		} else {
+			num = Math.trunc(num);
+		}
+
+		const offset = (num - 1) * size;
 
 		const userRow = await userService.selectByIdIncludeDel(c, userId);
+		if (!userRow) {
+			return { list: [], total: 0 };
+		}
 
-		const list = await orm(c).select().from(account).where(and(eq(account.userId, userId),ne(account.email,userRow.email))).limit(size).offset(num);
+		const list = await orm(c).select().from(account).where(and(eq(account.userId, userId), ne(account.email, userRow.email))).limit(size).offset(offset);
 		const { total } = await orm(c).select({ total: count() }).from(account).where(eq(account.userId, userId)).get();
 
-		return { list, total }
+		return { list, total };
 	},
 
 	async physicsDelete(c, params) {
-		const { accountId } = params
-		await emailService.physicsDeleteByAccountId(c, accountId)
+		const { accountId } = params;
+		await emailService.physicsDeleteByAccountId(c, accountId);
 		await orm(c).delete(account).where(eq(account.accountId, accountId)).run();
 	},
 
 	async setAllReceive(c, params, userId) {
-		let a = null
 		const { accountId } = params;
 		const accountRow = await this.selectById(c, accountId);
-		if (accountRow.userId !== userId) {
+		if (!accountRow || accountRow.userId !== userId) {
 			return;
 		}
 		await orm(c).update(account).set({ allReceive: accountConst.allReceive.CLOSE }).where(eq(account.userId, userId)).run();
@@ -274,10 +293,12 @@ const accountService = {
 	async setAsTop(c, params, userId) {
 		const { accountId } = params;
 		const userRow = await userService.selectById(c, userId);
+		if (!userRow) return;
 		const mainAccountRow = await accountService.selectByEmailIncludeDel(c, userRow.email);
-		let mainSort = mainAccountRow.sort === 0 ? 2 : mainAccountRow.sort + 1;
+		if (!mainAccountRow) return;
+		const mainSort = mainAccountRow.sort === 0 ? 2 : mainAccountRow.sort + 1;
 		await orm(c).update(account).set({ sort: mainSort }).where(eq(account.accountId, mainAccountRow.accountId)).run();
-		await orm(c).update(account).set({ sort: mainSort - 1 }).where(and(eq(account.accountId, accountId),eq(account.userId,userId))).run();
+		await orm(c).update(account).set({ sort: mainSort - 1 }).where(and(eq(account.accountId, accountId), eq(account.userId, userId))).run();
 	}
 };
 

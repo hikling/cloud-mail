@@ -5,14 +5,15 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { sanitizeEmailHtml } from '@/utils/email-html.js'
 
-const BLOCKED_TAGS = new Set(['SCRIPT', 'IFRAME', 'OBJECT', 'EMBED', 'LINK', 'META', 'BASE', 'FRAME'])
+const BLOCKED_TAGS = new Set(['SCRIPT', 'IFRAME', 'OBJECT', 'EMBED', 'LINK', 'META', 'BASE', 'FRAME', 'FORM'])
 
 const HOST_CSS = `
   :host {
     all: initial;
+    display: block;
     width: 100%;
     height: 100%;
     font-family: Inter, 'Helvetica Neue', Helvetica, 'PingFang SC',
@@ -38,6 +39,7 @@ const HOST_CSS = `
   }
 
   .shadow-content {
+    position: relative;
     background: #FFFFFF;
     width: fit-content;
     height: fit-content;
@@ -60,6 +62,21 @@ const props = defineProps({
 const container = ref(null)
 const contentBox = ref(null)
 let shadowRoot = null
+let resizeObserver = null
+
+function sanitizeCssText(css) {
+  return String(css)
+    .replace(/<\s*\/?\s*style/gi, '')
+    .replace(/@import\b[^;]*(;|$)/gi, '')
+    .replace(/\bposition\s*:\s*fixed\b/gi, 'position: relative')
+    .replace(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^)"'\s]+))\s*\)/gi, (full, dq, sq, uq) => {
+      const val = (dq ?? sq ?? uq ?? '').trim()
+      if (/^(https?:)?\/\//i.test(val) && !val.startsWith('/proxy?')) {
+        return 'none'
+      }
+      return full
+    })
+}
 
 function updateContent() {
   if (!shadowRoot) return
@@ -71,19 +88,27 @@ function updateContent() {
   content.className = 'shadow-content'
 
   const doc = new DOMParser().parseFromString(sanitizeEmailHtml(props.html) || '', 'text/html')
-  // 只取 CSSOM 解析后的声明。属性值里的标签不会再被当成 HTML。
+  // 只取 CSSOM 解析后的声明并净化 position:fixed / 外部 url() 追踪。
   if (doc.body?.style?.cssText) {
-    content.style.cssText = doc.body.style.cssText
+    content.style.cssText = sanitizeCssText(doc.body.style.cssText)
   }
 
   for (const node of doc.head.querySelectorAll('style')) {
-    content.appendChild(document.importNode(node, true))
+    const styleEl = document.createElement('style')
+    styleEl.textContent = sanitizeCssText(node.textContent || '')
+    content.appendChild(styleEl)
   }
   for (const node of [...doc.body.childNodes]) {
     if (node.nodeType === Node.ELEMENT_NODE && BLOCKED_TAGS.has(node.tagName)) continue
     content.appendChild(document.importNode(node, true))
   }
-  content.querySelectorAll('script,iframe,object,embed,link,meta,base,frame').forEach((node) => node.remove())
+  content.querySelectorAll('script,iframe,object,embed,link,meta,base,frame,form').forEach((node) => node.remove())
+  content.querySelectorAll('[style]').forEach((el) => {
+    const rawStyle = el.getAttribute('style')
+    if (rawStyle) {
+      el.setAttribute('style', sanitizeCssText(rawStyle))
+    }
+  })
 
   shadowRoot.replaceChildren(style, content)
 }
@@ -96,14 +121,15 @@ function autoScale() {
 
   if (!shadowContent) return
 
+  const hostElement = shadowRoot.host
+  hostElement.style.zoom = ''
+
   const parentWidth = parent.offsetWidth
   const childWidth = shadowContent.scrollWidth
 
-  if (childWidth === 0) return
+  if (parentWidth <= 0 || childWidth <= 0 || childWidth <= parentWidth) return
 
   const scale = parentWidth / childWidth
-
-  const hostElement = shadowRoot.host
   hostElement.style.zoom = scale
 }
 
@@ -111,6 +137,15 @@ onMounted(() => {
   shadowRoot = container.value.attachShadow({ mode: 'open' })
   updateContent()
   autoScale()
+  if (contentBox.value && typeof ResizeObserver !== 'undefined') {
+    resizeObserver = new ResizeObserver(() => autoScale())
+    resizeObserver.observe(contentBox.value)
+  }
+})
+
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect()
+  resizeObserver = null
 })
 
 watch(() => props.html, () => {
@@ -121,6 +156,9 @@ watch(() => props.html, () => {
 
 <style scoped>
 .content-box {
+  position: relative;
+  contain: layout paint;
+  transform: translateZ(0);
   width: 100%;
   height: 100%;
   overflow: hidden;

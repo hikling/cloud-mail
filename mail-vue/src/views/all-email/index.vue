@@ -9,10 +9,9 @@
       :show-star="false"
       show-user-info
       show-status
-      actionLeft="0px"
+      :actionLeft="'0px'"
       :show-account-icon="false"
       :time-sort="params.timeSort"
-      :item-height="74"
       @jump="jumpContent"
       @refresh-success="onRefreshSuccess"
       @right-search="rightSearch"
@@ -26,7 +25,7 @@
       </template>
     </emailScroll>
 
-    <el-dialog v-model="showBathDelete" :title="$t('clearEmail')" width="380" @closed="closedClear">
+    <el-dialog v-model="showBathDelete" :title="$t('clearEmail')" width="380" append-to-body align-center @closed="closedClear">
       <div class="clear-email">
         <el-input v-model="clearParams.sendName" :placeholder="$t('sender')" @keyup.enter="batchDelete"/>
         <el-input v-model="clearParams.subject" :placeholder="$t('subject')" @keyup.enter="batchDelete"/>
@@ -57,28 +56,28 @@
 <script setup>
 import {starAdd, starCancel} from "@/request/star.js";
 import emailScroll from "@/components/email-scroll/index.vue"
-import {defineOptions, reactive, ref, watch, onMounted, onBeforeUnmount} from "vue";
-import {useAllEmailStore} from "@/store/all-email.js";
-import {useEmailStore} from "@/store/email.js";
+import { defineOptions, reactive, ref, watch, onMounted, onActivated, onDeactivated, onBeforeUnmount } from "vue";
+import { useAllEmailStore } from "@/store/all-email.js";
+import { useEmailStore } from "@/store/email.js";
 import {
   allEmailList,
   allEmailDelete,
   allEmailBatchDelete,
   allEmailLatest
 } from "@/request/all-email.js";
-import {Icon} from "@iconify/vue";
+import { Icon } from "@iconify/vue";
 import router from "@/router/index.js";
-import {useI18n} from 'vue-i18n';
-import {toUtc} from "@/utils/day.js";
-import {sleep} from "@/utils/time-utils.js";
-import {useSettingStore} from "@/store/setting.js";
-import {allEmailWs, isAutoRefreshEnabled} from "@/websocket/client.js";
+import { useI18n } from 'vue-i18n';
+import { toUtc } from "@/utils/day.js";
+import { sleep } from "@/utils/time-utils.js";
+import { useSettingStore } from "@/store/setting.js";
+import { allEmailWs, isAutoRefreshEnabled } from "@/websocket/client.js";
 
 defineOptions({
   name: 'all-email'
 })
 
-const {t} = useI18n();
+const { t } = useI18n();
 const emailStore = useEmailStore();
 const allEmailStore = useAllEmailStore();
 const settingStore = useSettingStore();
@@ -86,22 +85,40 @@ const clearTime = ref('')
 const sysEmailScroll = ref({})
 const showBathDelete = ref(false)
 const clearLoading = ref(false)
+const viewActive = ref(true)
 let pullTimer = null
+let unsubAllEmail = null
 
 onMounted(() => {
-  allEmailWs.start({
-    isEnabled: () => isAutoRefreshEnabled(settingStore.settings.autoRefresh),
+  viewActive.value = true;
+  unsubAllEmail = allEmailWs.subscribe({
+    isEnabled: () => viewActive.value && isAutoRefreshEnabled(settingStore.settings.autoRefresh),
     onMessage: () => schedulePullLatest(),
     onReconnect: () => schedulePullLatest(),
   });
 })
 
+onActivated(() => {
+  viewActive.value = true;
+  allEmailWs.sync();
+})
+
+onDeactivated(() => {
+  viewActive.value = false;
+  if (pullTimer) {
+    window.clearTimeout(pullTimer);
+    pullTimer = null;
+  }
+  allEmailWs.sync();
+})
+
 onBeforeUnmount(() => {
+  viewActive.value = false;
   if (pullTimer) {
     window.clearTimeout(pullTimer)
     pullTimer = null
   }
-  allEmailWs.stop()
+  unsubAllEmail?.()
 })
 
 watch(() => settingStore.settings.autoRefresh, () => {
@@ -202,10 +219,12 @@ function rightSearch(type, value) {
 }
 
 function jumpContent(email) {
-  emailStore.contentData.email = emailStore.toContentEmail(email)
-  emailStore.contentData.delType = 'physics'
-  emailStore.contentData.showStar = false
-  emailStore.contentData.showReply = false
+  emailStore.setContentEmail(emailStore.toContentEmail(email), {
+    delType: 'physics',
+    showStar: false,
+    showReply: false,
+    showUnread: false,
+  })
   router.push({name: 'content', params: {mailbox: 'all-mail'}})
 }
 

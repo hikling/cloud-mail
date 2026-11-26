@@ -1,6 +1,6 @@
-// 收件箱 / 全部邮件的 WebSocket 客户端。
-// 连接期间靠推送刷新列表；断开后指数退避重连（1s、2s、4s… 最长 30s），重连成功后补拉，不再按间隔轮询。
-const HEARTBEAT_MS = 25_000;
+// 收件箱 / 全部邮件的 WebSocket 客户端（支持多视图订阅，避免 <keep-alive> 互相覆盖）。
+// 仅在标签页可见时发送轻量文本 'ping'（配合 Durable Object AutoResponse 零唤醒应答）；切入后台暂停心跳。
+const HEARTBEAT_MS = 45_000;
 const RECONNECT_MAX_MS = 30_000;
 const PULL_DEBOUNCE_MS = 150;
 // 与 Worker 约定：鉴权 / Origin / 全部邮件权限失败时用此关闭码，不再重连。
@@ -11,10 +11,8 @@ export function isAutoRefreshEnabled(value) {
 	return Number(value) !== 1;
 }
 
-// 创建一个作用域的实时连接。
-// scope=inbox 连用户 hub；scope=all-email 连共享 hub。
 export function createWsClient(scope) {
-	let options = null;
+	const subscribers = new Set();
 	let socket = null;
 	let heartbeatTimer = null;
 	let reconnectTimer = null;
@@ -26,28 +24,39 @@ export function createWsClient(scope) {
 	let authRejected = false;
 	let reconnectAttempt = 0;
 
-	// 登录后开始连接；opts.isEnabled / onMessage / onReconnect。
-	function start(opts) {
-		options = opts;
-		hasConnected = false;
-		authRejected = false;
-		reconnectAttempt = 0;
-		sessionToken = getToken();
+	function subscribe(opts) {
+		subscribers.add(opts);
+		if (subscribers.size === 1) {
+			hasConnected = false;
+			authRejected = false;
+			reconnectAttempt = 0;
+			sessionToken = getToken();
+		}
 		if (!listenersBound) {
 			bindListeners();
 			listenersBound = true;
 		}
 		sync();
+		return () => {
+			subscribers.delete(opts);
+			if (subscribers.size === 0) {
+				stopAll();
+			} else {
+				sync();
+			}
+		};
 	}
 
-	// 离开页面或登出时关闭连接。
-	function stop() {
-		options = null;
+	function stopAll() {
+		subscribers.clear();
 		clearPullTimer();
 		disconnect();
+		if (listenersBound) {
+			unbindListeners();
+			listenersBound = false;
+		}
 	}
 
-	// 按自动刷新开关决定连接或断开。
 	function sync() {
 		if (shouldConnect()) {
 			connect();
@@ -57,19 +66,20 @@ export function createWsClient(scope) {
 	}
 
 	function shouldConnect() {
-		return Boolean(options && getToken() && options.isEnabled?.() && !authRejected);
+		if (subscribers.size === 0 || !getToken() || authRejected) return false;
+		for (const sub of subscribers) {
+			if (sub.isEnabled?.()) return true;
+		}
+		return false;
 	}
 
 	function getToken() {
 		return localStorage.getItem('token') || '';
 	}
 
-	// 从 VITE_BASE_URL 拼 ws(s) 地址，token 放 query（浏览器 WebSocket 不能自定义头）。
 	function getWsUrl() {
 		const token = getToken();
-		if (!token) {
-			return '';
-		}
+		if (!token) return '';
 		const base = import.meta.env.VITE_BASE_URL || '/api';
 		const httpUrl = new URL(base, window.location.origin);
 		const protocol = httpUrl.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -86,11 +96,13 @@ export function createWsClient(scope) {
 		document.addEventListener('visibilitychange', onVisibilityChange);
 	}
 
-	// 其它标签页登录/登出后，本页跟着重连或断开。
+	function unbindListeners() {
+		window.removeEventListener('storage', onStorageChange);
+		document.removeEventListener('visibilitychange', onVisibilityChange);
+	}
+
 	function onStorageChange() {
-		if (sessionToken === getToken()) {
-			return;
-		}
+		if (sessionToken === getToken()) return;
 		sessionToken = getToken();
 		authRejected = false;
 		reconnectAttempt = 0;
@@ -98,18 +110,24 @@ export function createWsClient(scope) {
 		sync();
 	}
 
-	// 标签页回到前台且未连接时尝试重连；补拉只在 onopen 里做。
 	function onVisibilityChange() {
 		if (document.visibilityState !== 'visible') {
+			clearHeartbeat();
 			return;
 		}
-		if (!shouldConnect()) {
-			return;
-		}
-		if (connected) {
+		if (!shouldConnect()) return;
+		if (connected && socket?.readyState === WebSocket.OPEN) {
+			sendHeartbeat();
+			startHeartbeatTimer();
 			return;
 		}
 		connect();
+	}
+
+	function startHeartbeatTimer() {
+		clearHeartbeat();
+		if (document.visibilityState !== 'visible') return;
+		heartbeatTimer = window.setInterval(sendHeartbeat, HEARTBEAT_MS);
 	}
 
 	function connect() {
@@ -118,9 +136,7 @@ export function createWsClient(scope) {
 		}
 
 		const url = getWsUrl();
-		if (!url) {
-			return;
-		}
+		if (!url) return;
 
 		clearReconnectTimer();
 		try {
@@ -134,8 +150,10 @@ export function createWsClient(scope) {
 		socket.onopen = () => {
 			reconnectAttempt = 0;
 			setConnected(true);
-			sendHeartbeat();
-			heartbeatTimer = window.setInterval(sendHeartbeat, HEARTBEAT_MS);
+			if (document.visibilityState === 'visible') {
+				sendHeartbeat();
+				startHeartbeatTimer();
+			}
 			if (hasConnected) {
 				schedulePull();
 			}
@@ -161,7 +179,11 @@ export function createWsClient(scope) {
 			if (payload?.type !== 'new_message') {
 				return;
 			}
-			options?.onMessage?.(payload);
+			for (const sub of subscribers) {
+				if (sub.isEnabled?.()) {
+					sub.onMessage?.(payload);
+				}
+			}
 		};
 
 		socket.onerror = () => {
@@ -191,11 +213,8 @@ export function createWsClient(scope) {
 		setConnected(false);
 	}
 
-	// 断开后指数退避：1s、2s、4s… 封顶 30s。
 	function scheduleReconnect() {
-		if (!shouldConnect() || reconnectTimer) {
-			return;
-		}
+		if (!shouldConnect() || reconnectTimer) return;
 		const delay = Math.min(1_000 * 2 ** reconnectAttempt, RECONNECT_MAX_MS);
 		reconnectAttempt += 1;
 		reconnectTimer = window.setTimeout(() => {
@@ -205,8 +224,9 @@ export function createWsClient(scope) {
 	}
 
 	function sendHeartbeat() {
+		if (document.visibilityState !== 'visible') return;
 		if (socket?.readyState === WebSocket.OPEN) {
-			socket.send(JSON.stringify({ type: 'ping' }));
+			socket.send('ping');
 		}
 	}
 
@@ -214,15 +234,15 @@ export function createWsClient(scope) {
 		connected = value;
 	}
 
-	// 重连后防抖补拉，避免漏掉断开窗口里的新信。
 	function schedulePull() {
-		if (!options?.onReconnect) {
-			return;
-		}
 		clearPullTimer();
 		pullTimer = window.setTimeout(() => {
 			pullTimer = null;
-			options?.onReconnect?.();
+			for (const sub of subscribers) {
+				if (sub.isEnabled?.()) {
+					sub.onReconnect?.();
+				}
+			}
 		}, PULL_DEBOUNCE_MS);
 	}
 
@@ -247,20 +267,24 @@ export function createWsClient(scope) {
 		}
 	}
 
-	// 手动刷新列表成功后：退避清零；还没连上就马上再连。
 	function retryNow() {
 		reconnectAttempt = 0;
-		if (!shouldConnect() || connected) {
-			return;
-		}
-		if (socket && socket.readyState !== WebSocket.CLOSED) {
-			return;
-		}
+		if (!shouldConnect() || connected) return;
+		if (socket && socket.readyState !== WebSocket.CLOSED) return;
 		clearReconnectTimer();
 		connect();
 	}
 
-	return { start, stop, sync, retryNow };
+	// 保留兼容 start/stop 调用别名
+	function start(opts) {
+		return subscribe(opts);
+	}
+
+	function stop() {
+		stopAll();
+	}
+
+	return { subscribe, start, stop, stopAll, sync, retryNow };
 }
 
 export const inboxWs = createWsClient('inbox');

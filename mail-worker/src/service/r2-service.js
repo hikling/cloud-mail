@@ -1,7 +1,8 @@
 import s3Service from './s3-service';
 import settingService from './setting-service';
 import kvObjService from './kv-obj-service';
-import { publicFileHeaders } from '../utils/att-headers';
+import { IMMUTABLE_CACHE_CONTROL, publicFileHeaders } from '../utils/att-headers';
+import { isPublicAssetKey } from '../utils/edge-cache';
 
 const r2Service = {
 
@@ -59,9 +60,12 @@ const r2Service = {
 
 	/**
 	 * Always returns a Response (or null if missing) so HTTP handlers
-	 * can serve KV / R2 / S3 the same way.
+	 * can serve KV / R2 / S3 the same way. Enforces public asset key allowlist.
 	 */
 	async toObjResp(c, key) {
+		if (!isPublicAssetKey(key)) {
+			return null;
+		}
 		try {
 			const storageType = await this.storageType(c);
 
@@ -77,7 +81,9 @@ const r2Service = {
 				return new Response(obj.body, {
 					headers: publicFileHeaders({
 						contentType: obj.httpMetadata?.contentType,
-						contentDisposition: obj.httpMetadata?.contentDisposition
+						contentDisposition: obj.httpMetadata?.contentDisposition,
+						cacheControl: obj.httpMetadata?.cacheControl || IMMUTABLE_CACHE_CONTROL,
+						etag: obj.httpEtag
 					})
 				});
 			}

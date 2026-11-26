@@ -46,25 +46,6 @@ const analysisDao = {
 		return results[0];
 	},
 
-	async userDayCount(c, diffHours) {
-		const { tzMod, tzBack } = this.tzModifiers(diffHours);
-		const { results } = await c.env.db.prepare(`
-            SELECT
-                DATE(create_time, '${tzMod}') AS date,
-                COUNT(*) AS total
-            FROM
-                user
-            WHERE
-                create_time >= datetime('now', '${tzMod}', 'start of day', '-15 days', '${tzBack}')
-                AND create_time < datetime('now', '${tzMod}', 'start of day', '${tzBack}')
-            GROUP BY
-                DATE(create_time, '${tzMod}')
-            ORDER BY
-                date ASC
-        `).all();
-		return results;
-	},
-
 	async receiveDayCount(c, diffHours) {
 		const { tzMod, tzBack } = this.tzModifiers(diffHours);
 		const { results } = await c.env.db.prepare(`

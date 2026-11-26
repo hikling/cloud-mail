@@ -4,7 +4,6 @@ import orm from '../entity/orm';
 import user from '../entity/user';
 import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm';
 import { emailConst, isDel, roleConst, settingConst, userConst } from '../const/entity-const';
-import kvConst from '../const/kv-const';
 import KvConst from '../const/kv-const';
 import cryptoUtils from '../utils/crypto-utils';
 import emailService from './email-service';
@@ -12,7 +11,6 @@ import dayjs from 'dayjs';
 import permService from './perm-service';
 import roleService from './role-service';
 import emailUtils from '../utils/email-utils';
-import saltHashUtils from '../utils/crypto-utils';
 import constant from '../const/constant';
 import { t } from '../i18n/i18n'
 import reqUtils from '../utils/req-utils';
@@ -119,11 +117,11 @@ const userService = {
 		const { syncDelete } = await settingService.query(c);
 		if (syncDelete === settingConst.syncDelete.OPEN) {
 			await this.physicsDelete(c, { userIds: String(userId) });
-			await c.env.kv.delete(kvConst.AUTH_INFO + userId)
+			await c.env.kv.delete(KvConst.AUTH_INFO + userId);
 			return;
 		}
 		await orm(c).update(user).set({ isDel: isDel.DELETE }).where(eq(user.userId, userId)).run();
-		await c.env.kv.delete(kvConst.AUTH_INFO + userId)
+		await c.env.kv.delete(KvConst.AUTH_INFO + userId);
 	},
 
 	async physicsDelete(c, params) {
@@ -403,13 +401,13 @@ const userService = {
 			throw new BizError(t('roleNotExist'));
 		}
 
-		const { salt, hash } = await saltHashUtils.hashPassword(password);
+		const { salt, hash } = await cryptoUtils.hashPassword(password);
 
 		const userId = await userService.insert(c, { email, password: hash, salt, type });
 
 		await userService.updateUserInfo(c, userId, true);
 
-		await accountService.insert(c, { userId: userId, email, type, name: emailUtils.getName(email) });
+		await accountService.insert(c, { userId: userId, email, name: emailUtils.getName(email) });
 	},
 
 	async resetDaySendCount(c) {
@@ -441,15 +439,6 @@ const userService = {
 			await accountService.restoreByUserId(c, userId);
 		}
 
-	},
-
-	listByRegKeyId(c, regKeyId) {
-		return orm(c)
-			.select({email: user.email,createTime: user.createTime})
-			.from(user)
-			.where(eq(user.regKeyId, regKeyId))
-			.orderBy(desc(user.userId))
-			.all();
 	}
 };
 

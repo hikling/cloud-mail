@@ -17,8 +17,7 @@ import roleService from './role-service';
 import user from '../entity/user';
 import starService from './star-service';
 import dayjs from 'dayjs';
-import kvConst from '../const/kv-const';
-import { t } from '../i18n/i18n'
+import { t } from '../i18n/i18n';
 import domainUtils from '../utils/domain-uitls';
 import account from "../entity/account";
 import { att } from '../entity/att';
@@ -63,23 +62,22 @@ const emailService = {
 			throw new BizError(t('emptyAccountId'));
 		}
 
-		if (isNaN(size)) {
-			size = 10;
-		}
-
 		if (isNaN(full)) {
 			full = 1;
 		}
-
 		full = full === 1;
 
-		if (size > 50) {
+		if (!Number.isFinite(size) || size < 1) {
+			size = 10;
+		} else if (size > 50) {
 			size = 50;
+		} else {
+			size = Math.trunc(size);
 		}
 
 		if (isNaN(allReceive)) {
-			let accountRow = await accountService.selectById(c, accountId);
-			allReceive = accountRow.allReceive;
+			const accountRow = await accountService.selectById(c, accountId);
+			allReceive = accountRow?.allReceive || 0;
 		}
 
 		const filters = this.emailListFilters({
@@ -360,25 +358,33 @@ const emailService = {
 
 	async delete(c, params, userId) {
 		const { emailIds } = params;
-		const emailIdList = emailIds.split(',').map(Number);
+		const emailIdList = String(emailIds || '').split(',').map(Number).filter(id => Number.isInteger(id) && id > 0);
+		if (!emailIdList.length) return;
 		const { syncDelete } = await settingService.query(c);
 
 		if (syncDelete === settingConst.syncDelete.OPEN) {
-			const owned = await orm(c).select({ emailId: email.emailId }).from(email)
-				.where(and(eq(email.userId, userId), inArray(email.emailId, emailIdList)))
-				.all();
-			const ownedIds = owned.map(row => row.emailId);
+			const ownedIds = [];
+			for (let i = 0; i < emailIdList.length; i += 90) {
+				const chunk = emailIdList.slice(i, i + 90);
+				const owned = await orm(c).select({ emailId: email.emailId }).from(email)
+					.where(and(eq(email.userId, userId), inArray(email.emailId, chunk)))
+					.all();
+				ownedIds.push(...owned.map(row => row.emailId));
+			}
 			if (ownedIds.length) {
 				await this.physicsDelete(c, { emailIds: ownedIds.join(',') });
 			}
 			return;
 		}
 
-		await orm(c).update(email).set({ isDel: isDel.DELETE }).where(
-			and(
-				eq(email.userId, userId),
-				inArray(email.emailId, emailIdList)))
-			.run();
+		for (let i = 0; i < emailIdList.length; i += 90) {
+			const chunk = emailIdList.slice(i, i + 90);
+			await orm(c).update(email).set({ isDel: isDel.DELETE }).where(
+				and(
+					eq(email.userId, userId),
+					inArray(email.emailId, chunk)))
+				.run();
+		}
 	},
 
 	receive(c, params, cidAttList, r2domain) {
@@ -427,18 +433,26 @@ const emailService = {
 			attachments = [] //附件
 		} = params;
 
+		receiveEmail = this.normalizeAddressList(receiveEmail);
+		if (!receiveEmail.length) {
+			throw new BizError(t('notEmail'));
+		}
 		ccEmail = this.normalizeAddressList(ccEmail);
 		bccEmail = this.normalizeAddressList(bccEmail);
-		const takenAddress = new Set((receiveEmail || []).map(item => String(item).toLowerCase()));
+		const takenAddress = new Set(receiveEmail.map(item => String(item).toLowerCase()));
 		ccEmail = ccEmail.filter(address => !takenAddress.has(address.toLowerCase()));
 		ccEmail.forEach(address => takenAddress.add(address.toLowerCase()));
 		bccEmail = bccEmail.filter(address => !takenAddress.has(address.toLowerCase()));
+
+		if (receiveEmail.length + ccEmail.length + bccEmail.length > 100) {
+			throw new BizError(t('recipientLimit'));
+		}
 
 		const { resendTokens, r2Domain, send, domainList } = await settingService.query(c);
 
 		// 引用正文里的 /proxy?url= 还原成原始外链再发。
 		content = proxyService.restoreHtml(content);
-		let { imageDataList, html } = await attService.toImageUrlHtml(c, content);
+		let { imageDataList, html } = await attService.toImageUrlHtml(c, content, userId);
 
 		//判断是否关闭发件功能
 		if (send === settingConst.send.CLOSE) {
@@ -533,7 +547,7 @@ const emailService = {
 
 			emailRow = await this.selectById(c, emailId);
 
-			if (!emailRow) {
+			if (!emailRow || emailRow.userId !== userId) {
 				throw new BizError(t('notExistEmailReply'));
 			}
 
@@ -735,17 +749,6 @@ const emailService = {
 
 		const attList = await attService.selectByEmailIds(c, [emailResult.emailId]);
 		emailResult.attList = attList;
-
-		const dateStr = dayjs().format('YYYY-MM-DD');
-		let daySendTotal = await c.env.kv.get(kvConst.SEND_DAY_COUNT + dateStr);
-
-		//记录每天发件次数统计
-		if (!daySendTotal) {
-			await c.env.kv.put(kvConst.SEND_DAY_COUNT + dateStr, JSON.stringify(deliveredCount), { expirationTtl: 60 * 60 * 24 });
-		} else  {
-			daySendTotal = Number(daySendTotal) + deliveredCount
-			await c.env.kv.put(kvConst.SEND_DAY_COUNT + dateStr, JSON.stringify(daySendTotal), { expirationTtl: 60 * 60 * 24 });
-		}
 
 		return emailResult;
 	},
@@ -1020,7 +1023,7 @@ const emailService = {
 
 				const roleRow = roleList.find(roleRow => roleRow.userId === accountRow.userId);
 
-				let { banEmail, availDomain } = roleRow;
+				const { banEmail = '', availDomain = '' } = roleRow || {};
 
 				//如果收件人没有这个域名的使用权限和有邮件拦截，就把邮件改为拒收状态
 				if (email !== c.env.admin) {
@@ -1068,14 +1071,16 @@ const emailService = {
 			// 站内信同样：有 userId 推收件箱，无人收件只推全部邮件。
 			notifyMailWsFromContext(c, emailRow);
 
-			//设置附件保存
-			for (const attRow of attList) {
-				const attValues = {...attRow};
-				attValues.emailId = emailRow.emailId;
-				attValues.accountId = emailRow.accountId;
-				attValues.userId = emailRow.userId;
-				attValues.attId = null;
-				await orm(c).insert(att).values(attValues).run();
+			// 批量保存该收件人的附件关联
+			if (attList?.length > 0) {
+				const attValuesList = attList.map(attRow => ({
+					...attRow,
+					attId: null,
+					emailId: emailRow.emailId,
+					accountId: emailRow.accountId,
+					userId: emailRow.userId
+				}));
+				await orm(c).insert(att).values(attValuesList).run();
 			}
 
 		}
@@ -1274,8 +1279,8 @@ const emailService = {
 		allReceive = Number(allReceive);
 
 		if (isNaN(allReceive)) {
-			let accountRow = await accountService.selectById(c, accountId);
-			allReceive = accountRow.allReceive;
+			const accountRow = await accountService.selectById(c, accountId);
+			allReceive = accountRow?.allReceive || 0;
 		}
 
 		const list = await orm(c).select({ ...emailListColumns }).from(email)
@@ -1303,16 +1308,23 @@ const emailService = {
 	},
 
 	async physicsDelete(c, params) {
-		let { emailIds } = params;
-		emailIds = emailIds.split(',').map(Number);
-		await attService.removeByEmailIds(c, emailIds);
-		await starService.removeByEmailIds(c, emailIds);
-		await orm(c).delete(email).where(inArray(email.emailId, emailIds)).run();
+		const rawIds = String(params?.emailIds || '').split(',').map(Number).filter(id => Number.isInteger(id) && id > 0);
+		if (!rawIds.length) return;
+		await attService.removeByEmailIds(c, rawIds);
+		await starService.removeByEmailIds(c, rawIds);
+		for (let i = 0; i < rawIds.length; i += 90) {
+			const chunk = rawIds.slice(i, i + 90);
+			await orm(c).delete(email).where(inArray(email.emailId, chunk)).run();
+		}
 	},
 
 	async physicsDeleteUserIds(c, userIds) {
+		if (!Array.isArray(userIds) || !userIds.length) return;
 		await attService.removeByUserIds(c, userIds);
-		await orm(c).delete(email).where(inArray(email.userId, userIds)).run();
+		for (let i = 0; i < userIds.length; i += 90) {
+			const chunk = userIds.slice(i, i + 90);
+			await orm(c).delete(email).where(inArray(email.userId, chunk)).run();
+		}
 	},
 
 	updateEmailStatus(c, params) {
@@ -1353,12 +1365,12 @@ const emailService = {
 			type = 'receive';
 		}
 
-		if (isNaN(size)) {
+		if (!Number.isFinite(size) || size < 1) {
 			size = 10;
-		}
-
-		if (size > 50) {
+		} else if (size > 50) {
 			size = 50;
+		} else {
+			size = Math.trunc(size);
 		}
 
 		if (isNaN(full)) {
@@ -1514,8 +1526,9 @@ const emailService = {
 		}
 
 		const batchSize = 95;
+		const maxBatches = 30;
 
-		while (true) {
+		for (let i = 0; i < maxBatches; i++) {
 			const conditions = [lt(email.createTime, cutoff)];
 			if (excludeUserIds.length) {
 				conditions.push(notInArray(email.userId, excludeUserIds));
@@ -1542,49 +1555,53 @@ const emailService = {
 	},
 
 	async batchDelete(c, params) {
-		let { sendName, sendEmail, toEmail, subject, startTime, endTime, type  } = params
+		let { sendName, sendEmail, toEmail, subject, startTime, endTime, type } = params;
 
-		let right = type === 'left' || type === 'include'
-		let left = type === 'include'
+		let right = type === 'left' || type === 'include';
+		let left = type === 'include';
 
-		const conditions = []
+		const conditions = [];
 
 		if (sendName) {
-			conditions.push(like(email.name,`${left ? '%' : ''}${sendName}${right ? '%' : ''}`))
+			conditions.push(like(email.name, `${left ? '%' : ''}${sendName}${right ? '%' : ''}`));
 		}
 
 		if (subject) {
-			conditions.push(like(email.subject,`${left ? '%' : ''}${subject}${right ? '%' : ''}`))
+			conditions.push(like(email.subject, `${left ? '%' : ''}${subject}${right ? '%' : ''}`));
 		}
 
 		if (sendEmail) {
-			conditions.push(like(email.sendEmail,`${left ? '%' : ''}${sendEmail}${right ? '%' : ''}`))
+			conditions.push(like(email.sendEmail, `${left ? '%' : ''}${sendEmail}${right ? '%' : ''}`));
 		}
 
 		if (toEmail) {
-			conditions.push(like(email.toEmail,`${left ? '%' : ''}${toEmail}${right ? '%' : ''}`))
+			conditions.push(like(email.toEmail, `${left ? '%' : ''}${toEmail}${right ? '%' : ''}`));
 		}
 
 		if (startTime && endTime) {
-			conditions.push(gte(email.createTime,`${startTime}`))
-			conditions.push(lte(email.createTime,`${endTime}`))
+			conditions.push(gte(email.createTime, `${startTime}`));
+			conditions.push(lte(email.createTime, `${endTime}`));
 		}
 
 		if (conditions.length === 0) {
 			return;
 		}
 
-		const emailIdsRow = await orm(c).select({emailId: email.emailId}).from(email).where(conditions.length > 1 ? and(...conditions) : conditions[0]).all();
+		const batchSize = 95;
+		const maxBatches = 20;
+		const whereClause = conditions.length > 1 ? and(...conditions) : conditions[0];
 
-		const emailIds = emailIdsRow.map(row => row.emailId);
-
-		if (emailIds.length === 0){
-			return;
+		for (let i = 0; i < maxBatches; i++) {
+			const rows = await orm(c).select({ emailId: email.emailId }).from(email).where(whereClause).limit(batchSize).all();
+			if (!rows.length) {
+				break;
+			}
+			const emailIds = rows.map(row => row.emailId);
+			await this.physicsDelete(c, { emailIds: emailIds.join(',') });
+			if (rows.length < batchSize) {
+				break;
+			}
 		}
-
-		await attService.removeByEmailIds(c, emailIds);
-
-		await orm(c).delete(email).where(conditions.length > 1 ? and(...conditions) : conditions[0]).run();
 	},
 
 	async physicsDeleteByAccountId(c, accountId) {
@@ -1593,8 +1610,12 @@ const emailService = {
 	},
 
 	async read(c, params, userId) {
-		const { emailIds } = params;
-		await orm(c).update(email).set({ unread: emailConst.unread.READ }).where(and(eq(email.userId, userId), inArray(email.emailId, emailIds)));
+		const emailIds = Array.isArray(params?.emailIds) ? params.emailIds.map(Number).filter(id => Number.isInteger(id) && id > 0) : [];
+		if (!emailIds.length) return;
+		for (let i = 0; i < emailIds.length; i += 90) {
+			const chunk = emailIds.slice(i, i + 90);
+			await orm(c).update(email).set({ unread: emailConst.unread.READ }).where(and(eq(email.userId, userId), inArray(email.emailId, chunk))).run();
+		}
 	}
 };
 

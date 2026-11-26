@@ -3,7 +3,7 @@ import constant from '../const/constant';
 
 const userContext = {
 	getUserId(c) {
-		return c.get('user').userId;
+		return c.get('user')?.userId;
 	},
 
 	getUser(c) {
@@ -12,7 +12,7 @@ const userContext = {
 
 	async getToken(c) {
 		const jwt = c.req.header(constant.TOKEN_HEADER);
-		const result = await JwtUtils.verifyToken(c,jwt);
+		const result = await JwtUtils.verifyToken(c, jwt);
 		return result?.token;
 	},
 };

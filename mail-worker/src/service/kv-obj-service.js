@@ -1,4 +1,4 @@
-import { publicFileHeaders } from '../utils/att-headers';
+import { IMMUTABLE_CACHE_CONTROL, publicFileHeaders } from '../utils/att-headers';
 
 const kvObjService = {
 
@@ -16,27 +16,28 @@ const kvObjService = {
 			return;
 		}
 
-		await Promise.all(keys.map( key => c.env.kv.delete(key)));
+		await Promise.all(keys.map(key => c.env.kv.delete(key)));
 	},
 
 	async getObj(c, key) {
-		const obj = await c.env.kv.getWithMetadata(key, { type: "arrayBuffer"});
+		const obj = await c.env.kv.getWithMetadata(key, { type: "arrayBuffer" });
 		if (!obj.value) {
 			return null;
 		}
 
+		const isContentHashed = key.startsWith('attachments/') || key.startsWith('static/');
 		return new Response(obj.value, {
 			headers: publicFileHeaders({
 				contentType: obj.metadata?.contentType,
-				contentDisposition: obj.metadata?.contentDisposition
+				contentDisposition: obj.metadata?.contentDisposition,
+				cacheControl: obj.metadata?.cacheControl || (isContentHashed ? IMMUTABLE_CACHE_CONTROL : undefined),
+				etag: `"kv-${key}"`
 			})
 		});
 	},
 
 	async toObjResp(c, key) {
-
 		return await this.getObj(c, key);
-
 	}
 
 };
