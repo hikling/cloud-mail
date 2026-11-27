@@ -1,6 +1,7 @@
 import settingService from '../service/setting-service';
 import userService from '../service/user-service';
 import cryptoUtils from '../utils/crypto-utils';
+import { ensureSchema } from './schema-migrations';
 
 const dbInit = {
 	async init(c) {
@@ -12,46 +13,20 @@ const dbInit = {
 		}
 
 		await this.intDB(c);
-		await this.v2_3DB(c);
-		await this.v2_4DB(c);
-		await this.v2_5DB(c);
-		await this.v2_6DB(c);
-		await this.v2_7DB(c);
-		await this.v2_8DB(c);
-		await this.v3_0DB(c);
-		await this.v3_1DB(c);
-		await this.v3_2DB(c);
-		await this.v3_3DB(c);
-		await this.v3_4DB(c);
-		await this.v3_5DB(c);
-		await this.v3_6DB(c);
+		await ensureSchema(c, { force: true });
+		await this.normalizeLegacySettings(c);
 		await userService.initAdmin(c);
 		await settingService.refresh(c);
 		return c.text('success');
 	},
 
-	async v3_6DB(c) {
+	async normalizeLegacySettings(c) {
 		try {
 			// 保留当前的 1（关闭）和 2（开启），只转换旧版的关闭值和刷新间隔。
 			await c.env.db.prepare(`
 				UPDATE setting SET auto_refresh = CASE WHEN auto_refresh = 0 THEN 1 ELSE 2 END
 				WHERE auto_refresh NOT IN (1, 2)
 			`).run();
-		} catch (e) {
-			console.warn(`sql skip:${e.message}`);
-		}
-
-		try {
-			await c.env.db.batch([
-				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN login_verify INTEGER NOT NULL DEFAULT 1`),
-				c.env.db.prepare(`ALTER TABLE setting ADD COLUMN login_verify_count INTEGER NOT NULL DEFAULT 1`)
-			]);
-		} catch (e) {
-			console.warn(`sql skip:${e.message}`);
-		}
-
-		try {
-			await c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_attachments_key ON attachments(key)`).run();
 		} catch (e) {
 			console.warn(`sql skip:${e.message}`);
 		}
@@ -368,13 +343,9 @@ const dbInit = {
 						many_email INTEGER NOT NULL DEFAULT 0,
 						title TEXT NOT NULL DEFAULT '',
 						auto_refresh INTEGER NOT NULL DEFAULT 2,
-						register_verify INTEGER NOT NULL DEFAULT 1,
-						add_email_verify INTEGER NOT NULL DEFAULT 1,
 						resend_tokens TEXT NOT NULL DEFAULT '{}',
 						send INTEGER NOT NULL DEFAULT 0,
 						r2_domain TEXT,
-						site_key TEXT,
-						secret_key TEXT,
 						background TEXT,
 						login_opacity INTEGER NOT NULL DEFAULT 0.90,
 						tg_bot_token TEXT NOT NULL DEFAULT '',
@@ -385,8 +356,6 @@ const dbInit = {
 						rule_email TEXT NOT NULL DEFAULT '',
 						rule_type INTEGER NOT NULL DEFAULT 0,
 						reg_key INTEGER NOT NULL DEFAULT 1,
-						reg_verify_count INTEGER NOT NULL DEFAULT 1,
-						add_verify_count INTEGER NOT NULL DEFAULT 1,
 						notice_title TEXT NOT NULL DEFAULT 'Cloud Mail',
 						notice_content TEXT NOT NULL DEFAULT '',
 						notice_type TEXT NOT NULL DEFAULT 'none',
@@ -450,32 +419,23 @@ const dbInit = {
 						create_time DATETIME DEFAULT CURRENT_TIMESTAMP
 					)
 				`),
-				c.env.db.prepare(`
-					CREATE TABLE IF NOT EXISTS verify_record (
-						vr_id INTEGER PRIMARY KEY AUTOINCREMENT,
-						ip TEXT NOT NULL DEFAULT '',
-						count INTEGER NOT NULL DEFAULT 1,
-						type INTEGER NOT NULL DEFAULT 0,
-						update_time DATETIME DEFAULT CURRENT_TIMESTAMP
-					)
-				`),
 				c.env.db.prepare(`CREATE INDEX IF NOT EXISTS idx_email_user_id_account_id ON email(user_id, account_id)`),
 				c.env.db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_account_email_nocase ON account (email COLLATE NOCASE)`),
 				c.env.db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_user_email_nocase ON user (email COLLATE NOCASE)`),
 				c.env.db.prepare(`CREATE UNIQUE INDEX IF NOT EXISTS idx_setting_code ON reg_key(code COLLATE NOCASE)`),
 				c.env.db.prepare(`
 					INSERT INTO setting (
-						register, receive, add_email, many_email, title, auto_refresh, register_verify, add_email_verify,
+						register, receive, add_email, many_email, title, auto_refresh,
 						resend_tokens, send, login_opacity,
 						tg_bot_token, tg_chat_id, tg_bot_status, forward_email, forward_status, rule_email, rule_type,
-						reg_key, reg_verify_count, add_verify_count,
+						reg_key,
 						notice_title, notice_content, notice_type, notice_duration, notice_offset, notice_position, notice_width, notice, no_recipient,
 						login_domain, bucket, region, endpoint, s3_access_key, s3_secret_key
 					)
-					SELECT 1, 0, 0, 0, 'Cloud Mail', 2, 1, 1,
+					SELECT 1, 0, 0, 0, 'Cloud Mail', 2,
 						'{}', 0, 0.90,
 						'', '', 1, '', 1, '', 0,
-						1, 1, 1,
+						1,
 						'Cloud Mail', ?, 'none', 0, 0, 'top-right', 340, 0, 0,
 						0, '', '', '', '', ''
 					WHERE NOT EXISTS (SELECT 1 FROM setting)

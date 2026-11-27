@@ -309,7 +309,12 @@
             </section>
 
             <section class="setting-group">
-              <h2 class="group-heading">Workers AI</h2>
+              <div class="group-heading group-heading--split">
+                <h2>Workers AI</h2>
+                <span class="ai-status-pill" :class="{ 'is-ready': setting.hasAi }">
+                  {{ setting.hasAi ? $t('aiBindingReady') : $t('aiBindingFallback') }}
+                </span>
+              </div>
               <div class="group-card">
                 <div class="setting-row">
                   <div class="row-info">
@@ -336,55 +341,8 @@
             </section>
           </div>
 
-          <!-- Tab 3: Security & Storage (Row 1: 3 vs 3 equal height, Row 2: 2 vs 2 equal height) -->
+          <!-- Tab 3: Security & Storage -->
           <div v-else-if="activeTab === 'security'" key="security" class="settings-grid">
-            <section class="setting-group">
-              <h2 class="group-heading">{{ $t('turnstileSetting') }}</h2>
-              <div class="group-card">
-                <div class="setting-row">
-                  <div class="row-info">
-                    <div class="row-label">{{ $t('loginVerification') }}</div>
-                  </div>
-                  <div class="row-control inline-controls">
-                    <button type="button" class="action-btn" :aria-label="$t('rulesVerify')" @click="openLoginVerifyCount">
-                      {{ $t('sysRuleThreshold', { count: setting.loginVerifyCount ?? loginVerifyCount }) }}
-                    </button>
-                    <el-select
-                        :model-value="setting.loginVerify"
-                        @change="changeField('loginVerify', $event)"
-                        :style="`width: ${ locale === 'en' ? 110 : 92 }px;`"
-                    >
-                      <el-option :value="0" :label="$t('enable')"/>
-                      <el-option :value="1" :label="$t('disable')"/>
-                      <el-option :value="2" :label="$t('rulesVerify')"/>
-                    </el-select>
-                  </div>
-                </div>
-                <div class="setting-row">
-                  <div class="row-info">
-                    <div class="row-label">Site key</div>
-                  </div>
-                  <div class="row-control bot-verify">
-                    <span class="mono-ellipsis">{{ maskSiteKey(setting.siteKey) || $t('sysNotConfigured') }}</span>
-                    <button type="button" class="action-btn" @click="turnstileShow = true">
-                      {{ $t('sysConfigure') }}
-                    </button>
-                  </div>
-                </div>
-                <div class="setting-row">
-                  <div class="row-info">
-                    <div class="row-label">Secret key</div>
-                  </div>
-                  <div class="row-control bot-verify">
-                    <span class="mono-ellipsis">{{ setting.secretKey || $t('sysNotConfigured') }}</span>
-                    <button type="button" class="action-btn" @click="turnstileShow = true">
-                      {{ $t('sysConfigure') }}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </section>
-
             <section class="setting-group">
               <h2 class="group-heading">{{ $t('oauthLogin') }}</h2>
               <div class="group-card">
@@ -433,7 +391,7 @@
               </div>
             </section>
 
-            <section class="setting-group">
+            <section class="setting-group setting-group--full">
               <h2 class="group-heading">{{ $t('about') }}</h2>
               <div class="group-card">
                 <div class="setting-row">
@@ -484,14 +442,6 @@
           </el-select>
           <el-input type="text" :placeholder="$t('addResendTokenDesc')" v-model="resendTokenForm.token" @keyup.enter="saveResendToken"/>
           <el-button type="primary" :loading="settingLoading" @click="saveResendToken">{{ $t('save') }}</el-button>
-        </form>
-      </el-dialog>
-      <el-dialog v-model="turnstileShow" :title="$t('addTurnstileSecret')" width="360" append-to-body align-center
-                 @closed="turnstileForm.secretKey = '';turnstileForm.siteKey = ''">
-        <form @submit.prevent>
-          <el-input type="text" :placeholder="maskSiteKey(setting.siteKey) || 'Site key'" v-model="turnstileForm.siteKey" @keyup.enter="saveTurnstileKey"/>
-          <el-input type="text" style="margin-top: 14px" :placeholder="setting.secretKey || 'Secret key'" v-model="turnstileForm.secretKey" @keyup.enter="saveTurnstileKey"/>
-          <el-button type="primary" :loading="settingLoading" @click="saveTurnstileKey">{{ $t('save') }}</el-button>
         </form>
       </el-dialog>
       <el-dialog v-model="oauthSettingShow" :title="$t('oauthSetting') + ' - ' + oauthForm.label" width="360" append-to-body align-center
@@ -719,14 +669,6 @@ Authorization: &lt;secret&gt;</pre>
                            :show-overflow-tooltip="true"/>
         </el-table>
       </el-dialog>
-      <el-dialog v-model="loginVerifyCountShow" :title="$t('rulesVerifyTitle',{count: loginVerifyCount})"
-                 append-to-body align-center
-                 @closed="loginVerifyCount = setting.loginVerifyCount">
-        <form @submit.prevent="saveLoginVerifyCount">
-          <el-input-number v-model="loginVerifyCount" :min="1" :precision="0"/>
-          <el-button native-type="submit" type="primary" :loading="settingLoading">{{ $t('save') }}</el-button>
-        </form>
-      </el-dialog>
       <el-dialog v-model="addS3Show" :title="t('s3Configuration')" width="360" append-to-body align-center @closed="resetAddS3Form">
         <form @submit.prevent>
           <el-input class="dialog-input" type="text" placeholder="Bucket" v-model="s3.bucket" @keyup.enter="saveS3"/>
@@ -867,7 +809,6 @@ const resendTokenFormShow = ref(false)
 const blackFormShow = ref(false)
 const autoCleanShow = ref(false)
 const aiCodeFilterShow = ref(false)
-const turnstileShow = ref(false)
 const tgSettingShow = ref(false)
 const thirdEmailShow = ref(false)
 const webhookShow = ref(false)
@@ -891,17 +832,11 @@ const backgroundUrl = ref('')
 let backgroundFile = null
 let backgroundObjectUrl = ''
 const showSetBackground = ref(false)
-const loginVerifyCount = ref(1)
 let backup = '{}'
 const addS3Show = ref(false)
-const loginVerifyCountShow = ref(false)
 const resendTokenForm = reactive({
   domain: '',
   token: '',
-})
-const turnstileForm = reactive({
-  siteKey: '',
-  secretKey: ''
 })
 
 const oauthPlatforms = [
@@ -973,10 +908,6 @@ const tgMsgLabelWidth = computed(() => locale.value === 'en' ? '120px' : '100px'
 getSettings()
 getUpdate()
 
-function maskSiteKey(value) {
-  return value ? `${String(value).slice(0, 6)}******` : ''
-}
-
 function getSettings() {
   settingReady.value = false
   settingQuery().then(settingData => {
@@ -987,19 +918,14 @@ function getSettings() {
     firstLoading.value = false
     backgroundUrl.value = setting.value.background?.startsWith('http') ? setting.value.background : ''
     editTitle.value = setting.value.title
-    loginVerifyCount.value = setting.value.loginVerifyCount
     resetAddS3Form()
     resetBlackList()
     resetAiCodeFilter()
+    backupSetting()
     nextTick(() => {
       settingReady.value = true
     })
   })
-}
-
-function openLoginVerifyCount() {
-  if (settingLoading.value) return
-  loginVerifyCountShow.value = true
 }
 
 function resetAddS3Form() {
@@ -1113,10 +1039,6 @@ async function getUpdate() {
   } catch {
     // Ignore transient GitHub API errors or rate limits
   }
-}
-
-function saveLoginVerifyCount() {
-  editSetting({loginVerifyCount: loginVerifyCount.value || 1})
 }
 
 const compareByLengthAndUpperCase = (a, b, key) => {
@@ -1356,7 +1278,7 @@ function resetAutoClean() {
 }
 
 function resetAiCodeFilter() {
-  aiCodeFilter.value = setting.value.aiCodeFilter ? setting.value.aiCodeFilter.split(',') : []
+  aiCodeFilter.value = setting.value.aiCodeFilter ? setting.value.aiCodeFilter.split(',').filter(Boolean) : []
 }
 
 function saveAutoClean() {
@@ -1478,19 +1400,6 @@ function saveOauth() {
   editSetting(form)
 }
 
-function saveTurnstileKey() {
-  const settingForm = {}
-  const siteKey = turnstileForm.siteKey.trim()
-  const secretKey = turnstileForm.secretKey.trim()
-  if (siteKey) settingForm.siteKey = siteKey
-  if (secretKey) settingForm.secretKey = secretKey
-  if (!Object.keys(settingForm).length) {
-    turnstileShow.value = false
-    return
-  }
-  editSetting(settingForm)
-}
-
 async function saveBackground() {
 
   if (settingLoading.value) return
@@ -1578,8 +1487,6 @@ function saveResendToken() {
 function backupSetting() {
   const settingForm = {...setting.value}
   delete settingForm.resendTokens
-  delete settingForm.siteKey
-  delete settingForm.secretKey
   delete settingForm.s3AccessKey
   delete settingForm.s3SecretKey
   delete settingForm.tgBotToken
@@ -1603,8 +1510,6 @@ function beforeChange() {
 function change(e) {
   if (!settingReady.value) return
   const settingForm = {...setting.value}
-  delete settingForm.siteKey
-  delete settingForm.secretKey
   delete settingForm.s3AccessKey
   delete settingForm.s3SecretKey
   delete settingForm.tgBotToken
@@ -1618,7 +1523,6 @@ function change(e) {
 
 function changeField(key, value) {
   if (!settingReady.value || settingLoading.value) return
-  backupSetting()
   setting.value[key] = value
   editSetting({[key]: value}, false)
 }
@@ -1651,15 +1555,15 @@ function editSetting(settingForm, refreshStatus = true) {
     }
     if (refreshStatus) {
       getSettings()
+    } else {
+      backupSetting()
     }
     editTitleShow.value = false
     resendTokenFormShow.value = false
-    turnstileShow.value = false
     tgSettingShow.value = false
     thirdEmailShow.value = false
     webhookShow.value = false
     forwardRulesShow.value = false
-    loginVerifyCountShow.value = false
     addS3Show.value = false
     aiCodeFilterShow.value = false
     autoCleanShow.value = false
@@ -1854,6 +1758,41 @@ function editSetting(settingForm, refreshStatus = true) {
   font-weight: 600;
   letter-spacing: 0.02em;
   color: var(--text-secondary);
+
+  &--split {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+
+    h2 {
+      margin: 0;
+      font-size: inherit;
+      font-weight: inherit;
+      letter-spacing: inherit;
+      color: inherit;
+    }
+  }
+}
+
+.ai-status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--text-muted);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-subtle);
+
+  &.is-ready {
+    color: var(--el-color-success);
+    background: var(--el-color-success-light-9);
+    border-color: var(--el-color-success-light-7);
+  }
 }
 
 .group-card {
@@ -2396,20 +2335,6 @@ function editSetting(settingForm, refreshStatus = true) {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-}
-
-.bot-verify {
-  max-width: 300px;
-
-  .mono-ellipsis {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    font-size: 12.5px;
-    color: var(--text-secondary);
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    min-width: 0;
-  }
 }
 
 .email-title {

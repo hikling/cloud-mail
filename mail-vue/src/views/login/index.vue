@@ -233,13 +233,6 @@
                 </el-input>
               </div>
 
-              <div id="login-turnstile">
-                <div v-if="show === 'login' && verifyShow" class="auth-turnstile">
-                  <div ref="loginTurnstileContainer" :key="turnstileContainerKey"></div>
-                  <span class="turnstile-error" v-if="botJsError">{{ $t('verifyModuleFailed', {action: $t('loginBtn')}) }}</span>
-                </div>
-              </div>
-
               <el-button class="submit-btn" size="large" type="primary" @click="submit" :loading="loginLoading">
                 <span class="submit-btn-inner">
                   <span>{{ $t('loginBtn') }}</span>
@@ -428,7 +421,6 @@ import {loginUserInfo} from "@/request/my.js";
 import {permsToRouter} from "@/perm/perm.js";
 import {useI18n} from "vue-i18n";
 import {oauthBindUser, oauthLinuxDoLogin, oauthGithubLogin, oauthGoogleLogin} from "@/request/ouath.js";
-import {reloadTurnstileScript} from "@/utils/turnstile-script.js";
 import {setExtend} from "@/utils/day.js";
 import loading from "@/components/loading/index.vue";
 import AuroraBackdrop from "@/components/aurora-backdrop/index.vue";
@@ -561,15 +553,6 @@ watch(domainList, (list) => {
     suffix.value = list[0]
   }
 })
-const verifyShow = ref(false)
-let verifyToken = ''
-let turnstileId = null
-const botJsError = ref(false)
-let turnstileLoading = false
-const loginTurnstileContainer = ref(null)
-const registerTurnstileContainer = ref(null)
-const turnstileContainer = computed(() => show.value === 'login' ? loginTurnstileContainer.value : registerTurnstileContainer.value)
-const turnstileContainerKey = ref(0)
 
 function toggleTheme() {
   const nextIsDark = !uiStore.dark
@@ -584,82 +567,10 @@ function toggleLang() {
   settingStore.lang = nextLang
 }
 
-function clearTurnstile() {
-  if (turnstileId !== null) window.turnstile?.remove(turnstileId)
-  turnstileId = null
-  verifyShow.value = false
-  botJsError.value = false
-  verifyToken = ''
-}
-
-watch(show, clearTurnstile)
 onBeforeUnmount(() => {
-  clearTurnstile()
   clearTimeout(previewCopyTimer)
   if (pointerRafId) cancelAnimationFrame(pointerRafId)
 })
-
-function renderTurnstile(api, container) {
-  turnstileId = api.render(container, {
-    sitekey: settingStore.settings.siteKey,
-    size: 'flexible',
-    callback: (token) => {
-      if (turnstileContainer.value !== container) return
-      verifyToken = token
-      botJsError.value = false
-    },
-    'expired-callback': () => {
-      if (turnstileContainer.value === container) verifyToken = ''
-    },
-    'error-callback': () => {
-      if (turnstileContainer.value !== container) return true
-      verifyToken = ''
-      botJsError.value = true
-      return true
-    }
-  })
-}
-
-async function showTurnstile() {
-  if (turnstileLoading) return
-  verifyToken = ''
-  botJsError.value = false
-  verifyShow.value = true
-  turnstileLoading = true
-  await nextTick()
-  let container = turnstileContainer.value
-  try {
-    if (!container) return
-    if (turnstileId !== null) {
-      window.turnstile.reset(turnstileId)
-    } else {
-      renderTurnstile(window.turnstile, container)
-    }
-  } catch (error) {
-    if (turnstileContainer.value !== container) return
-    turnstileId = null
-    turnstileContainerKey.value++
-    await nextTick()
-    container = turnstileContainer.value
-    try {
-      if (!container) return
-      const api = await reloadTurnstileScript()
-      if (turnstileContainer.value === container) renderTurnstile(api, container)
-    } catch (error) {
-      if (turnstileContainer.value === container) botJsError.value = true
-      console.warn('Turnstile recovery failed', error)
-    }
-  } finally {
-    turnstileLoading = false
-  }
-}
-
-function needsTurnstile(mode, open) {
-  if (verifyToken || (mode !== 0 && !(mode === 2 && open))) return false
-  if (!verifyShow.value || botJsError.value) showTurnstile()
-  else if (!turnstileLoading) ElMessage({message: t('botVerifyMsg'), type: 'error', plain: true})
-  return true
-}
 
 const hideLoginDomain = computed(() => settingStore.settings.loginDomain === 1)
 
@@ -823,14 +734,8 @@ const submit = () => {
     return
   }
 
-  const {loginVerify, loginVerifyOpen} = settingStore.settings
-  if (needsTurnstile(loginVerify, loginVerifyOpen)) return
-
-  const token = verifyToken
   loginLoading.value = true
-  login(email, form.password, token).then(data => saveToken(data.token)).catch(res => {
-    if (res.code === 400) settingStore.settings.loginVerifyOpen = true
-    if (show.value === 'login' && (token || res.code === 400)) showTurnstile()
+  login(email, form.password).then(data => saveToken(data.token)).catch(() => {
   }).finally(() => {
     loginLoading.value = false
   })
@@ -1733,15 +1638,6 @@ function submitRegister() {
   opacity: 0;
   pointer-events: none;
   visibility: hidden;
-}
-
-.auth-turnstile {
-  margin-bottom: 14px;
-}
-
-.turnstile-error {
-  font-size: 12px;
-  color: var(--el-color-danger);
 }
 
 /* Shimmering Gradient Flagship CTA */

@@ -34,7 +34,7 @@ This edition is streamlined specifically for **personal use**: multi-user admini
 - **Security & Privacy Hardening**:
   - HTML email sanitization, sandboxed rendering, and tracking pixel removal.
   - HMAC-signed external image proxy (`/proxy` + Edge Cache) to prevent leaking client IP addresses.
-  - Optional Cloudflare Turnstile verification and GitHub / Google / Linux.do OAuth2 login binding.
+  - Optional GitHub / Google / Linux.do OAuth2 login binding.
 - **AI & Multi-Channel Notifications**: Extracts verification codes automatically with Cloudflare Workers AI; supports Telegram Bot preview alerts, Webhook delivery, rule-based email forwarding, blocklists, and scheduled auto-cleanup.
 - **Modern Adaptive UI**: Vue 3 + Element Plus workspace with Light/Dark themes, 6 Aurora dynamic backdrops, adjustable panel opacity, custom wallpapers, mobile responsiveness, and Chinese/English UI switching.
 - **Analytics**: Built-in ECharts traffic overview with optional KV caching (`analysis_cache`).
@@ -184,7 +184,7 @@ The built-in workflow ([.github/workflows/deploy-cloudflare.yml](.github/workflo
 3. **Initial Admin Sign-In**:
    - If `PASSWORD` was set before init, sign in at `/login` right away; otherwise switch to **Init Admin** on `/login` to create the sole admin account (public signup disables permanently once created).
 4. **Outbound Mail & Integrations**:
-   - Configure **Resend API tokens** (or use Cloudflare Email Sending if bound), **Workers AI** code extraction, **Telegram Bot**, **Webhook**, **Turnstile**, or **OAuth2** directly inside **System Settings**.
+   - Configure **Resend API tokens** (or use Cloudflare Email Sending if bound), **Workers AI** code extraction (with automatic rule fallback), **Telegram Bot**, **Webhook**, or **OAuth2** directly inside **System Settings**.
 
 ---
 

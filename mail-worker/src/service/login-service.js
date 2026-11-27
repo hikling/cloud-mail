@@ -12,11 +12,9 @@ import verifyUtils from '../utils/verify-utils';
 import accountService from './account-service';
 import settingService from './setting-service';
 import cryptoUtils from '../utils/crypto-utils';
-import turnstileService from './turnstile-service';
 import roleService from './role-service';
 import dayjs from 'dayjs';
 import { t } from '../i18n/i18n.js';
-import verifyRecordService from './verify-record-service';
 import orm from '../entity/orm';
 import user from '../entity/user';
 import account from '../entity/account';
@@ -113,18 +111,10 @@ const loginService = {
 
 	async login(c, params, noVerifyPwd = false) {
 
-		const { email, password, token } = params;
+		const { email, password } = params;
 
 		if ((!email || !password) && !noVerifyPwd) {
 			throw new BizError(t('emailAndPwdEmpty'));
-		}
-
-		if (!noVerifyPwd) {
-			const { loginVerify, loginVerifyCount = 1 } = await settingService.query(c);
-			if (loginVerify === settingConst.loginVerify.OPEN ||
-				(loginVerify === settingConst.loginVerify.COUNT && !await verifyRecordService.consumeLoginAttempt(c, loginVerifyCount))) {
-				await turnstileService.verify(c, token);
-			}
 		}
 
 		const userRow = await userService.selectByEmailIncludeDel(c, email);

@@ -1,6 +1,5 @@
 import app from './hono/webs';
 import { email } from './email/email';
-import verifyRecordService from './service/verify-record-service';
 import emailService from './service/email-service';
 import r2Service from './service/r2-service';
 import oauthService from './service/oauth-service';
@@ -71,7 +70,6 @@ export default {
 	email: email,
 	async scheduled(c, env, ctx) {
 		const invocationCtx = { env };
-		await verifyRecordService.clearRecord(invocationCtx)
 		await emailService.completeReceiveAll(invocationCtx)
 		await emailService.autoClean(invocationCtx)
 		await analysisService.refreshEchartsCache(invocationCtx)

@@ -214,17 +214,6 @@
           {{ $t('add') }}
         </el-button>
       </div>
-      <div
-          ref="turnstileContainer"
-          :key="turnstileContainerKey"
-          class="add-email-turnstile"
-          :class="verifyShow ? 'turnstile-show' : 'turnstile-hide'"
-          :data-sitekey="settingStore.settings.siteKey"
-          data-callback="onTurnstileSuccess"
-          data-error-callback="onTurnstileError"
-      >
-        <span style="font-size: 12px;color: #F56C6C" v-if="botJsError">{{ $t('verifyModuleFailed', {action: $t('add')}) }}</span>
-      </div>
     </el-dialog>
 
     <el-dialog v-model="setNameShow" :title="$t('changeUserName')" append-to-body align-center class="account-modal-dialog">
@@ -260,7 +249,6 @@ import {hasPerm} from "@/perm/perm.js"
 import {useI18n} from "vue-i18n";
 import {useRoute, useRouter} from "vue-router";
 import {AccountAllReceiveEnum} from "@/enums/account-enum.js";
-import {reloadTurnstileScript} from "@/utils/turnstile-script.js";
 
 const {t} = useI18n();
 const route = useRoute();
@@ -320,7 +308,6 @@ const accounts = reactive([])
 const noLoading = ref(false)
 const loading = ref(false)
 const followLoading = ref(false);
-const verifyShow = ref(false)
 const setNameShow = ref(false)
 const setNameLoading = ref(false)
 const accountName = ref(null)
@@ -328,16 +315,8 @@ const addRef = ref({})
 const scrollbarRef = ref({})
 const copiedId = ref(null)
 let account = null
-let turnstileId = null
-let turnstileResetTimer = null
 let addFocusTimer = null
 let copiedResetTimer = null
-const botJsError = ref(false)
-let verifyToken = ''
-let verifyErrorCount = 0
-let turnstileRecoveryAttempted = false
-const turnstileContainer = ref(null)
-const turnstileContainerKey = ref(0)
 let first = true
 const addForm = reactive({
   email: '',
@@ -370,55 +349,9 @@ const openSelect = () => {
   mySelect.value.toggleMenu()
 }
 
-async function recoverTurnstile() {
-  if (turnstileRecoveryAttempted) return
-  turnstileRecoveryAttempted = true
-  botJsError.value = false
-  verifyToken = ''
-  turnstileId = null
-  turnstileContainerKey.value++
-  try {
-    const api = await reloadTurnstileScript()
-    await nextTick()
-    if (!showAdd.value || !turnstileContainer.value) return
-    turnstileId = api.render(turnstileContainer.value)
-  } catch (error) {
-    botJsError.value = true
-    console.warn('Turnstile recovery failed', error)
-  } finally {
-    turnstileRecoveryAttempted = false
-  }
-}
-
-window.onTurnstileError = (e) => {
-  if (verifyErrorCount >= 4) {
-    return
-  }
-  verifyErrorCount++
-  console.warn('人机验加载失败', e)
-  clearTimeout(turnstileResetTimer)
-  turnstileResetTimer = setTimeout(() => {
-    if (!showAdd.value) return
-    nextTick(() => {
-      if (!turnstileId) {
-        turnstileId = window.turnstile.render('.add-email-turnstile')
-      } else {
-        window.turnstile.reset(turnstileId);
-      }
-    })
-  }, 1500)
-};
-
-window.onTurnstileSuccess = (token) => {
-  verifyToken = token;
-};
-
 onUnmounted(() => {
-  clearTimeout(turnstileResetTimer)
   clearTimeout(addFocusTimer)
   clearTimeout(copiedResetTimer)
-  delete window.onTurnstileError
-  delete window.onTurnstileSuccess
 })
 
 function getSkeletonRows() {
@@ -656,62 +589,19 @@ function submit() {
     return
   }
 
-  if (!verifyToken && (settingStore.settings.addEmailVerify === 0 || (settingStore.settings.addEmailVerify === 2 && settingStore.settings.addVerifyOpen))) {
-    if (turnstileRecoveryAttempted) return
-    if (!verifyShow.value) {
-      verifyShow.value = true
-      nextTick(() => {
-        if (!turnstileId) {
-          try {
-            turnstileId = window.turnstile.render('.add-email-turnstile')
-          } catch (e) {
-            botJsError.value = true
-            console.log('人机验证js加载失败')
-            recoverTurnstile()
-          }
-        } else {
-          window.turnstile.reset('.add-email-turnstile')
-        }
-      })
-    } else if (botJsError.value) {
-      recoverTurnstile()
-    } else {
-      ElMessage({
-        message: t('botVerifyMsg'),
-        type: "error",
-        plain: true
-      })
-    }
-    return;
-  }
-
   addLoading.value = true
-  accountAdd(addForm.email + addForm.suffix, verifyToken).then(account => {
+  accountAdd(addForm.email + addForm.suffix).then(account => {
     addLoading.value = false
     addForm.email = ''
     accounts.push(account)
-    verifyToken = ''
-    settingStore.settings.addVerifyOpen = account.addVerifyOpen
     ElMessage({
       message: t('addSuccessMsg'),
       type: "success",
       plain: true
     })
-    verifyShow.value = false
     showAdd.value = false
     userStore.refreshUserInfo()
-  }).catch(res => {
-    if (res.code === 400) {
-      verifyToken = ''
-      if (turnstileId) {
-        window.turnstile.reset(turnstileId)
-      } else {
-        nextTick(() => {
-          turnstileId = window.turnstile.render('.add-email-turnstile')
-        })
-      }
-      verifyShow.value = true
-    }
+  }).catch(() => {
     addLoading.value = false
   })
 }
@@ -1330,20 +1220,6 @@ function submit() {
   width: 100px;
   opacity: 0;
   pointer-events: none;
-}
-
-.add-email-turnstile {
-  margin-top: 14px;
-}
-
-.turnstile-show {
-  opacity: 1;
-}
-
-.turnstile-hide {
-  opacity: 0;
-  pointer-events: none;
-  position: fixed;
 }
 
 .account-box.is-dark {

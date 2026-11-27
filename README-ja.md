@@ -31,7 +31,7 @@ Cloud Mail は、Cloudflare エッジネットワーク上で完結する**個�
 - **WebSocket リアルタイム通知**：Durable Objects（`MailHub`）による `/realtime` 接続で新着メールを即時通知します。
 - **デュアル送信エンジン**：Cloudflare Email Sending と Resend API の両方に対応し、下書き・スター・全メール検索を備えています。
 - **添付ファイル＆エッジキャッシュ**：Cloudflare R2 / S3 互換ストレージ / KV に添付ファイルを保存し、公開静的アセットには Edge Cache と `ETag` / `304` 検証を適用します。
-- **セキュリティ＆プライバシー保護**：HTML メールの XSS サニタイズ、サンドボックス表示、トラッキングピクセル除去、署名付き外部画像プロキシ（`/proxy`）、Turnstile 認証、GitHub / Google / Linux.do OAuth2 ログインに対応しています。
+- **セキュリティ＆プライバシー保護**：HTML メールの XSS サニタイズ、サンドボックス表示、トラッキングピクセル除去、署名付き外部画像プロキシ（`/proxy`）、GitHub / Google / Linux.do OAuth2 ログインに対応しています。
 - **AI 解析・通知連携**：Workers AI による認証コード自動抽出、Telegram Bot プレビュー通知、Webhook 送信、条件付きメール転送、ブロックリスト、定期自動削除を利用できます。
 - **モダン UI とカスタマイズ**：Vue 3 + Element Plus ベースで、ライト/ダークモード、6 種類のオーロラ背景テーマ、パネル透明度調整、カスタム背景画像、レスポンシブ表示、日本語/英語/中国語 README に対応（アプリ UI は中国語・英語）。
 - **統計ダッシュボード**：ECharts による送受信トレンド表示とオプションの KV キャッシュ（`analysis_cache`）を備えています。

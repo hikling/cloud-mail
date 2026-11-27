@@ -27,6 +27,7 @@ import forwardMime from '../utils/forward-mime';
 import verifyUtils from '../utils/verify-utils';
 import { notifyMailWsFromContext } from '../websocket/notify';
 import proxyService from './proxy-service';
+import { withSchemaRecovery } from '../init/schema-migrations';
 
 const emailService = {
 
@@ -389,7 +390,7 @@ const emailService = {
 
 	receive(c, params, cidAttList, r2domain) {
 		params.content = this.imgReplace(params.content, cidAttList, r2domain)
-		return orm(c).insert(email).values({ ...params }).returning().get();
+		return withSchemaRecovery(c, () => orm(c).insert(email).values({ ...params }).returning().get());
 	},
 
 	normalizeAddressList(value) {

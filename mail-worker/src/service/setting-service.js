@@ -3,13 +3,13 @@ import setting from '../entity/setting';
 import user from '../entity/user';
 import orm from '../entity/orm';
 import { count } from 'drizzle-orm';
-import { settingConst, verifyRecordType } from '../const/entity-const';
+import { settingConst } from '../const/entity-const';
 import fileUtils from '../utils/file-utils';
 import r2Service from './r2-service';
 import constant from '../const/constant';
 import BizError from '../error/biz-error';
 import { t } from '../i18n/i18n';
-import verifyRecordService from './verify-record-service';
+import { withSchemaRecovery } from '../init/schema-migrations';
 import userContext from '../security/user-context';
 import jwtUtils from '../utils/jwt-utils';
 import domainUtils from '../utils/domain-uitls';
@@ -20,8 +20,7 @@ const MAX_BG_BASE64_LEN = 20 * 1024 * 1024; // ~15MB binary limit
 
 const WRITABLE_SETTING_FIELDS = new Set([
 	'register', 'receive', 'title', 'manyEmail', 'addEmail', 'autoRefresh',
-	'addEmailVerify', 'registerVerify', 'regVerifyCount', 'loginVerify', 'loginVerifyCount',
-	'addVerifyCount', 'send', 'r2Domain', 'secretKey', 'siteKey', 'regKey',
+	'send', 'r2Domain', 'regKey',
 	'loginOpacity', 'resendTokens', 'noRecipient', 'loginDomain',
 	'tgBotToken', 'tgChatId', 'tgBotStatus', 'customDomain', 'tgMsgFrom', 'tgMsgTo', 'tgMsgText',
 	'forwardEmail', 'forwardStatus', 'ruleEmail', 'ruleType',
@@ -60,7 +59,7 @@ function maskSecret(val, showChars = 6) {
 const settingService = {
 
 	async refresh(c) {
-		const settingRow = await orm(c).select().from(setting).get();
+		const settingRow = await withSchemaRecovery(c, () => orm(c).select().from(setting).get());
 		settingRow.resendTokens = JSON.parse(settingRow.resendTokens || '{}');
 		settingRow.r2Domain = '';
 		if (c && typeof c === 'object') {
@@ -107,8 +106,7 @@ const settingService = {
 		}
 
 		settingData.projectLink = projectLink;
-		settingData.loginVerify ??= settingConst.loginVerify.CLOSE;
-		settingData.loginVerifyCount ??= 1;
+		settingData.aiCode = Number(settingData.aiCode) === settingConst.aiCode.OPEN ? settingConst.aiCode.OPEN : settingConst.aiCode.CLOSE;
 
 		settingData.emailPrefixFilter = String(settingData.emailPrefixFilter || '').split(',').filter(Boolean);
 		settingData.autoRefresh = Number(settingData.autoRefresh) === 1 ? 1 : 2; // 1 关闭，2 开启
@@ -123,10 +121,7 @@ const settingService = {
 
 	async get(c) {
 
-		const [rawSetting, recordList] = await Promise.all([
-			this.query(c),
-			verifyRecordService.selectListByIP(c)
-		]);
+		const rawSetting = await this.query(c);
 
 		const maskedTokens = {};
 		Object.keys(rawSetting.resendTokens || {}).forEach(key => {
@@ -136,7 +131,6 @@ const settingService = {
 		const settingRow = {
 			...rawSetting,
 			resendTokens: maskedTokens,
-			secretKey: maskSecret(rawSetting.secretKey, 6),
 			s3AccessKey: maskSecret(rawSetting.s3AccessKey, 12),
 			s3SecretKey: maskSecret(rawSetting.s3SecretKey, 12),
 			tgBotToken: maskSecret(rawSetting.tgBotToken, 20),
@@ -146,23 +140,9 @@ const settingService = {
 			googleClientSecret: rawSetting.googleClientSecret ? maskSecret(rawSetting.googleClientSecret, 6) : '',
 			hasR2: !!c.env.r2,
 			hasCfEmail: !!c.env.email,
+			hasAi: Boolean(c.env.ai || c.env.AI),
 		};
 
-		let addVerifyOpen = false;
-		let loginVerifyOpen = false;
-
-		recordList.forEach(row => {
-			if (row.type === verifyRecordType.ADD) {
-				addVerifyOpen = row.count >= settingRow.addVerifyCount;
-			}
-			if (row.type === verifyRecordType.LOGIN) {
-				loginVerifyOpen = row.count >= settingRow.loginVerifyCount;
-			}
-		});
-
-		settingRow.regVerifyOpen = false;
-		settingRow.addVerifyOpen = addVerifyOpen;
-		settingRow.loginVerifyOpen = loginVerifyOpen;
 		settingRow.storageType = await r2Service.storageType(c);
 
 		return settingRow;
@@ -211,15 +191,15 @@ const settingService = {
 			updateData.autoRefresh = Number(updateData.autoRefresh) === 1 ? 1 : 2;
 		}
 
-		if (updateData.loginVerifyCount !== undefined && (!Number.isSafeInteger(updateData.loginVerifyCount) || updateData.loginVerifyCount < 1)) {
-			updateData.loginVerifyCount = 1;
+		if (updateData.aiCode !== undefined) {
+			updateData.aiCode = Number(updateData.aiCode) === settingConst.aiCode.OPEN ? settingConst.aiCode.OPEN : settingConst.aiCode.CLOSE;
 		}
 
 		if (Object.keys(updateData).length === 0) {
 			return;
 		}
 
-		await orm(c).update(setting).set(updateData).returning().get();
+		await withSchemaRecovery(c, () => orm(c).update(setting).set(updateData).returning().get());
 		await this.refresh(c);
 	},
 
@@ -229,13 +209,13 @@ const settingService = {
 		if (!background) return;
 
 		if (background.startsWith('http')) {
-			await orm(c).update(setting).set({ background: '' }).run();
+			await withSchemaRecovery(c, () => orm(c).update(setting).set({ background: '' }).run());
 			await this.refresh(c);
 			return;
 		}
 
 		await r2Service.delete(c, background);
-		await orm(c).update(setting).set({ background: '' }).run();
+		await withSchemaRecovery(c, () => orm(c).update(setting).set({ background: '' }).run());
 		await this.refresh(c);
 	},
 
@@ -272,14 +252,14 @@ const settingService = {
 
 		}
 
-		await orm(c).update(setting).set({ background: background || '' }).run();
+		await withSchemaRecovery(c, () => orm(c).update(setting).set({ background: background || '' }).run());
 		await this.refresh(c);
 		return background || '';
 	},
 
 	async setBlacklist(c, params) {
 		const { blackSubject, blackContent, blackFrom } = params;
-		await orm(c).update(setting).set({ blackSubject, blackContent, blackFrom }).run();
+		await withSchemaRecovery(c, () => orm(c).update(setting).set({ blackSubject, blackContent, blackFrom }).run());
 		await this.refresh(c);
 		return this.get(c);
 	},
@@ -311,19 +291,12 @@ const settingService = {
 			manyEmail: settingRow.manyEmail,
 			addEmail: settingRow.addEmail,
 			autoRefresh: settingRow.autoRefresh,
-			addEmailVerify: settingRow.addEmailVerify,
-			registerVerify: settingConst.registerVerify.CLOSE,
-			loginVerify: settingRow.loginVerify,
 			send: settingRow.send,
 			r2Domain: settingRow.r2Domain,
-			siteKey: settingRow.siteKey,
 			background: settingRow.background,
 			loginOpacity: settingRow.loginOpacity,
 			domainList: settingRow.loginDomain === 1 && !authed ? [] : settingRow.domainList,
 			regKey: settingConst.regKey.CLOSE,
-			regVerifyOpen: false,
-			addVerifyOpen: settingRow.addVerifyOpen,
-			loginVerifyOpen: settingRow.loginVerifyOpen,
 			loginDomain: settingRow.loginDomain,
 			linuxdoClientId: settingRow.linuxdoClientId,
 			linuxdoSwitch: settingRow.linuxdoSwitch,

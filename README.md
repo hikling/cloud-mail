@@ -34,7 +34,7 @@ Cloud Mail 是一个可完整运行在 Cloudflare 边缘网络上的**个人云�
 - **安全与隐私加固**：
   - 邮件正文 HTML 清洗与隔离沙箱渲染，防 XSS 与追踪像素。
   - 外链图片 HMAC 签名代理（`/proxy` + 边缘缓存），防止打开邮件暴露真实 IP。
-  - 集成 Cloudflare Turnstile 人机验证与 GitHub / Google / Linux.do OAuth2 绑定登录。
+  - 支持 GitHub / Google / Linux.do OAuth2 绑定登录。
 - **AI 与多渠道通知**：支持 Cloudflare Workers AI 自动提取验证码，支持 Telegram Bot 预览推送、Webhook 推送、第三方邮箱规则转发、黑名单过滤与定时自动清理。
 - **现代交互与个性化外观**：支持浅色 / 深色模式自适应、6 套极光动态背景、工作区透明度调节、自定义背景图，自动适配桌面端与移动端。
 - **数据可视化**：内置 ECharts 收发统计分析页，支持按需开启 KV 统计缓存（`analysis_cache`）。
@@ -191,7 +191,7 @@ Cloud Mail 是一个可完整运行在 Cloudflare 边缘网络上的**个人云�
    - 若部署时未填写 `PASSWORD`，打开登录页后点击底部的 **初始化管理员** 即可创建唯一管理员账号；管理员创建完成后，公开注册入口会自动永久关闭。
 4. **发信与扩展配置**：
    - **对外发信**：可在 Worker 启用 Cloudflare Email Sending 绑定，或在系统设置中为域名配置 **Resend API Token**；
-   - **其他功能**：AI 验证码提取、Telegram 推送、Webhook、第三方邮箱转发（需先在 Cloudflare Email Routing 验证目标地址）、Turnstile 人机验证与 OAuth2 登录均可在系统设置中直接配置。
+   - **其他功能**：AI 验证码提取（支持 Workers AI 与规则识别降级）、Telegram 推送、Webhook、第三方邮箱转发（需先在 Cloudflare Email Routing 验证目标地址）与 OAuth2 登录均可在系统设置中直接配置。
 
 ---
 

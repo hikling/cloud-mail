@@ -16,8 +16,6 @@ import userService from './user-service';
 import KvConst from '../const/kv-const';
 import proxyService from './proxy-service';
 import settingService from './setting-service';
-import verifyRecordService from './verify-record-service';
-import turnstileService from './turnstile-service';
 
 const publicService = {
 
@@ -196,19 +194,20 @@ const publicService = {
 
 	async verifyUser(c, params) {
 
-		const { email: emailAddr, password, token } = params || {};
+		const { email: emailAddr, password } = params || {};
 
 		if (!emailAddr || !password) {
 			throw new BizError(t('emailAndPwdEmpty'));
 		}
 
-		const { loginVerify, loginVerifyCount = 1 } = await settingService.query(c);
-		const effectiveLimit = Math.max(5, Number(loginVerifyCount) || 5);
-		const allowedFree = await verifyRecordService.consumeLoginAttempt(c, effectiveLimit);
-		if (loginVerify === settingConst.loginVerify.OPEN || (!allowedFree && loginVerify === settingConst.loginVerify.COUNT)) {
-			await turnstileService.verify(c, token);
-		} else if (!allowedFree) {
-			throw new BizError(t('botVerifyFail') || 'Too many failed attempts', 429);
+		if (c.env?.kv) {
+			const ip = reqUtils.getIp(c) || 'unknown';
+			const rateKey = KvConst.PUBLIC_RATE + ip;
+			const count = Number(await c.env.kv.get(rateKey)) || 0;
+			if (count >= 30) {
+				throw new BizError(t('tooManyAttempts'), 429);
+			}
+			await c.env.kv.put(rateKey, String(count + 1), { expirationTtl: 300 });
 		}
 
 		const userRow = await userService.selectByEmailIncludeDel(c, emailAddr);
