@@ -418,9 +418,9 @@ import {useUserStore} from "@/store/user.js";
 import {useUiStore} from "@/store/ui.js";
 import {Icon} from "@iconify/vue";
 import {loginUserInfo} from "@/request/my.js";
-import {permsToRouter} from "@/perm/perm.js";
+import {syncDynamicRoutes} from "@/perm/perm.js";
 import {useI18n} from "vue-i18n";
-import {oauthBindUser, oauthLinuxDoLogin, oauthGithubLogin, oauthGoogleLogin} from "@/request/ouath.js";
+import {oauthBindUser, oauthLinuxDoLogin, oauthGithubLogin, oauthGoogleLogin, oauthState} from "@/request/ouath.js";
 import {setExtend} from "@/utils/day.js";
 import loading from "@/components/loading/index.vue";
 import AuroraBackdrop from "@/components/aurora-backdrop/index.vue";
@@ -594,19 +594,29 @@ function generateOAuthState() {
   return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('')
 }
 
-function oauthLogin(provider) {
-  const clientId = settingStore.settings[provider + 'ClientId']
-  const redirectUri = encodeURIComponent(window.location.origin + '/login')
-  const state = generateOAuthState()
-  sessionStorage.setItem('oauthState', state)
-  sessionStorage.setItem('oauthProvider', provider)
-  const encodedState = encodeURIComponent(state)
-  const authorizeUrls = {
-    linuxdo: `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${encodedState}`,
-    github: `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=user:email&state=${encodedState}`,
-    google: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${encodedState}`,
+async function oauthLogin(provider) {
+  if (oauthLoading.value) return
+  oauthLoading.value = true
+  try {
+    const res = await oauthState(provider)
+    const state = res?.state
+    if (!state) {
+      throw new Error('Missing state')
+    }
+    const clientId = settingStore.settings[provider + 'ClientId']
+    const redirectUri = encodeURIComponent(window.location.origin + '/login')
+    sessionStorage.setItem('oauthState', state)
+    sessionStorage.setItem('oauthProvider', provider)
+    const encodedState = encodeURIComponent(state)
+    const authorizeUrls = {
+      linuxdo: `https://connect.linux.do/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${encodedState}`,
+      github: `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=user:email&state=${encodedState}`,
+      google: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=openid+profile+email&state=${encodedState}`,
+    }
+    window.location.href = authorizeUrls[provider]
+  } catch {
+    oauthLoading.value = false
   }
-  window.location.href = authorizeUrls[provider]
 }
 
 const loginFns = {
@@ -640,7 +650,7 @@ async function oauthGetUser() {
 
   oauthLoading.value = true
 
-  loginFns[provider](code, window.location.origin + '/login').then(data => {
+  loginFns[provider](code, window.location.origin + '/login', state).then(data => {
     bindForm.oauthUserId = data.userInfo.oauthUserId;
     bindForm.bindToken = data.bindToken || '';
 
@@ -743,16 +753,15 @@ const submit = () => {
 
 async function saveToken(token) {
   localStorage.setItem('token', token)
-  refreshWebsiteConfig()
   try {
-    const user = await loginUserInfo();
+    const [, user] = await Promise.all([
+      refreshWebsiteConfig(),
+      loginUserInfo()
+    ])
     accountStore.currentAccountId = user.account.accountId;
     accountStore.currentAccount = user.account;
     userStore.user = user;
-    const routers = permsToRouter(user.permKeys);
-    routers.forEach(routerData => {
-      router.addRoute('layout', routerData);
-    });
+    syncDynamicRoutes(router, user.permKeys);
     await router.replace({name: 'layout'})
   } catch (err) {
     localStorage.removeItem('token')
@@ -764,13 +773,13 @@ async function saveToken(token) {
 }
 
 function refreshWebsiteConfig() {
-  websiteConfig().then(setting => {
+  return websiteConfig().then(setting => {
     settingStore.settings = setting
     settingStore.domainList = setting.domainList
     if (!suffix.value && setting.domainList.length > 0) {
       suffix.value = setting.domainList[0]
     }
-    document.title = setting.title
+    document.title = setting.title || 'Cloud Mail'
   }).catch(e => {
     console.error(e)
   })

@@ -174,12 +174,13 @@ function openBathDelete() {
 function batchDelete() {
   if (clearLoading.value) return
 
-  if (clearTime.value) {
-    clearParams.startTime = toUtc(clearTime.value[0]).format("YYYY-MM-DD HH:mm:ss")
-    clearParams.endTime = toUtc(clearTime.value[1]).add(1, 'day').format("YYYY-MM-DD HH:mm:ss")
+  const payload = {
+    ...clearParams,
+    startTime: clearTime.value ? toUtc(clearTime.value[0]).format("YYYY-MM-DD HH:mm:ss") : '',
+    endTime: clearTime.value ? toUtc(clearTime.value[1]).add(1, 'day').format("YYYY-MM-DD HH:mm:ss") : '',
   }
 
-  if (!clearParams.sendEmail && !clearParams.sendName && !clearParams.subject && !clearParams.toEmail && !clearTime.value) {
+  if (!payload.sendEmail && !payload.sendName && !payload.subject && !payload.toEmail && !clearTime.value) {
     showBathDelete.value = false
     return
   }
@@ -194,18 +195,20 @@ function batchDelete() {
   ).then(() => {
     clearLoading.value = true
 
-    allEmailBatchDelete(clearParams).then(() => {
+    allEmailBatchDelete(payload).then(() => {
       ElMessage({
         message: t('clearSuccess'),
         type: "success",
         plain: true
       })
       resetClearParams()
+      clearTime.value = null
+      showBathDelete.value = false
       sysEmailScroll.value.refreshList();
     }).finally(() => {
       clearLoading.value = false
     })
-  })
+  }).catch(() => {})
 }
 
 function rightSearch(type, value) {
@@ -271,6 +274,7 @@ async function pullLatest() {
     if (params.timeSort !== curTimeSort || allEmailStore.searchParams.status !== curStatus) return
 
     for (let email of list) {
+      if (!viewActive.value || params.timeSort !== curTimeSort || allEmailStore.searchParams.status !== curStatus) break
       sysEmailScroll.value.addItem(email)
       await sleep(50)
     }

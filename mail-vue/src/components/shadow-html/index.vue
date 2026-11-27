@@ -64,11 +64,23 @@ const contentBox = ref(null)
 let shadowRoot = null
 let resizeObserver = null
 
+function decodeCssEscapes(css) {
+  if (!css || !css.includes('\\')) return css
+  return String(css).replace(/\\(?:([0-9a-fA-F]{1,6})[ \t\r\n\f]?|([^\r\n\f0-9a-fA-F]))/g, (m, hex, ch) => {
+    if (hex) {
+      const code = parseInt(hex, 16)
+      return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : ''
+    }
+    return ch ?? m
+  })
+}
+
 function sanitizeCssText(css) {
-  return String(css)
+  return decodeCssEscapes(String(css))
     .replace(/<\s*\/?\s*style/gi, '')
     .replace(/@import\b[^;]*(;|$)/gi, '')
     .replace(/\bposition\s*:\s*fixed\b/gi, 'position: relative')
+    .replace(/image-set\s*\([^)]*\)/gi, 'none')
     .replace(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^)"'\s]+))\s*\)/gi, (full, dq, sq, uq) => {
       const val = (dq ?? sq ?? uq ?? '').trim()
       if (/^(https?:)?\/\//i.test(val) && !val.startsWith('/proxy?')) {
@@ -103,6 +115,12 @@ function updateContent() {
     content.appendChild(document.importNode(node, true))
   }
   content.querySelectorAll('script,iframe,object,embed,link,meta,base,frame,form').forEach((node) => node.remove())
+  // Sanitize <style> elements inside <body> as well as <head>.
+  content.querySelectorAll('style').forEach((styleEl) => {
+    if (!styleEl.closest || styleEl.parentElement) {
+      styleEl.textContent = sanitizeCssText(styleEl.textContent || '')
+    }
+  })
   content.querySelectorAll('[style]').forEach((el) => {
     const rawStyle = el.getAttribute('style')
     if (rawStyle) {

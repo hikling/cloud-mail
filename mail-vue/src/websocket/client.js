@@ -84,7 +84,6 @@ export function createWsClient(scope) {
 		const httpUrl = new URL(base, window.location.origin);
 		const protocol = httpUrl.protocol === 'https:' ? 'wss:' : 'ws:';
 		const wsUrl = new URL(`${protocol}//${httpUrl.host}/realtime`);
-		wsUrl.searchParams.set('token', token);
 		if (scope && scope !== 'inbox') {
 			wsUrl.searchParams.set('scope', scope);
 		}
@@ -136,11 +135,13 @@ export function createWsClient(scope) {
 		}
 
 		const url = getWsUrl();
-		if (!url) return;
+		const token = getToken();
+		if (!url || !token) return;
 
 		clearReconnectTimer();
 		try {
-			socket = new WebSocket(url);
+			// Pass auth token via WebSocket subprotocol instead of query string to avoid log leakage.
+			socket = new WebSocket(url, ['cloudmail', token]);
 		} catch (e) {
 			console.error(e);
 			scheduleReconnect();
@@ -206,6 +207,9 @@ export function createWsClient(scope) {
 		clearHeartbeat();
 		clearReconnectTimer();
 		if (socket) {
+			socket.onopen = null;
+			socket.onmessage = null;
+			socket.onerror = null;
 			socket.onclose = null;
 			socket.close(1000, 'client closed');
 			socket = null;

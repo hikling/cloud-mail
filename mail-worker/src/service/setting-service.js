@@ -208,7 +208,7 @@ const settingService = {
 		const { background } = await this.query(c);
 		if (!background) return;
 
-		if (background.startsWith('http')) {
+		if (/^https?:\/\//i.test(background)) {
 			await withSchemaRecovery(c, () => orm(c).update(setting).set({ background: '' }).run());
 			await this.refresh(c);
 			return;
@@ -231,26 +231,32 @@ const settingService = {
 			throw new BizError('Background image is too large', 413);
 		}
 
-		if (background && background.startsWith('http') && !isSafeExternalUrl(background)) {
-			throw new BizError('Invalid background URL', 400);
-		}
-
-		await this.deleteBackground(c);
-
-		if (background && !background.startsWith('http')) {
-
-			const file = fileUtils.base64ToFile(background);
-			const arrayBuffer = await file.arrayBuffer();
+		const isRemoteUrl = Boolean(background && /^https?:\/\//i.test(background.trim()));
+		if (isRemoteUrl) {
+			background = background.trim();
+			if (!isSafeExternalUrl(background)) {
+				throw new BizError('Invalid background URL', 400);
+			}
+		} else if (background) {
+			let file;
+			let arrayBuffer;
+			try {
+				file = fileUtils.base64ToFile(background);
+				arrayBuffer = await file.arrayBuffer();
+			} catch {
+				throw new BizError('Invalid background image', 400);
+			}
 			const safeFilename = sanitizeDispositionFilename(file.name);
-			background = constant.BACKGROUND_PREFIX + await fileUtils.getBuffHash(arrayBuffer) + fileUtils.getExtFileName(safeFilename);
-
-			await r2Service.putObj(c, background, arrayBuffer, {
+			const key = constant.BACKGROUND_PREFIX + await fileUtils.getBuffHash(arrayBuffer) + fileUtils.getExtFileName(safeFilename);
+			await r2Service.putObj(c, key, arrayBuffer, {
 				contentType: file.type,
 				cacheControl: IMMUTABLE_CACHE_CONTROL,
 				contentDisposition: `inline; filename="${safeFilename}"`
 			});
-
+			background = key;
 		}
+
+		await this.deleteBackground(c);
 
 		await withSchemaRecovery(c, () => orm(c).update(setting).set({ background: background || '' }).run());
 		await this.refresh(c);

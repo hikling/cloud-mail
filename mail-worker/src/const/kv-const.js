@@ -3,7 +3,8 @@ const KvConst = {
 	SETTING: 'setting:',
 	ANALYSIS_ECHARTS: 'analysis_echarts:',
 	PUBLIC_KEY: "public_key:",
-	PUBLIC_RATE: "public_rate:"
+	PUBLIC_RATE: "public_rate:",
+	LOGIN_RATE: "login_rate:"
 };
 
 export default KvConst;

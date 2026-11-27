@@ -2,7 +2,7 @@ import { useUserStore } from "@/store/user.js";
 import { useSettingStore } from "@/store/setting.js";
 import { useAccountStore } from "@/store/account.js";
 import { loginUserInfo } from "@/request/my.js";
-import { permsToRouter } from "@/perm/perm.js";
+import { syncDynamicRoutes } from "@/perm/perm.js";
 import router from "@/router";
 import { websiteConfig } from "@/request/setting.js";
 import i18n from "@/i18n/index.js";
@@ -31,8 +31,13 @@ export async function init() {
 
     try {
         if (token) {
+            let userAuthFailed = false;
             const userPromise = loginUserInfo().catch(e => {
                 console.error(e);
+                const code = e?.code ?? e?.response?.status;
+                if (code === 401 || code === 403) {
+                    userAuthFailed = true;
+                }
                 return null;
             });
             const configPromise = websiteConfig().catch(e => {
@@ -47,13 +52,9 @@ export async function init() {
                 accountStore.currentAccountId = user.account?.accountId || 0;
                 accountStore.currentAccount = user.account || {};
                 userStore.user = user;
-
-                const routers = permsToRouter(user.permKeys);
-                routers.forEach(routerData => {
-                    router.addRoute('layout', routerData);
-                });
-            } else {
-                // Token 无效或拉取用户信息失败，清理坏状态避免页面卡死或 v-perm 异常
+                syncDynamicRoutes(router, user.permKeys);
+            } else if (userAuthFailed) {
+                // Only clear token on explicit auth rejection, not transient offline errors.
                 localStorage.removeItem('token');
                 userStore.user = { permKeys: [] };
             }

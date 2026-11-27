@@ -45,10 +45,17 @@ const webhookService = {
 			try {
 				const res = await fetch(webhookUrl, {
 					method: 'POST',
+					redirect: 'manual',
 					signal: AbortSignal.timeout(8_000),
 					headers,
 					body
 				});
+
+				if (res.status >= 300 && res.status < 400) {
+					await res.body?.cancel();
+					lastError = `redirect blocked: ${res.status}`;
+					continue;
+				}
 
 				if (res.ok) {
 					await res.body?.cancel();

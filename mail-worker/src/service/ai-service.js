@@ -17,35 +17,79 @@ function decodeBasicEntities(text) {
 		});
 }
 
+function stripTagBlocks(html, tagNames) {
+	let result = String(html || '');
+	for (const tag of tagNames) {
+		const openRe = new RegExp(`<${tag}\\b`, 'gi');
+		const closeNeedle = `</${tag}>`;
+		let out = '';
+		let lastIdx = 0;
+		let match;
+		openRe.lastIndex = 0;
+		while ((match = openRe.exec(result)) !== null) {
+			if (match.index < lastIdx) continue;
+			const openEnd = result.indexOf('>', match.index);
+			if (openEnd === -1) break;
+			const lowerRest = result.toLowerCase();
+			const closeStart = lowerRest.indexOf(closeNeedle, openEnd + 1);
+			out += result.slice(lastIdx, match.index) + ' ';
+			if (closeStart === -1) {
+				lastIdx = result.length;
+				break;
+			}
+			lastIdx = closeStart + closeNeedle.length;
+			openRe.lastIndex = lastIdx;
+		}
+		if (lastIdx > 0) {
+			out += result.slice(lastIdx);
+			result = out;
+		}
+	}
+	return result;
+}
+
+function resolveSenderEmail(email = {}) {
+	return String(email?.sendEmail || email?.from?.address || '').trim();
+}
+
+function resolveSenderName(email = {}) {
+	return String(email?.name || email?.from?.name || '').trim();
+}
+
 function normalizeBodyText(email = {}) {
-	const rawText = typeof email.text === 'string' ? email.text.trim() : '';
-	if (rawText) {
-		return rawText.replace(/\r\n/g, '\n').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+	const rawText = typeof email.text === 'string'
+		? email.text.replace(/\r\n/g, '\n').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim()
+		: '';
+	// PostalMime puts HTML in email.html while DB records store it in email.content.
+	const html = typeof email.content === 'string'
+		? email.content
+		: (typeof email.html === 'string' ? email.html : '');
+
+	if (rawText && (/\d/.test(rawText) || !html)) {
+		return rawText;
 	}
 
-	const html = typeof email.content === 'string' ? email.content : '';
 	if (!html) {
-		return '';
+		return rawText;
 	}
 
-	const stripped = html
-		.replace(/<style\b[\s\S]*?<\/style>/gi, ' ')
-		.replace(/<script\b[\s\S]*?<\/script>/gi, ' ')
-		.replace(/<noscript\b[\s\S]*?<\/noscript>/gi, ' ')
+	const stripped = stripTagBlocks(html, ['style', 'script', 'noscript'])
 		.replace(/<br\s*\/?>/gi, '\n')
 		.replace(/<\/(p|div|li|tr|h[1-6]|section|article|table)>/gi, '\n')
 		.replace(/<[^>]+>/g, ' ');
 
-	return decodeBasicEntities(stripped)
+	const htmlText = decodeBasicEntities(stripped)
 		.replace(/[ \t]+/g, ' ')
 		.replace(/\s*\n\s*/g, '\n')
 		.replace(/\n{3,}/g, '\n\n')
 		.trim();
+
+	return htmlText || rawText;
 }
 
 function buildPromptContent(email = {}, bodyText = '') {
 	const subject = String(email.subject || '').trim();
-	const from = String(email.sendEmail || email.name || '').trim();
+	const from = resolveSenderEmail(email) || resolveSenderName(email);
 	let snippet = bodyText;
 
 	if (snippet.length > 3500) {
@@ -274,7 +318,7 @@ const aiService = {
 		if (filterList.length === 0) {
 			return true;
 		}
-		const sender = String(email?.sendEmail || '').toLowerCase();
+		const sender = resolveSenderEmail(email).toLowerCase();
 		return filterList.some(item => {
 			if (item.startsWith('@')) {
 				return sender.endsWith(item);

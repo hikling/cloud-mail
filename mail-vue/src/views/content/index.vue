@@ -109,7 +109,7 @@
             <span class="att-count">{{ $t('attCount', {total: email.attList.length}) }}</span>
           </div>
           <div class="att-box">
-            <div class="att-item" v-for="att in email.attList" :key="att.attId" @click="showImage(att.key)">
+            <div class="att-item" v-for="att in email.attList" :key="att.attId" @click="showImage(att)">
               <div class="att-icon">
                 <Icon v-bind="getIconByName(att.filename)" />
               </div>
@@ -122,12 +122,12 @@
                   v-if="isImage(att.filename)"
                   type="button"
                   class="att-action-btn"
-                  @click="showImage(att.key)"
+                  @click="showImage(att)"
                   :aria-label="$t('preview')"
                 >
                   <Icon icon="lucide:eye" width="15" height="15" />
                 </button>
-                <a class="att-action-btn" :href="cvtR2Url(att.key)" download>
+                <a class="att-action-btn" :href="att.url || cvtR2Url(att.key)" :download="att.filename">
                   <Icon icon="lucide:download" width="15" height="15"/>
                 </a>
               </div>
@@ -176,6 +176,7 @@ const emailStore = useEmailStore();
 const router = useRouter()
 const sendNameRef = ref(null)
 const senderWrapped = ref(false)
+let alive = true
 let senderResizeObserver = null
 let clearStarTimer = null
 
@@ -271,9 +272,16 @@ const isDetailLoading = computed(() => {
 
 async function ensureDetailLoaded() {
   const id = email.value?.emailId
-  if (!id || emailStore.detailMap[id]) return
+  if (!id) {
+    if (alive) router.replace({ name: 'email' })
+    return
+  }
+  if (emailStore.detailMap[id]) return
   try {
-    await emailStore.loadDetail(id, emailStore.contentData.delType === 'physics')
+    const res = await emailStore.loadDetail(id, emailStore.contentData.delType === 'physics')
+    if (alive && !res && email.value?.emailId === id && !email.value?.content && !email.value?.text) {
+      handleBack()
+    }
   } catch (e) {
     console.error(e)
   }
@@ -313,6 +321,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  alive = false;
   emailStore.contentData.showUnread = false;
   readRequesting = false
   clearTimeout(clearStarTimer)
@@ -354,9 +363,9 @@ function formatImage(content) {
   return content.replace(/{{domain}}/g, toOssDomain(domain) + '/');
 }
 
-function showImage(key) {
-  if (!isImage(key)) return;
-  const url = cvtR2Url(key)
+function showImage(att) {
+  if (!att || !isImage(att.filename || att.key)) return;
+  const url = att.url || cvtR2Url(att.key)
   srcList.length = 0
   srcList.push(url)
   showPreview.value = true
@@ -414,14 +423,18 @@ const handleDelete = () => {
     cancelButtonText: t('cancel'),
     type: 'warning'
   }).then(async () => {
+    const deletedId = email.value.emailId
     const delFn = emailStore.contentData.delType === 'logic' ? emailDelete : allEmailDelete
-    await delFn(email.value.emailId)
+    await delFn(deletedId)
     ElMessage({
       message: t('delSuccessMsg'),
       type: 'success',
       plain: true,
     })
-    emailStore.deleteIds = [email.value.emailId]
+    delete emailStore.detailMap[deletedId]
+    emailStore.contentData.email = null
+    emailStore.contentMeta.emailId = 0
+    emailStore.deleteIds = [deletedId]
     router.back()
   }).catch(() => {})
 }

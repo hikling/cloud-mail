@@ -107,6 +107,7 @@ onBeforeUnmount(() => {
 watch(
   [() => emailStore.inboxTab, () => accountStore.currentAccountId],
   () => {
+    existIds.clear();
     inboxWs.sync();
     allEmailWs.sync();
     scroll.value.refreshList?.();
@@ -191,11 +192,13 @@ async function pullLatest() {
 
     try {
       const list = await allEmailLatest(latestId);
-      if (!isNoone.value) return;
+      if (!isNoone.value || !viewActive.value) return;
       const nooneList = (list || []).filter(item => item.status === EMAIL_STATUS_NOONE);
       if (nooneList.length > 0) {
         for (let email of nooneList) {
+          if (!isNoone.value || !viewActive.value) break;
           if (!existIds.has(email.emailId)) {
+            if (existIds.size > 500) existIds.clear();
             existIds.add(email.emailId);
             scroll.value.addItem(email);
             await sleep(50);
@@ -223,16 +226,20 @@ async function pullLatest() {
   try {
     const list = await emailLatest(latestId, accountId, allReceive);
 
-    if (isNoone.value || accountId !== accountStore.currentAccountId || allReceive !== accountStore.currentAccount.allReceive) {
+    if (isNoone.value || !viewActive.value || accountId !== accountStore.currentAccountId || allReceive !== accountStore.currentAccount.allReceive) {
       return;
     }
 
     if (list.length > 0) {
       for (let email of list) {
+        if (isNoone.value || !viewActive.value || accountId !== accountStore.currentAccountId || allReceive !== accountStore.currentAccount.allReceive) {
+          break;
+        }
         email.reqAccountId = accountId;
         email.allReceive = allReceive;
 
         if (!existIds.has(email.emailId)) {
+          if (existIds.size > 500) existIds.clear();
           existIds.add(email.emailId);
           scroll.value.addItem(email);
           await sleep(50);

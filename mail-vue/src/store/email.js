@@ -147,6 +147,11 @@ export const useEmailStore = defineStore('email', {
                 if (keepRead) {
                     item.unread = EmailUnreadEnum.READ
                 }
+                if (currentId === item.emailId && this.contentData.email?.isStar !== undefined) {
+                    item.isStar = this.contentData.email.isStar
+                } else if (prev?.isStar !== undefined) {
+                    item.isStar = prev.isStar
+                }
                 this.cacheDetail(item.emailId, item)
                 if (currentId && item.emailId === currentId) {
                     this.contentData.email = item
@@ -184,6 +189,9 @@ export const useEmailStore = defineStore('email', {
             this.deleteIds = 0
             this.cancelStarEmailId = 0
             this.addStarEmailId = 0
+            this.emailScroll = null
+            this.starScroll = null
+            this.sendScroll = null
             this.inboxTab = 'inbox'
             this.contentData = {
                 email: null,

@@ -5,12 +5,15 @@ import r2Service from './service/r2-service';
 import oauthService from './service/oauth-service';
 import analysisService from './service/analysis-service';
 import { handleWsUpgrade } from './websocket/connect';
+import { getWsUser } from './websocket/auth';
 import proxyService from './service/proxy-service';
+import constant from './const/constant';
 import { buildAssetCacheKey, isPublicAssetKey, matchAssetCache, putEdgeCache } from './utils/edge-cache';
+import { PRIVATE_ASSET_CACHE_CONTROL, verifyAssetSignature } from './utils/asset-sign';
 export { MailHub } from './websocket/hub'; // Durable Object 必须从 Worker 入口导出
 
 async function servePublicAsset(req, env, ctx, key) {
-	if (!isPublicAssetKey(key)) {
+	if (!isPublicAssetKey(key) || !key.startsWith('static/')) {
 		return new Response('Not Found', { status: 404 });
 	}
 	if (req.method !== 'GET' && req.method !== 'HEAD') {
@@ -33,6 +36,40 @@ async function servePublicAsset(req, env, ctx, key) {
 	}
 	putEdgeCache(ctx, cacheKey, resp);
 	return resp;
+}
+
+async function servePrivateAttachment(req, env, url, key) {
+	if (!isPublicAssetKey(key) || !key.startsWith('attachments/')) {
+		return new Response('Not Found', { status: 404 });
+	}
+	if (req.method !== 'GET' && req.method !== 'HEAD') {
+		return new Response('Method Not Allowed', { status: 405 });
+	}
+
+	const sigValid = await verifyAssetSignature(env, key, url.searchParams);
+	if (!sigValid) {
+		const headerUser = await getWsUser(env, req.headers.get(constant.TOKEN_HEADER));
+		if (!headerUser?.userId) {
+			return new Response('Forbidden', {
+				status: 403,
+				headers: { 'Cache-Control': 'no-store' }
+			});
+		}
+	}
+
+	const resp = await r2Service.toObjResp({ env }, key);
+	if (!resp) {
+		return new Response('Not Found', { status: 404 });
+	}
+
+	const headers = new Headers(resp.headers);
+	headers.set('Cache-Control', PRIVATE_ASSET_CACHE_CONTROL);
+
+	if (req.method === 'HEAD') {
+		void resp.body?.cancel?.();
+		return new Response(null, { status: resp.status, headers });
+	}
+	return new Response(resp.body, { status: resp.status, headers });
 }
 
 export default {
@@ -58,10 +95,16 @@ export default {
 
 		if (url.pathname.startsWith('/oss/')) {
 			const key = url.pathname.slice('/oss/'.length);
-			return servePublicAsset(req, env, ctx, key);
+			return key.startsWith('attachments/')
+				? servePrivateAttachment(req, env, url, key)
+				: servePublicAsset(req, env, ctx, key);
 		}
 
-		if (['/static/', '/attachments/'].some(p => url.pathname.startsWith(p))) {
+		if (url.pathname.startsWith('/attachments/')) {
+			return servePrivateAttachment(req, env, url, url.pathname.substring(1));
+		}
+
+		if (url.pathname.startsWith('/static/')) {
 			return servePublicAsset(req, env, ctx, url.pathname.substring(1));
 		}
 

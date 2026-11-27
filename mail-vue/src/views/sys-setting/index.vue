@@ -925,6 +925,9 @@ function getSettings() {
     nextTick(() => {
       settingReady.value = true
     })
+  }).catch(() => {
+    firstLoading.value = false
+    settingReady.value = true
   })
 }
 
@@ -1377,8 +1380,8 @@ function delBackground() {
         type: "success",
         plain: true
       })
-    })
-  })
+    }).catch(() => {})
+  }).catch(() => {})
 }
 
 function openOauthSetting(p) {
@@ -1540,7 +1543,10 @@ function jump(href) {
 }
 
 function editSetting(settingForm, refreshStatus = true) {
-  if (settingLoading.value) return
+  if (settingLoading.value) {
+    clearS3Loading.value = false
+    return
+  }
   settingLoading.value = true
 
   settingSet(settingForm).then(() => {
@@ -1569,8 +1575,8 @@ function editSetting(settingForm, refreshStatus = true) {
     autoCleanShow.value = false
     oauthSettingShow.value = false
   }).catch((e) => {
-    loginOpacity.value = setting.value.loginOpacity
     setting.value = {...setting.value, ...JSON.parse(backup)}
+    loginOpacity.value = setting.value.loginOpacity
   }).finally(() => {
     settingLoading.value = false
     clearS3Loading.value = false

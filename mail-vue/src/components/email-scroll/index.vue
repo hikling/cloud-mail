@@ -26,7 +26,6 @@
             </button>
             <button
               v-if="showUnread"
-              v-perm="'email:delete'"
               type="button"
               class="toolbar-btn"
               @click="handleRead"
@@ -74,7 +73,7 @@
             :data-checked="item.checked"
             @click="jumpDetails(item)"
             v-if="!item.expand"
-            :key="item.emailId"
+            :key="props.type === 'draft' ? item.draftId : item.emailId"
             @contextmenu="handleContextmenu($event, item)"
           >
             <div class="row-leading" @click.stop>
@@ -263,7 +262,7 @@
               </div>
             </template>
           </el-dropdown-item>
-          <el-dropdown-item v-if="['email','star'].includes(props.type)" @click="openReply(rightClickEmail)">
+          <el-dropdown-item v-if="['email','star'].includes(props.type)" v-perm="'email:send'" @click="openReply(rightClickEmail)">
             <template #default>
               <div class="right-dropdown-item">
                 <Icon icon="lucide:reply" width="16" height="16" />
@@ -271,7 +270,7 @@
               </div>
             </template>
           </el-dropdown-item>
-          <el-dropdown-item v-if="['email','send', 'star'].includes(props.type)" @click="openForward(rightClickEmail)">
+          <el-dropdown-item v-if="['email','send', 'star'].includes(props.type)" v-perm="'email:send'" @click="openForward(rightClickEmail)">
             <template #default>
               <div class="right-dropdown-item">
                 <Icon icon="lucide:forward" width="16" height="16" />
@@ -287,7 +286,7 @@
               </div>
             </template>
           </el-dropdown-item>
-          <el-dropdown-item v-if="props.type === 'all-email'" @click="handleSearch('account', rightClickEmail.toEmail)">
+          <el-dropdown-item v-if="props.type === 'all-email'" @click="handleSearch('account', rightClickEmail.type === 1 ? rightClickEmail.sendEmail : rightClickEmail.toEmail)">
             <template #default>
               <div class="right-dropdown-item">
                 <Icon icon="lucide:search" width="15" height="15" />
@@ -680,13 +679,28 @@ const handleContextmenu = (event, email) => {
   rightClickEmail.value.rightChecked = true
 }
 
+function getVirtualContainer() {
+  return scrollbarRef.value?.wrapRef || scrollbarRef.value?.$el || scroll.value?.querySelector?.('.virtual') || null;
+}
+
+function scrollToTop() {
+  if (typeof scrollbarRef.value?.setScrollTop === 'function') {
+    scrollbarRef.value.setScrollTop(0);
+    return;
+  }
+  const el = getVirtualContainer();
+  if (el) {
+    el.scrollTop = 0;
+  }
+}
+
 function updateHasScrollbar() {
   nextTick(() => {
     if (isMacOS) {
       timePaddingRight.value = '16px'
       return
     }
-    const doc = scrollbarRef.value?.wrapRef || document.querySelector('.virtual');
+    const doc = getVirtualContainer();
     if (doc) {
       if (doc.scrollHeight > doc.clientHeight) {
         timePaddingRight.value = '10px';
@@ -736,13 +750,29 @@ function changeAccountShow() {
 
 const handleRead = () => {
   const emailIds = getSelectedMailsIds();
-  props.emailRead(emailIds);
-  localRead(emailIds);
+  if (!emailIds.length) return;
+  markEmailsReadOptimistic(emailIds);
 }
 
 function emailRead(emailId) {
-  props.emailRead([emailId])
-  localRead([emailId]);
+  markEmailsReadOptimistic([emailId]);
+}
+
+function markEmailsReadOptimistic(emailIds) {
+  const prevState = new Map();
+  emailIds.forEach(id => {
+    const row = emailList.find(email => email.emailId === id);
+    if (row) prevState.set(id, row.unread);
+  });
+  localRead(emailIds);
+  emailIds.forEach(id => emailStore.markListRead(id));
+  props.emailRead(emailIds).catch(() => {
+    prevState.forEach((unread, id) => {
+      const row = emailList.find(email => email.emailId === id);
+      if (row) row.unread = unread;
+      if (emailStore.detailMap[id]) emailStore.detailMap[id].unread = unread;
+    });
+  });
 }
 
 function localRead(emailIds) {
@@ -769,8 +799,8 @@ function rightDelete(emailId) {
           plain: true
         })
         emailStore.deleteIds = [emailId];
-      })
-    })
+      }).catch(() => {})
+    }).catch(() => {})
     return;
   }
   props.emailDelete([emailId]).then(() => {
@@ -780,7 +810,7 @@ function rightDelete(emailId) {
       plain: true
     })
     emailStore.deleteIds = [emailId];
-  })
+  }).catch(() => {})
 }
 
 function handleSearch(type, value) {
@@ -831,18 +861,23 @@ function handleDelete() {
         plain: true
       })
       emailStore.deleteIds = emailIds;
-    })
-  })
+    }).catch(() => {})
+  }).catch(() => {})
 }
 
 function deleteEmail(emailIds) {
+  let removed = 0;
   emailIds.forEach(emailId => {
-    emailList.forEach((item, index) => {
-      if (emailId === item.emailId) {
-        emailList.splice(index, 1);
-      }
-    })
+    const index = emailList.findIndex(item => item.emailId === emailId);
+    if (index > -1) {
+      emailList.splice(index, 1);
+      removed += 1;
+    }
+    delete emailStore.detailMap[emailId];
   })
+  if (removed > 0 && typeof total.value === 'number') {
+    total.value = Math.max(0, total.value - removed);
+  }
   if (emailList.length < queryParam.size && !noLoading.value) {
     getEmailList()
   }
@@ -951,7 +986,8 @@ function jumpDetails(email) {
 }
 
 function getEmailList(refresh = false) {
-  let emailId = emailList.length > 0 ? emailList.at(-1).emailId : 0;
+  const tail = emailList.at(-1);
+  let emailId = tail ? (tail.emailId ?? tail.draftId ?? 0) : 0;
 
   if (!refresh) {
     if (loading.value || noLoading.value || paginationInFlight) {
@@ -996,12 +1032,12 @@ function getEmailList(refresh = false) {
     latestEmail.value = data.latestEmail
     handleList(list);
     emailList.push(...list);
-    if (refresh) scrollbarRef.value?.setScrollTop?.(0);
+    if (refresh) scrollToTop();
 
-    noLoading.value = data.list.length < queryParam.size;
-    followLoading.value = data.list.length >= queryParam.size;
+    noLoading.value = data.hasMore !== undefined ? !data.hasMore : data.list.length < queryParam.size;
+    followLoading.value = !noLoading.value;
 
-    total.value = data.total;
+    total.value = data.total ?? emailList.length;
     return true;
   }).finally(() => {
     if (reqSeq === latestReqSeq) {
@@ -1049,7 +1085,7 @@ watch(() => props.highlightText, () => {
 
 function refresh() {
   emit('refresh-before')
-  scrollbarRef.value?.setScrollTop?.(0)
+  scrollToTop()
   checkAll.value = false;
   isIndeterminate.value = false;
   getEmailList(true).then(ok => {

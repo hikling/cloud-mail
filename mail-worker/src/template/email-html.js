@@ -1,12 +1,28 @@
 import { parseHTML } from 'linkedom';
 
 const BLOCKED_TAGS = new Set(['SCRIPT', 'IFRAME', 'OBJECT', 'EMBED', 'LINK', 'META', 'BASE', 'FRAME', 'FORM']);
+const URL_ATTRS = new Set(['href', 'src', 'xlink:href', 'action', 'formaction', 'poster', 'background']);
+const SAFE_DATA_IMAGE_RE = /^data:image\/(?:png|jpe?g|gif|webp|avif|bmp|x-icon);base64,/i;
+
+function isUnsafeScheme(value, attrName) {
+	// Strip whitespace and ASCII control characters so \x00-\x1f cannot evade scheme checks.
+	const normalized = String(value || '').replace(/[\u0000-\u0020\u007f]+/g, '').toLowerCase();
+	if (/^(?:javascript|vbscript):/.test(normalized)) {
+		return true;
+	}
+	if (normalized.startsWith('data:')) {
+		return !(attrName === 'src' && SAFE_DATA_IMAGE_RE.test(normalized));
+	}
+	return false;
+}
 
 export default function emailHtmlTemplate(html, nonce = '') {
 
-	const { document } = parseHTML(html || '');
+	const raw = String(html || '');
+	const hasDocumentShell = /<(?:html|body)\b/i.test(raw);
+	const { document } = parseHTML(hasDocumentShell ? raw : `<!DOCTYPE html><html><body>${raw}</body></html>`);
 	document.querySelectorAll('script, iframe, object, embed, link, meta, base, frame, form').forEach(node => node.remove());
-	// 去掉内联事件、危险协议与外链 CSS url，避免 innerHTML 后再执行或绕过代理泄露 IP。
+	// 去掉内联事件、危险协议与所有元素样式中的外链 url/fixed 定位。
 	document.querySelectorAll('*').forEach(el => {
 		if (BLOCKED_TAGS.has(el.tagName)) {
 			el.remove();
@@ -18,11 +34,20 @@ export default function emailHtmlTemplate(html, nonce = '') {
 				el.removeAttribute(name);
 				continue;
 			}
-			if (!['href', 'src', 'xlink:href', 'action', 'formaction', 'poster', 'background'].includes(lower)) {
+			if (lower === 'style') {
+				const safeStyle = sanitizeCssText(el.getAttribute(name) || '');
+				if (safeStyle) {
+					el.setAttribute('style', safeStyle);
+				} else {
+					el.removeAttribute(name);
+				}
 				continue;
 			}
-			const value = (el.getAttribute(name) || '').trim();
-			if (/^(javascript|vbscript):/i.test(value)) {
+			if (!URL_ATTRS.has(lower)) {
+				continue;
+			}
+			const value = el.getAttribute(name) || '';
+			if (isUnsafeScheme(value, lower)) {
 				el.removeAttribute(name);
 			}
 		}
@@ -30,8 +55,12 @@ export default function emailHtmlTemplate(html, nonce = '') {
 	document.querySelectorAll('style').forEach(styleEl => {
 		styleEl.textContent = sanitizeCssText(styleEl.textContent || '');
 	});
+	const headStyles = Array.from(document.head?.querySelectorAll('style') || [])
+		.map(s => `<style>${s.textContent}</style>`)
+		.join('');
 	const bodyStyle = sanitizeCssText(document.body?.getAttribute('style') || '');
-	const bodyHtml = (document.body ? document.body.innerHTML : document.toString()).replace(/{{domain}}/g, '/');
+	const bodyContent = document.body ? document.body.innerHTML : document.toString();
+	const bodyHtml = `${headStyles}${bodyContent}`.replace(/{{domain}}/g, '/');
 	const safeHtmlJson = JSON.stringify(bodyHtml).replace(/</g, '\\u003C');
 	const safeBodyStyleJson = JSON.stringify(bodyStyle).replace(/</g, '\\u003C');
 	const nonceAttr = nonce ? ` nonce="${nonce}"` : '';
@@ -154,11 +183,23 @@ export default function emailHtmlTemplate(html, nonce = '') {
 </html>`;
 }
 
+function decodeCssEscapes(css) {
+	if (!css || !css.includes('\\')) return css;
+	return String(css).replace(/\\(?:([0-9a-fA-F]{1,6})[ \t\r\n\f]?|([^\r\n\f0-9a-fA-F]))/g, (m, hex, ch) => {
+		if (hex) {
+			const code = parseInt(hex, 16);
+			return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : '';
+		}
+		return ch ?? m;
+	});
+}
+
 function sanitizeCssText(css) {
-	return String(css)
+	return decodeCssEscapes(String(css))
 		.replace(/<\s*\/?\s*style/gi, '')
 		.replace(/@import\b[^;]*(;|$)/gi, '')
 		.replace(/\bposition\s*:\s*fixed\b/gi, 'position: relative')
+		.replace(/image-set\s*\([^)]*\)/gi, 'none')
 		.replace(/url\(\s*(?:"([^"]*)"|'([^']*)'|([^)"'\s]+))\s*\)/gi, (full, dq, sq, uq) => {
 			const val = (dq ?? sq ?? uq ?? '').trim();
 			if (/^(https?:)?\/\//i.test(val) && !val.startsWith('/proxy?')) {

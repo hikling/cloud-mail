@@ -192,7 +192,7 @@
           </main>
         </div>
 
-        <el-dialog v-model="pwdShow" :title="$t('changePassword')" width="380" append-to-body align-center>
+        <el-dialog v-model="pwdShow" :title="$t('changePassword')" width="380" append-to-body align-center @closed="form.password = ''; form.newPwd = ''">
           <div class="update-pwd">
             <el-input
               type="password"
@@ -300,14 +300,15 @@ function setName() {
 
   setNameShow.value = false
   let name = accountName.value
+  const prevName = userStore.user.name
 
-  if (name === userStore.user.name) {
+  if (name === prevName) {
     return
   }
 
   userStore.user.name = accountName.value
 
-  accountSetName(userStore.user.account.accountId,name).then(() => {
+  accountSetName(userStore.user.account.accountId, name).then(() => {
     ElMessage({
       message: t('saveSuccessMsg'),
       type: 'success',
@@ -317,11 +318,12 @@ function setName() {
     accountStore.changeUserAccountName = name
 
   }).catch(() => {
-    userStore.user.name = name
+    userStore.user.name = prevName
   })
 }
 
 function changeLang(lang) {
+  langSelect.value = lang
   setExtend(lang === 'en' ? 'en' : 'zh-cn')
   settingStore.lang = lang
 }
@@ -346,8 +348,8 @@ const deleteConfirm = () => {
         type: 'success',
         plain: true,
       })
-    })
-  })
+    }).catch(() => {})
+  }).catch(() => {})
 }
 
 

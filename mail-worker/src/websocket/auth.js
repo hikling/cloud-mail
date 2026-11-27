@@ -4,7 +4,20 @@ import KvConst from '../const/kv-const';
 import permService from '../service/perm-service';
 import emailUtils from '../utils/email-utils';
 
-// 校验握手 token（query 或 Authorization），确认会话仍在 KV 中。
+const encoder = new TextEncoder();
+
+export async function buildSessionTag(sessionToken) {
+	if (!sessionToken) return null;
+	const digest = await crypto.subtle.digest('SHA-256', encoder.encode(String(sessionToken)));
+	const bytes = new Uint8Array(digest).slice(0, 12);
+	let hex = '';
+	for (const b of bytes) {
+		hex += b.toString(16).padStart(2, '0');
+	}
+	return 'sess:' + hex;
+}
+
+// 校验握手 token（Sec-WebSocket-Protocol / Authorization / query），确认会话仍在 KV 中。
 export async function getWsUser(env, token) {
 	if (!token) {
 		return null;
@@ -25,7 +38,7 @@ export async function getWsUser(env, token) {
 		return null;
 	}
 
-	return authInfo.user;
+	return { ...authInfo.user, sessionToken };
 }
 
 // 全部邮件通道：管理员或具备 all-email:query 的用户才能订阅。

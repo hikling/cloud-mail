@@ -16,7 +16,12 @@ const kvObjService = {
 			return;
 		}
 
-		await Promise.all(keys.map(key => c.env.kv.delete(key)));
+		// Batch KV deletes with bounded concurrency to stay within Workers subrequest limits.
+		const CONCURRENCY = 16;
+		for (let i = 0; i < keys.length; i += CONCURRENCY) {
+			const batch = keys.slice(i, i + CONCURRENCY);
+			await Promise.all(batch.map(key => c.env.kv.delete(key)));
+		}
 	},
 
 	async getObj(c, key) {

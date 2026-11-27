@@ -16,6 +16,7 @@ import userService from './user-service';
 import KvConst from '../const/kv-const';
 import proxyService from './proxy-service';
 import settingService from './setting-service';
+import constant from '../const/constant';
 
 const publicService = {
 
@@ -166,7 +167,7 @@ const publicService = {
 
 		stmts.push(
 			c.env.db.prepare(
-				`UPDATE account SET user_id = (SELECT user_id FROM user WHERE user.email = account.email) WHERE user_id = 0`
+				`UPDATE account SET user_id = (SELECT user_id FROM user WHERE user.email COLLATE NOCASE = account.email) WHERE user_id = 0`
 			)
 		);
 
@@ -174,7 +175,7 @@ const publicService = {
 			await c.env.db.batch(stmts);
 		} catch (e) {
 			if (e.message.includes('SQLITE_CONSTRAINT')) {
-				throw new BizError(t('emailExistDatabase'));
+				throw new BizError(t('emailExistDatabase', null, c));
 			}
 			throw e;
 		}
@@ -187,7 +188,7 @@ const publicService = {
 
 		const uuid = uuidv4();
 
-		await c.env.kv.put(KvConst.PUBLIC_KEY, uuid);
+		await c.env.kv.put(KvConst.PUBLIC_KEY, uuid, { expirationTtl: constant.TOKEN_EXPIRE });
 
 		return { token: uuid };
 	},
@@ -197,7 +198,11 @@ const publicService = {
 		const { email: emailAddr, password } = params || {};
 
 		if (!emailAddr || !password) {
-			throw new BizError(t('emailAndPwdEmpty'));
+			throw new BizError(t('emailAndPwdEmpty', null, c));
+		}
+
+		if (typeof password !== 'string' || password.length > 128) {
+			throw new BizError(t('IncorrectPwd', null, c));
 		}
 
 		if (c.env?.kv) {
@@ -205,7 +210,7 @@ const publicService = {
 			const rateKey = KvConst.PUBLIC_RATE + ip;
 			const count = Number(await c.env.kv.get(rateKey)) || 0;
 			if (count >= 30) {
-				throw new BizError(t('tooManyAttempts'), 429);
+				throw new BizError(t('tooManyAttempts', null, c), 429);
 			}
 			await c.env.kv.put(rateKey, String(count + 1), { expirationTtl: 300 });
 		}
@@ -213,15 +218,15 @@ const publicService = {
 		const userRow = await userService.selectByEmailIncludeDel(c, emailAddr);
 
 		if (!emailUtils.isAdminEmail(c.env, emailAddr)) {
-			throw new BizError(t('notAdmin'));
+			throw new BizError(t('notAdmin', null, c));
 		}
 
 		if (!userRow || userRow.isDel === isDel.DELETE) {
-			throw new BizError(t('notExistUser'));
+			throw new BizError(t('notExistUser', null, c));
 		}
 
 		if (!await cryptoUtils.verifyPassword(password, userRow.salt, userRow.password)) {
-			throw new BizError(t('IncorrectPwd'));
+			throw new BizError(t('IncorrectPwd', null, c));
 		}
 	}
 

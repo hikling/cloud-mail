@@ -4,7 +4,9 @@ import { buildProxyCacheKey, getEdgeCache, putEdgeCache } from '../utils/edge-ca
 // 可能带远程图地址的属性；data-* 覆盖懒加载写法。
 const ATTRS = ['src', 'poster', 'background', 'data-src', 'data-original', 'data-lazy-src'];
 const ATTR_SET = new Set(ATTRS);
-const MEDIA_TAGS = new Set(['img', 'source', 'video', 'audio', 'track', 'input']);
+const MEDIA_TAGS = new Set(['img', 'source', 'video', 'audio', 'track', 'input', 'image', 'use', 'feimage']);
+const SVG_MEDIA_TAGS = new Set(['image', 'use', 'feimage']);
+const SVG_HREF_ATTRS = new Set(['href', 'xlink:href']);
 
 const PROXY_MEDIA_TYPES = new Set([
 	'image/avif', 'image/bmp', 'image/gif', 'image/jpeg', 'image/pjpeg', 'image/png', 'image/webp',
@@ -31,17 +33,90 @@ const signingKeyCache = new Map();
 
 const ATTR_REGEX = /\b([a-z][a-z0-9:-]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/gi;
 const TAG_REGEX = /<([a-z][a-z0-9:-]*)(\s[^>]*?)?(\/?)>/gi;
-const STYLE_TAG_REGEX = /(<style\b[^>]*>)([\s\S]*?)(<\/style>)/gi;
 const CSS_URL_REGEX = /url\(\s*(?:"([^"]*)"|'([^']*)'|([^)"'\s]+))\s*\)/gi;
+
+const NAMED_HTML_ENTITIES = {
+	amp: '&',
+	quot: '"',
+	apos: "'",
+	lt: '<',
+	gt: '>',
+	colon: ':',
+	sol: '/',
+	nbsp: ' '
+};
 
 function decodeAttrValue(val) {
 	if (!val || !val.includes('&')) return val;
-	return val
-		.replace(/&amp;/gi, '&')
-		.replace(/&quot;/gi, '"')
-		.replace(/&#39;|&apos;/gi, "'")
-		.replace(/&lt;/gi, '<')
-		.replace(/&gt;/gi, '>');
+	return val.replace(/&(?:#(\d+);?|#x([0-9a-f]+);?|([a-z]+);)/gi, (match, dec, hex, named) => {
+		if (dec) {
+			const code = Number(dec);
+			return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : '';
+		}
+		if (hex) {
+			const code = parseInt(hex, 16);
+			return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : '';
+		}
+		const mapped = NAMED_HTML_ENTITIES[named.toLowerCase()];
+		return mapped !== undefined ? mapped : match;
+	});
+}
+
+function decodeCssEscapes(css) {
+	if (!css || !css.includes('\\')) return css;
+	return String(css).replace(/\\(?:([0-9a-fA-F]{1,6})[ \t\r\n\f]?|([^\r\n\f0-9a-fA-F]))/g, (m, hex, ch) => {
+		if (hex) {
+			const code = parseInt(hex, 16);
+			return code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : '';
+		}
+		return ch ?? m;
+	});
+}
+
+async function replaceTagBlockAsync(html, tagName, replacer) {
+	const openRe = new RegExp(`<${tagName}\\b[^>]*>`, 'gi');
+	const closeNeedle = `</${tagName}>`;
+	const lowerHtml = html.toLowerCase();
+	let out = '';
+	let lastIdx = 0;
+	let match;
+	openRe.lastIndex = 0;
+	while ((match = openRe.exec(html)) !== null) {
+		if (match.index < lastIdx) continue;
+		const contentStart = match.index + match[0].length;
+		const closeStart = lowerHtml.indexOf(closeNeedle, contentStart);
+		if (closeStart === -1) break;
+		const closeEnd = closeStart + closeNeedle.length;
+		out += html.slice(lastIdx, match.index);
+		out += await replacer(html.slice(match.index, closeEnd), match[0], html.slice(contentStart, closeStart), html.slice(closeStart, closeEnd));
+		lastIdx = closeEnd;
+		openRe.lastIndex = lastIdx;
+	}
+	if (lastIdx === 0) return html;
+	return out + html.slice(lastIdx);
+}
+
+function replaceTagBlockSync(html, tagName, replacer) {
+	const openRe = new RegExp(`<${tagName}\\b[^>]*>`, 'gi');
+	const closeNeedle = `</${tagName}>`;
+	const lowerHtml = html.toLowerCase();
+	let out = '';
+	let lastIdx = 0;
+	let match;
+	openRe.lastIndex = 0;
+	while ((match = openRe.exec(html)) !== null) {
+		if (match.index < lastIdx) continue;
+		const contentStart = match.index + match[0].length;
+		const closeStart = lowerHtml.indexOf(closeNeedle, contentStart);
+		if (closeStart === -1) break;
+		const closeEnd = closeStart + closeNeedle.length;
+		out += html.slice(lastIdx, match.index);
+		out += replacer(html.slice(match.index, closeEnd), match[0], html.slice(contentStart, closeStart), html.slice(closeStart, closeEnd));
+		lastIdx = closeEnd;
+		openRe.lastIndex = lastIdx;
+	}
+	if (lastIdx === 0) return html;
+	return out + html.slice(lastIdx);
 }
 
 function encodeAttrValue(val, quote) {
@@ -197,7 +272,7 @@ const proxyService = {
 				type = PROXY_IMAGE_EXTENSIONS.get(extension);
 			}
 
-			if (!res.body || !PROXY_MEDIA_TYPES.has(type)) {
+			if ((!res.body && req?.method !== 'HEAD') || !PROXY_MEDIA_TYPES.has(type)) {
 				await res.body?.cancel();
 				return new Response(null, { status: 415 });
 			}
@@ -221,6 +296,8 @@ const proxyService = {
 				headers.set('Content-Disposition', disposition.replace(/[\r\n\0]/g, ''));
 			}
 
+			const encoding = res.headers.get('Content-Encoding')?.toLowerCase();
+
 			if (req?.method === 'HEAD') {
 				await res.body?.cancel();
 				if (length && /^\d+$/.test(length) && Number.isSafeInteger(Number(length)) && (!encoding || encoding === 'identity')) {
@@ -230,7 +307,6 @@ const proxyService = {
 			}
 
 			let body = this.limitStreamBytes(res.body, PROXY_MAX_BYTES);
-			const encoding = res.headers.get('Content-Encoding')?.toLowerCase();
 
 			// Workers 从固定长度流生成 Content-Length。压缩响应的上游长度可能与解码后的内容不同。
 			if (length && /^\d+$/.test(length) && Number.isSafeInteger(Number(length)) && (!encoding || encoding === 'identity')) {
@@ -359,8 +435,11 @@ const proxyService = {
 			return html;
 		}
 		const isExternal = url => this.fromProxyPath(url) || this.shouldProxyUrl(url, r2Domain);
-		const hasExternalAttrs = attrs => ATTRS.some(attr => isExternal(attrs[attr])) ||
-			Boolean(attrs.srcset?.split(',').some(candidate => isExternal(candidate.trim().split(/\s+/, 1)[0])));
+		const hasExternalAttrs = (attrs, tagName = '') => {
+			if (ATTRS.some(attr => isExternal(attrs[attr]))) return true;
+			if (SVG_MEDIA_TAGS.has(tagName) && (isExternal(attrs.href) || isExternal(attrs['xlink:href']))) return true;
+			return Boolean(attrs.srcset?.split(',').some(candidate => isExternal(candidate.trim().split(/\s+/, 1)[0])));
+		};
 
 		const isTrackingImgTag = imgTag => {
 			const m = imgTag.match(/^<img\b([^>]*)>/i);
@@ -371,12 +450,12 @@ const proxyService = {
 			if (width !== 0 && height !== 0 && !(width === 1 && height === 1)) {
 				return { tracking: false, external: false };
 			}
-			return { tracking: true, external: hasExternalAttrs(attrs) };
+			return { tracking: true, external: hasExternalAttrs(attrs, 'img') };
 		};
 
 		let result = html;
 		if (/<picture\b/i.test(result)) {
-			result = result.replace(/<picture\b[^>]*>[\s\S]*?<\/picture>/gi, pictureBlock => {
+			result = replaceTagBlockSync(result, 'picture', pictureBlock => {
 				const imgMatch = pictureBlock.match(/<img\b[^>]*>/i);
 				if (!imgMatch) return pictureBlock;
 				const { tracking, external } = isTrackingImgTag(imgMatch[0]);
@@ -385,7 +464,7 @@ const proxyService = {
 				const sources = pictureBlock.match(/<source\b[^>]*>/gi) || [];
 				const hasExternalSource = sources.some(srcTag => {
 					const sm = srcTag.match(/^<source\b([^>]*)>/i);
-					return sm ? hasExternalAttrs(parseTagAttrs(sm[1])) : false;
+					return sm ? hasExternalAttrs(parseTagAttrs(sm[1]), 'source') : false;
 				});
 				return hasExternalSource ? '' : pictureBlock;
 			});
@@ -399,35 +478,38 @@ const proxyService = {
 
 	// 零 DOM 解析快速改写 HTML，把 img/srcset/CSS url 等外链改成带签名的同源代理地址。
 	async applyRewrite(html, rewriteUrl, r2Domain) {
-		if (!html || !/https?:\/\/|\/\/|proxy\?/i.test(html)) {
+		if (!html || !/https?:\/\/|\/\/|proxy\?|&#|\\|url\s*\(|image-set\s*\(/i.test(html)) {
 			return html;
 		}
 
 		let result = this.removeTrackingImagesFromHtml(html, r2Domain);
 
-		if (/<style\b/i.test(result) && /url\s*\(/i.test(result)) {
-			result = await replaceAsync(result, STYLE_TAG_REGEX, async (full, open, css, close) => {
-				if (!/url\s*\(/i.test(css)) return full;
-				const rewritten = await this.rewriteCssUrls(css, rewriteUrl);
+		if (/<style\b/i.test(result)) {
+			result = await replaceTagBlockAsync(result, 'style', async (full, open, css, close) => {
+				const normalizedCss = decodeCssEscapes(css);
+				if (!/url\s*\(|image-set\s*\(/i.test(normalizedCss)) return full;
+				const rewritten = await this.rewriteCssUrls(normalizedCss, rewriteUrl);
 				return open + rewritten + close;
 			});
 		}
 
 		result = await replaceAsync(result, TAG_REGEX, async (full, tagName, attrStr, selfClose) => {
-			if (!attrStr || !/https?:\/\/|\/\/|proxy\?|url\s*\(/i.test(attrStr)) {
+			if (!attrStr || !/https?:\/\/|\/\/|proxy\?|&#|\\|url\s*\(|image-set\s*\(/i.test(attrStr)) {
 				return full;
 			}
 			const lowerTag = tagName.toLowerCase();
 			const isMedia = MEDIA_TAGS.has(lowerTag);
+			const isSvgMedia = SVG_MEDIA_TAGS.has(lowerTag);
 			const rewrittenAttrs = await replaceAsync(attrStr, ATTR_REGEX, async (attrFull, name, dq, sq, uq) => {
 				const lowerName = name.toLowerCase();
 				const quote = dq !== undefined ? '"' : (sq !== undefined ? "'" : '');
 				const rawVal = decodeAttrValue(dq ?? sq ?? uq ?? '');
 
 				if (lowerName === 'style') {
-					if (!/url\s*\(/i.test(rawVal)) return attrFull;
-					const nextCss = await this.rewriteCssUrls(rawVal, rewriteUrl);
-					if (nextCss === rawVal) return attrFull;
+					const normalizedStyle = decodeCssEscapes(rawVal);
+					if (!/url\s*\(|image-set\s*\(/i.test(normalizedStyle)) return attrFull;
+					const nextCss = await this.rewriteCssUrls(normalizedStyle, rewriteUrl);
+					if (nextCss === normalizedStyle && normalizedStyle === rawVal) return attrFull;
 					return `${name}=${quote || '"'}${encodeAttrValue(nextCss, quote || '"')}${quote || '"'}`;
 				}
 
@@ -437,7 +519,7 @@ const proxyService = {
 					return `${name}=${quote || '"'}${encodeAttrValue(nextSrcset, quote || '"')}${quote || '"'}`;
 				}
 
-				if (lowerName === 'background' || (isMedia && ATTR_SET.has(lowerName))) {
+				if (lowerName === 'background' || (isMedia && ATTR_SET.has(lowerName)) || (isSvgMedia && SVG_HREF_ATTRS.has(lowerName))) {
 					const nextPath = await rewriteUrl(rawVal);
 					if (!nextPath) return attrFull;
 					return `${name}=${quote || '"'}${encodeAttrValue(nextPath, quote || '"')}${quote || '"'}`;
@@ -461,7 +543,7 @@ const proxyService = {
 
 		let result = html;
 		if (/<style\b/i.test(result)) {
-			result = result.replace(STYLE_TAG_REGEX, (full, open, css, close) => {
+			result = replaceTagBlockSync(result, 'style', (full, open, css, close) => {
 				if (!css.includes('proxy?')) return full;
 				return open + this.restoreCssUrls(css) + close;
 			});
@@ -473,6 +555,7 @@ const proxyService = {
 			}
 			const lowerTag = tagName.toLowerCase();
 			const isMedia = MEDIA_TAGS.has(lowerTag);
+			const isSvgMedia = SVG_MEDIA_TAGS.has(lowerTag);
 			const restoredAttrs = attrStr.replace(ATTR_REGEX, (attrFull, name, dq, sq, uq) => {
 				const lowerName = name.toLowerCase();
 				const quote = dq !== undefined ? '"' : (sq !== undefined ? "'" : '');
@@ -487,7 +570,7 @@ const proxyService = {
 					const nextSrcset = this.restoreSrcset(rawVal);
 					return nextSrcset === rawVal ? attrFull : `${name}=${quote || '"'}${encodeAttrValue(nextSrcset, quote || '"')}${quote || '"'}`;
 				}
-				if (lowerName === 'background' || (isMedia && ATTR_SET.has(lowerName))) {
+				if (lowerName === 'background' || (isMedia && ATTR_SET.has(lowerName)) || (isSvgMedia && SVG_HREF_ATTRS.has(lowerName))) {
 					const original = this.fromProxyPath(rawVal);
 					return original ? `${name}=${quote || '"'}${encodeAttrValue(original, quote || '"')}${quote || '"'}` : attrFull;
 				}
@@ -588,19 +671,35 @@ const proxyService = {
 		}).join(', ');
 	},
 
-	// 改写 style / <style> 中的 url(...)，一般是背景图。
+	// 改写 style / <style> 中的 url(...) 与 image-set(...)，一般是背景图。
 	async rewriteCssUrls(css, rewriteUrl) {
-		if (!css || !/url\s*\(/i.test(css)) {
+		if (!css || !/url\s*\(|image-set\s*\(/i.test(css)) {
 			return css;
 		}
-		const matches = Array.from(css.matchAll(CSS_URL_REGEX));
-		const paths = await Promise.all(matches.map(match => rewriteUrl(match[1] ?? match[2] ?? match[3] ?? '')));
-		let index = 0;
-		return css.replace(CSS_URL_REGEX, (match, dq, sq) => {
-			const path = paths[index++];
-			const quote = dq !== undefined ? '"' : (sq !== undefined ? "'" : '');
-			return path ? 'url(' + quote + path + quote + ')' : match;
-		});
+		let next = css;
+		if (/url\s*\(/i.test(next)) {
+			const matches = Array.from(next.matchAll(CSS_URL_REGEX));
+			const paths = await Promise.all(matches.map(match => rewriteUrl(match[1] ?? match[2] ?? match[3] ?? '')));
+			let index = 0;
+			next = next.replace(CSS_URL_REGEX, (match, dq, sq) => {
+				const path = paths[index++];
+				const quote = dq !== undefined ? '"' : (sq !== undefined ? "'" : '');
+				return path ? 'url(' + quote + path + quote + ')' : match;
+			});
+		}
+		if (/image-set\s*\(/i.test(next)) {
+			next = await replaceAsync(next, /(image-set\s*\()([^)]*)(\))/gi, async (full, open, inner, close) => {
+				const rewrittenInner = await replaceAsync(inner, /"([^"]+)"|'([^']+)'/g, async (strFull, dq, sq) => {
+					const rawUrl = dq ?? sq ?? '';
+					const path = await rewriteUrl(rawUrl);
+					if (!path) return strFull;
+					const quote = dq !== undefined ? '"' : "'";
+					return `${quote}${path}${quote}`;
+				});
+				return rewrittenInner === inner ? full : open + rewrittenInner + close;
+			});
+		}
+		return next;
 	},
 
 	// 还原 CSS url(...) 里的代理地址。

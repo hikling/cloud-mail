@@ -9,16 +9,21 @@ import { isDel } from '../const/entity-const';
 import attService from "./att-service";
 import { t } from '../i18n/i18n';
 import proxyService from './proxy-service';
+import settingService from './setting-service';
+import { signAttList, signContentAssets } from '../utils/asset-sign';
 
 const CHUNK_SIZE = 90;
 
 const starService = {
 
 	async add(c, params, userId) {
-		const { emailId } = params;
+		const emailId = Number(params?.emailId);
+		if (!Number.isInteger(emailId) || emailId <= 0) {
+			throw new BizError(t('starNotExistEmail', null, c));
+		}
 		const emailRow = await emailService.selectById(c, emailId);
 		if (!emailRow || emailRow.userId !== userId) {
-			throw new BizError(t('starNotExistEmail'));
+			throw new BizError(t('starNotExistEmail', null, c));
 		}
 		const exist = await orm(c).select().from(star).where(
 			and(
@@ -34,7 +39,10 @@ const starService = {
 	},
 
 	async cancel(c, params, userId) {
-		const { emailId } = params;
+		const emailId = Number(params?.emailId);
+		if (!Number.isInteger(emailId) || emailId <= 0) {
+			return;
+		}
 		await orm(c).delete(star).where(
 			and(
 				eq(star.userId, userId),
@@ -73,12 +81,23 @@ const starService = {
 
 		if (full) {
 			const emailIds = list.map(item => item.emailId);
-			const attsList = await attService.selectByEmailIds(c, emailIds);
+			const [{ r2Domain }, attsList] = await Promise.all([
+				settingService.query(c),
+				attService.selectByEmailIds(c, emailIds)
+			]);
+			await signAttList(c.env, attsList, r2Domain);
 			list.forEach(emailRow => {
 				emailRow.attList = attsList.filter(attsRow => attsRow.emailId === emailRow.emailId);
 			});
-			// 星标完整查询同样走图片代理改写。
+			// 星标完整查询同样走图片代理改写与私有附件签名。
 			await proxyService.rewriteList(c, list);
+			if (!r2Domain) {
+				await Promise.all(list.map(async item => {
+					if (item.content) {
+						item.content = await signContentAssets(c.env, item.content, r2Domain);
+					}
+				}));
+			}
 		} else {
 			list.forEach(emailRow => {
 				emailRow.listText = emailService.toListText(emailRow);

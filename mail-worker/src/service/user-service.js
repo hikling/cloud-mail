@@ -20,6 +20,7 @@ import oauthService from "./oauth-service";
 import settingService from './setting-service';
 import starService from './star-service';
 import userContext from '../security/user-context';
+import { revokeUserWs } from '../websocket/notify';
 
 const userService = {
 
@@ -28,7 +29,7 @@ const userService = {
 		const userRow = await userService.selectById(c, userId);
 
 		if (!userRow) {
-			throw new BizError(t('authExpired'), 401);
+			throw new BizError(t('authExpired', null, c), 401);
 		}
 
 		const isAdmin = emailUtils.isAdminEmail(c.env, userRow.email);
@@ -37,6 +38,10 @@ const userService = {
 			roleService.selectById(c, userRow.type),
 			isAdmin ? Promise.resolve(['*']) : permService.userPermKeys(c, userId)
 		]);
+
+		if (!account) {
+			throw new BizError(t('authExpired', null, c), 401);
+		}
 
 		const user = {};
 		user.userId = userRow.userId;
@@ -59,26 +64,30 @@ const userService = {
 
 	async resetPassword(c, params, userId) {
 
-		const { password } = params;
+		const { password } = params || {};
+
+		if (typeof password !== 'string' || password.length > 128) {
+			throw new BizError(t('pwdLengthLimit', null, c));
+		}
 
 		if (password.length < 6) {
-			throw new BizError(t('pwdMinLength'));
+			throw new BizError(t('pwdMinLength', null, c));
 		}
 		const { salt, hash } = await cryptoUtils.hashPassword(password);
 		await orm(c).update(user).set({ password: hash, salt: salt }).where(eq(user.userId, userId)).run();
 
-		// 个人设置改密：会话列表只留当前 uuid，其它设备下线。管理员改别人密码不走这里。
+		// 个人设置改密：会话列表只留当前 uuid，其它设备下线并断开其 WebSocket。管理员改别人密码不走这里。
 		if (userContext.getUserId(c) !== userId) {
 			return;
 		}
 
 		const sessionToken = await userContext.getToken(c);
 		const authInfo = await c.env.kv.get(KvConst.AUTH_INFO + userId, { type: 'json' });
-		if (!authInfo) {
-			return;
+		if (authInfo) {
+			authInfo.tokens = sessionToken ? [sessionToken] : [];
+			await c.env.kv.put(KvConst.AUTH_INFO + userId, JSON.stringify(authInfo), { expirationTtl: constant.TOKEN_EXPIRE });
 		}
-		authInfo.tokens = sessionToken ? [sessionToken] : [];
-		await c.env.kv.put(KvConst.AUTH_INFO + userId, JSON.stringify(authInfo), { expirationTtl: constant.TOKEN_EXPIRE });
+		await revokeUserWs(c, userId, { keepSessionToken: sessionToken });
 	},
 
 	async hasAnyUser(c) {
@@ -120,10 +129,12 @@ const userService = {
 		if (syncDelete === settingConst.syncDelete.OPEN) {
 			await this.physicsDelete(c, { userIds: String(userId) });
 			await c.env.kv.delete(KvConst.AUTH_INFO + userId);
+			await revokeUserWs(c, userId);
 			return;
 		}
 		await orm(c).update(user).set({ isDel: isDel.DELETE }).where(eq(user.userId, userId)).run();
 		await c.env.kv.delete(KvConst.AUTH_INFO + userId);
+		await revokeUserWs(c, userId);
 	},
 
 	async physicsDelete(c, params) {
@@ -289,6 +300,7 @@ const userService = {
 		const { password, userId } = params;
 		await this.resetPassword(c, { password }, userId);
 		await c.env.kv.delete(KvConst.AUTH_INFO + userId);
+		await revokeUserWs(c, userId);
 	},
 
 	async setStatus(c, params) {
@@ -303,6 +315,7 @@ const userService = {
 
 		if (status === userConst.status.BAN) {
 			await c.env.kv.delete(KvConst.AUTH_INFO + userId);
+			await revokeUserWs(c, userId);
 		}
 	},
 
@@ -422,7 +435,10 @@ const userService = {
 			return;
 		}
 		const roleList = await roleService.selectByIdsAndSendType(c, 'email:send', roleConst.sendType.DAY);
-		const roleIds = roleList.map(action => action.roleId);
+		const roleIds = roleList.map(action => action.roleId).filter(Boolean);
+		if (!roleIds.length) {
+			return;
+		}
 		await orm(c).update(user).set({ sendCount: 0 }).where(inArray(user.type, roleIds)).run();
 	},
 

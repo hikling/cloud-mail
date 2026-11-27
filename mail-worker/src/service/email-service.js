@@ -1,7 +1,7 @@
 import orm from '../entity/orm';
 import email from '../entity/email';
 import { emailListColumns, emailBriefColumns, EMAIL_LIST_TEXT_LEN } from '../lib/email-list-columns';
-import { attConst, emailConst, isDel, settingConst } from '../const/entity-const';
+import { attConst, emailConst, isDel, settingConst, userConst } from '../const/entity-const';
 import { and, desc, eq, gt, inArray, notInArray, lt, count, asc, sql, ne, or, like, lte, gte } from 'drizzle-orm';
 import { star } from '../entity/star';
 import settingService from './setting-service';
@@ -28,6 +28,8 @@ import verifyUtils from '../utils/verify-utils';
 import { notifyMailWsFromContext } from '../websocket/notify';
 import proxyService from './proxy-service';
 import { withSchemaRecovery } from '../init/schema-migrations';
+import { toUtc } from '../utils/date-uitil';
+import { signAttList, signContentAssets } from '../utils/asset-sign';
 
 const emailService = {
 
@@ -451,13 +453,9 @@ const emailService = {
 
 		const { resendTokens, r2Domain, send, domainList } = await settingService.query(c);
 
-		// 引用正文里的 /proxy?url= 还原成原始外链再发。
-		content = proxyService.restoreHtml(content);
-		let { imageDataList, html } = await attService.toImageUrlHtml(c, content, userId);
-
 		//判断是否关闭发件功能
 		if (send === settingConst.send.CLOSE) {
-			throw new BizError(t('disabledSend'), 403);
+			throw new BizError(t('disabledSend', null, c), 403);
 		}
 
 		const userRow = await userService.selectById(c, userId);
@@ -549,10 +547,14 @@ const emailService = {
 			emailRow = await this.selectById(c, emailId);
 
 			if (!emailRow || emailRow.userId !== userId) {
-				throw new BizError(t('notExistEmailReply'));
+				throw new BizError(t('notExistEmailReply', null, c));
 			}
 
 		}
+
+		// 校验全部权限、配额与账号归属后，再解析并处理正文图片，避免越权或失败请求触发对象存储读取。
+		content = proxyService.restoreHtml(content);
+		let { imageDataList, html } = await attService.toImageUrlHtml(c, content, userId);
 
 		const sendParams = {
 			name,
@@ -749,6 +751,7 @@ const emailService = {
 		}
 
 		const attList = await attService.selectByEmailIds(c, [emailResult.emailId]);
+		await signAttList(c.env, attList, r2Domain);
 		emailResult.attList = attList;
 
 		return emailResult;
@@ -841,7 +844,7 @@ const emailService = {
 			sendForm.bcc = [...params.bccEmail];
 		}
 
-		if (params.sendType === 'reply') {
+		if (params.sendType === 'reply' && params.messageId) {
 			sendForm.headers = {
 				'in-reply-to': params.messageId,
 				'references': params.messageId
@@ -963,8 +966,10 @@ const emailService = {
 
 		const { noRecipient  } = await settingService.query(c);
 
-		//查询所有收件人账号信息
-		let accountList = await orm(c).select().from(account).where(inArray(sql`${account.email} COLLATE NOCASE`, receiveEmail)).all();
+		//查询所有有效收件人账号信息（过滤已软删除账号）
+		let accountList = await orm(c).select().from(account).where(
+			and(inArray(sql`${account.email} COLLATE NOCASE`, receiveEmail), eq(account.isDel, isDel.NORMAL))
+		).all();
 
 		// 对于含+未精确匹配的收件人，获取基础地址账号
 		const plusEmails = receiveEmail.filter(
@@ -979,17 +984,26 @@ const emailService = {
 			const needed = baseEmails.filter(e => !existing.has(e.toLowerCase()));
 			if (needed.length > 0) {
 				const rows = await orm(c).select().from(account)
-					.where(inArray(sql`${account.email} COLLATE NOCASE`, needed)).all();
+					.where(and(inArray(sql`${account.email} COLLATE NOCASE`, needed), eq(account.isDel, isDel.NORMAL))).all();
 				baseAccounts.push(...rows);
 			}
 		}
 
-		// 合并精确匹配和基础地址匹配的账号用于权限查询
+		// 合并精确匹配和基础地址匹配的账号用于权限与用户状态查询
 		const allAccounts = [...accountList, ...baseAccounts];
 
-		//查询所有收件人权限身份
-		const userIds = allAccounts.map(accountRow => accountRow.userId);
-		let roleList = await roleService.selectByUserIds(c, userIds);
+		//查询所有收件人权限身份与所属用户状态
+		const userIds = [...new Set(allAccounts.map(accountRow => accountRow.userId).filter(Boolean))];
+		const [roleList, ownerUsers] = await Promise.all([
+			userIds.length ? roleService.selectByUserIds(c, userIds) : Promise.resolve([]),
+			userIds.length ? orm(c).select({
+				userId: user.userId,
+				email: user.email,
+				isDel: user.isDel,
+				status: user.status
+			}).from(user).where(inArray(user.userId, userIds)).all() : Promise.resolve([])
+		]);
+		const ownerUserMap = new Map(ownerUsers.map(u => [u.userId, u]));
 
 		//封装数据库准备保存到数据库
 		const emailDataList = [];
@@ -1022,21 +1036,21 @@ const emailService = {
 				emailValues.type = emailConst.type.RECEIVE;
 				emailValues.status = emailConst.status.RECEIVE;
 
-				const roleRow = roleList.find(roleRow => roleRow.userId === accountRow.userId);
-
-				const { banEmail = '', availDomain = '' } = roleRow || {};
-
-				//如果收件人没有这个域名的使用权限和有邮件拦截，就把邮件改为拒收状态
-				if (!emailUtils.isAdminEmail(c.env, email)) {
+				const ownerUser = ownerUserMap.get(accountRow.userId);
+				if (!ownerUser || ownerUser.isDel === isDel.DELETE || ownerUser.status === userConst.status.BAN) {
+					emailValues.status = emailConst.status.BOUNCED;
+					emailValues.message = `The recipient <${email}> is disabled from receiving emails.`;
+				} else if (!emailUtils.isAdminEmail(c.env, ownerUser.email)) {
+					const roleRow = roleList.find(roleRow => roleRow.userId === accountRow.userId);
+					const { banEmail = '', availDomain = '' } = roleRow || {};
 
 					if (!roleService.hasAvailDomainPerm(availDomain, email)) {
 						emailValues.status = emailConst.status.BOUNCED;
 						emailValues.message = `The recipient <${email}> is not authorized to use this domain.`;
-					} else if(roleService.isBanEmail(banEmail, sendEmailData.sendEmail)) {
+					} else if (roleService.isBanEmail(banEmail, sendEmailData.sendEmail)) {
 						emailValues.status = emailConst.status.BOUNCED;
 						emailValues.message = `The recipient <${email}> is disabled from receiving emails.`;
 					}
-
 				}
 
 				emailDataList.push(emailValues);
@@ -1074,14 +1088,14 @@ const emailService = {
 
 			// 批量保存该收件人的附件关联
 			if (attList?.length > 0) {
-				const attValuesList = attList.map(attRow => ({
+				const attValuesList = attList.map(({ url: _url, ...attRow }) => ({
 					...attRow,
 					attId: null,
 					emailId: emailRow.emailId,
 					accountId: emailRow.accountId,
 					userId: emailRow.userId
 				}));
-				await orm(c).insert(att).values(attValuesList).run();
+				await attService.insertRows(c, attValuesList);
 			}
 
 		}
@@ -1140,14 +1154,20 @@ const emailService = {
 
 		}
 
-		//转发到其他邮箱。发件人用站内实际发件人，信头收件人保留原收件人，信封送到已验证地址。
+		//转发到其他邮箱。发件人用站内实际发件人，信头收件人排除密送地址，信封送到已验证地址。
 		if (forwardStatus === settingConst.forwardStatus.OPEN && forwardEmail && emailRowList.length > 0) {
 
 			const addresses = forwardEmail.split(',').map(address => address.trim()).filter(Boolean);
+			const bccSet = new Set((sendParams.bccEmail || []).map(addr => String(addr).toLowerCase()));
+			const headerRecipients = emailRowList
+				.filter(row => row.toEmail && !bccSet.has(String(row.toEmail).toLowerCase()))
+				.map(row => ({ address: row.toEmail, name: row.toName || '' }));
 			const params = {
 				...sendParams,
 				attachments: await this.toCloudflareAttachments(sendParams.attachments || []),
-				receiveEmail: emailRowList.map(row => ({ address: row.toEmail, name: row.toName || '' })).filter(item => item.address)
+				receiveEmail: headerRecipients.length > 0
+					? headerRecipients
+					: (sendParams.receiveEmail || []).map(address => ({ address, name: '' }))
 			};
 
 			await Promise.all(addresses.map(async address => {
@@ -1177,7 +1197,8 @@ const emailService = {
 
 		const images = Array.from(document.querySelectorAll('img'));
 
-		const useAtts = []
+		const useAtts = [];
+		const normalizedR2 = domainUtils.toOssDomain(r2domain);
 
 		for (const img of images) {
 
@@ -1190,15 +1211,13 @@ const emailService = {
 				if (attCidIndex > -1) {
 					const cidAtt = cidAttList[attCidIndex];
 					img.setAttribute('src', '{{domain}}' + cidAtt.key);
-					useAtts.push(cidAtt)
+					useAtts.push(cidAtt);
 				}
 
 			}
 
-			r2domain = domainUtils.toOssDomain(r2domain)
-
-			if (src && src.startsWith(r2domain + '/')) {
-				img.setAttribute('src', src.replace(r2domain + '/', '{{domain}}'));
+			if (normalizedR2 && src && src.startsWith(normalizedR2 + '/')) {
+				img.setAttribute('src', src.replace(normalizedR2 + '/', '{{domain}}'));
 			}
 
 		}
@@ -1473,10 +1492,12 @@ const emailService = {
 	async emailAddAtt(c, list) {
 
 		const emailIds = list.map(item => item.emailId);
+		const { r2Domain } = await settingService.query(c);
 
 		if (emailIds.length > 0) {
 
 			const attList = await attService.selectByEmailIds(c, emailIds);
+			await signAttList(c.env, attList, r2Domain);
 
 			list.forEach(emailRow => {
 				const atts = attList.filter(attRow => attRow.emailId === emailRow.emailId);
@@ -1484,8 +1505,15 @@ const emailService = {
 			});
 		}
 
-		// 完整邮件查询：给附件后，把正文外链图改成 /proxy?url=。
+		// 完整邮件查询：给附件后，把正文外链图改成 /proxy?url=，并对本站私有附件路径签名。
 		await proxyService.rewriteList(c, list);
+		if (!r2Domain && list?.length) {
+			await Promise.all(list.map(async item => {
+				if (item.content) {
+					item.content = await signContentAssets(c.env, item.content, r2Domain);
+				}
+			}));
+		}
 	},
 
 	async restoreByUserId(c, userId) {
@@ -1500,16 +1528,16 @@ const emailService = {
 	},
 
 	async completeReceiveAll(c) {
-		// 用 EXISTS 走 status=6 部分索引 + account 主键；避免 IN (SELECT account_id FROM account) 触发全盘扫描
+		// 用 EXISTS 走 status=6 部分索引 + account 主键；恢复时同步把 is_del 置回 NORMAL
 		await c.env.db.prepare(
 			`UPDATE email
-			 SET status = ${emailConst.status.RECEIVE}
+			 SET status = ${emailConst.status.RECEIVE}, is_del = ${isDel.NORMAL}
 			 WHERE status = ${emailConst.status.SAVING}
 			   AND EXISTS (SELECT 1 FROM account WHERE account.account_id = email.account_id)`
 		).run();
 		await c.env.db.prepare(
 			`UPDATE email
-			 SET status = ${emailConst.status.NOONE}
+			 SET status = ${emailConst.status.NOONE}, is_del = ${isDel.NORMAL}
 			 WHERE status = ${emailConst.status.SAVING}`
 		).run();
 	},
@@ -1522,21 +1550,23 @@ const emailService = {
 			return;
 		}
 
-		const cutoff = dayjs().subtract(days, 'day').format('YYYY-MM-DD HH:mm:ss');
+		const cutoff = toUtc().subtract(days, 'day').format('YYYY-MM-DD HH:mm:ss');
 		const excludeEmails = String(autoCleanExclude || '')
 			.split(/[,，]/)
 			.map(item => item.trim())
 			.filter(Boolean);
 
 		let excludeUserIds = [];
-		if (excludeEmails.length) {
+		for (let i = 0; i < excludeEmails.length; i += 90) {
+			const chunk = excludeEmails.slice(i, i + 90);
 			const rows = await orm(c)
 				.select({ userId: user.userId })
 				.from(user)
-				.where(sql`${user.email} COLLATE NOCASE IN (${sql.join(excludeEmails.map(email => sql`${email}`), sql`, `)})`)
+				.where(sql`${user.email} COLLATE NOCASE IN (${sql.join(chunk.map(e => sql`${e}`), sql`, `)})`)
 				.all();
-			excludeUserIds = rows.map(row => row.userId);
+			excludeUserIds.push(...rows.map(row => row.userId));
 		}
+		excludeUserIds = [...new Set(excludeUserIds)];
 
 		const batchSize = 95;
 		const maxBatches = 30;
@@ -1618,6 +1648,11 @@ const emailService = {
 	},
 
 	async physicsDeleteByAccountId(c, accountId) {
+		const emailRows = await orm(c).select({ emailId: email.emailId }).from(email).where(eq(email.accountId, accountId)).all();
+		const emailIds = emailRows.map(row => row.emailId);
+		if (emailIds.length > 0) {
+			await starService.removeByEmailIds(c, emailIds);
+		}
 		await attService.removeByAccountId(c, accountId);
 		await orm(c).delete(email).where(eq(email.accountId, accountId)).run();
 	},

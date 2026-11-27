@@ -5,7 +5,7 @@ import settingService from '../service/setting-service';
 import attService from '../service/att-service';
 import constant from '../const/constant';
 import fileUtils from '../utils/file-utils';
-import { emailConst, isDel, settingConst } from '../const/entity-const';
+import { emailConst, isDel, settingConst, userConst } from '../const/entity-const';
 import emailUtils from '../utils/email-utils';
 import roleService from '../service/role-service';
 import userService from '../service/user-service';
@@ -86,6 +86,10 @@ export async function email(message, env, ctx) {
 
 		if (account) {
 			userRow = await userService.selectByIdIncludeDel(invocationCtx, account.userId) || {};
+			if (account.isDel === isDel.DELETE || userRow.isDel === isDel.DELETE || userRow.status === userConst.status.BAN) {
+				message.setReject('The recipient is disabled from receiving emails.');
+				return;
+			}
 		}
 
 		if (account && !emailUtils.isAdminEmail(env, userRow.email)) {
@@ -139,9 +143,10 @@ export async function email(message, env, ctx) {
 		const cidAttachments = [];
 
 		for (let item of (email.attachments || [])) {
+			if (!item?.content) continue;
 			let attachment = { ...item };
 			attachment.key = constant.ATTACHMENT_PREFIX + await fileUtils.getBuffHash(attachment.content) + fileUtils.getExtFileName(item.filename);
-			attachment.size = item.content.length ?? item.content.byteLength;
+			attachment.size = item.content.byteLength ?? item.content.length ?? 0;
 			attachments.push(attachment);
 			if (attachment.contentId) {
 				cidAttachments.push(attachment);

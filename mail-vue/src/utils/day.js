@@ -10,7 +10,9 @@ dayjs.locale(settingStore.lang === 'en' ? 'en' : 'zh-cn')
 const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
 export function fromNow(date) {
+    if (!date) return '';
     const d = dayjs.utc(date).tz(timeZone);
+    if (!d.isValid()) return '';
     const now = dayjs();
     const diffSeconds = now.diff(d, 'second');
     const diffMinutes = now.diff(d, 'minute');
@@ -57,7 +59,9 @@ export function fromNow(date) {
 }
 
 export function formatDetailDate(time) {
+    if (!time) return '';
     const d = dayjs.utc(time).tz(timeZone);
+    if (!d.isValid()) return '';
     const now = dayjs();
 
     const isSameYear = now.year() === d.year();

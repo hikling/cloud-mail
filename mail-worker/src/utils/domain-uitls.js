@@ -1,19 +1,20 @@
 const domainUtils = {
 	toOssDomain(domain) {
 
-		if (!domain) {
-			return null
+		if (!domain || typeof domain !== 'string') {
+			return null;
 		}
 
-		if (!domain.startsWith('http')) {
-			return 'https://' + domain
+		let normalized = domain.trim();
+		if (!normalized) {
+			return null;
 		}
 
-		if (domain.endsWith("/")) {
-			domain = domain.slice(0, -1);
+		if (!/^https?:\/\//i.test(normalized)) {
+			normalized = 'https://' + normalized;
 		}
 
-		return domain
+		return normalized.replace(/\/+$/, '');
 	},
 
 	getDomainList(rawDomain) {

@@ -66,19 +66,26 @@ watch(() => draftStore.setDraft, async () => {
   deep: true
 });
 
-watch(() => draftStore.refreshList, async () => {
-  const { list } = await getEmailList();
-  if (!scroll.value?.emailList) return;
-  scroll.value.emailList.length = 0;
-  scroll.value.handleList(list);
-  scroll.value.emailList.push(...list);
+watch(() => draftStore.refreshList, () => {
+  scroll.value.refreshList?.();
 });
 
-function getEmailList() {
+async function getEmailList(lastId = 0, size = 30) {
   if (!db.value) {
-    return Promise.resolve({ list: [] });
+    return { list: [], total: 0, hasMore: false };
   }
-  return db.value.draft.orderBy('createTime').reverse().toArray().then(list => ({ list }));
+  const all = await db.value.draft.orderBy('createTime').reverse().toArray();
+  let startIdx = 0;
+  if (lastId) {
+    const idx = all.findIndex(item => item.draftId === lastId);
+    startIdx = idx > -1 ? idx + 1 : all.length;
+  }
+  const page = all.slice(startIdx, startIdx + size);
+  return {
+    list: page,
+    total: all.length,
+    hasMore: startIdx + page.length < all.length,
+  };
 }
 
 async function deleteDraft(draftIds) {
@@ -91,8 +98,10 @@ async function deleteDraft(draftIds) {
 async function jumpContent(email) {
   if (!db.value) return;
   const att = await db.value.att.get(email.draftId);
-  email.attachments = att?.attachments || [];
-  uiStore.writerRef.openDraft(email);
+  uiStore.writerRef.openDraft({
+    ...email,
+    attachments: [...(att?.attachments || [])],
+  });
 }
 </script>
 <style>

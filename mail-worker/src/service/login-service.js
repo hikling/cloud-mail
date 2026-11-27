@@ -19,6 +19,12 @@ import orm from '../entity/orm';
 import user from '../entity/user';
 import account from '../entity/account';
 import { count, eq } from 'drizzle-orm';
+import reqUtils from '../utils/req-utils';
+import { revokeUserWs } from '../websocket/notify';
+
+const MAX_PWD_VERIFY_LEN = 128;
+const LOGIN_RATE_LIMIT = 20;
+const LOGIN_RATE_WINDOW_SEC = 300;
 
 const loginService = {
 
@@ -29,42 +35,42 @@ const loginService = {
 		// 个人收件模式：仅首次搭建（尚无任何用户）允许注册管理员账号，之后彻底关闭公开注册
 		const hasUsers = await userService.hasAnyUser(c);
 		if (hasUsers) {
-			throw new BizError(t('regDisabled'));
+			throw new BizError(t('regDisabled', null, c));
 		}
 
 		if (c.env.admin && !emailUtils.isAdminEmail(c.env, email)) {
-			throw new BizError(t('regDisabled'));
+			throw new BizError(t('regDisabled', null, c));
 		}
 
 		const { minEmailPrefix, emailPrefixFilter } = await settingService.query(c);
 
 		if (!verifyUtils.isEmail(email)) {
-			throw new BizError(t('notEmail'));
+			throw new BizError(t('notEmail', null, c));
 		}
 
 		if (emailUtils.getName(email).length < minEmailPrefix) {
-			throw new BizError(t('minEmailPrefix', { msg: minEmailPrefix }));
+			throw new BizError(t('minEmailPrefix', { msg: minEmailPrefix }, c));
 		}
 
 		if (emailPrefixFilter.some(content => emailUtils.getName(email).includes(content))) {
-			throw new BizError(t('banEmailPrefix'));
+			throw new BizError(t('banEmailPrefix', null, c));
 		}
 
 		if (emailUtils.getName(email).length > 64) {
-			throw new BizError(t('emailLengthLimit'));
+			throw new BizError(t('emailLengthLimit', null, c));
 		}
 
-		if (!password || password.length > 30) {
-			throw new BizError(t('pwdLengthLimit'));
+		if (typeof password !== 'string' || !password || password.length > 30) {
+			throw new BizError(t('pwdLengthLimit', null, c));
 		}
 
 		if (password.length < 6) {
-			throw new BizError(t('pwdMinLength'));
+			throw new BizError(t('pwdMinLength', null, c));
 		}
 
 		const domainList = domainUtils.getDomainList(c.env.domain) || [];
 		if (!domainList.includes(emailUtils.getDomain(email).toLowerCase())) {
-			throw new BizError(t('notEmailDomain'));
+			throw new BizError(t('notEmailDomain', null, c));
 		}
 
 		const accountRow = await accountService.selectByEmailIncludeDel(c, email);
@@ -111,28 +117,69 @@ const loginService = {
 
 	async login(c, params, noVerifyPwd = false) {
 
-		const { email, password } = params;
+		const { email, password } = params || {};
 
 		if ((!email || !password) && !noVerifyPwd) {
-			throw new BizError(t('emailAndPwdEmpty'));
+			throw new BizError(t('emailAndPwdEmpty', null, c));
 		}
+
+		if (!noVerifyPwd && (typeof password !== 'string' || password.length > MAX_PWD_VERIFY_LEN)) {
+			throw new BizError(t('IncorrectPwd', null, c));
+		}
+
+		const rateKey = !noVerifyPwd && c.env?.kv
+			? `${KvConst.LOGIN_RATE}${reqUtils.getIp(c) || 'unknown'}:${String(email).trim().toLowerCase()}`
+			: null;
+		const ipRateKey = !noVerifyPwd && c.env?.kv
+			? `${KvConst.LOGIN_RATE}ip:${reqUtils.getIp(c) || 'unknown'}`
+			: null;
+
+		if (rateKey && ipRateKey) {
+			const [acctAttempts, ipAttempts] = await Promise.all([
+				c.env.kv.get(rateKey),
+				c.env.kv.get(ipRateKey)
+			]);
+			if (Number(acctAttempts || 0) >= LOGIN_RATE_LIMIT || Number(ipAttempts || 0) >= LOGIN_RATE_LIMIT * 3) {
+				throw new BizError(t('tooManyAttempts', null, c), 429);
+			}
+		}
+
+		const recordFailure = async () => {
+			if (!rateKey || !ipRateKey) return;
+			const [acctAttempts, ipAttempts] = await Promise.all([
+				c.env.kv.get(rateKey),
+				c.env.kv.get(ipRateKey)
+			]);
+			await Promise.all([
+				c.env.kv.put(rateKey, String((Number(acctAttempts) || 0) + 1), { expirationTtl: LOGIN_RATE_WINDOW_SEC }),
+				c.env.kv.put(ipRateKey, String((Number(ipAttempts) || 0) + 1), { expirationTtl: LOGIN_RATE_WINDOW_SEC })
+			]);
+		};
 
 		const userRow = await userService.selectByEmailIncludeDel(c, email);
 
 		if (!userRow) {
-			throw new BizError(t('notExistUser'));
+			await recordFailure();
+			throw new BizError(t('notExistUser', null, c));
 		}
 
 		if (userRow.isDel === isDel.DELETE) {
-			throw new BizError(t('isDelUser'));
+			await recordFailure();
+			throw new BizError(t('isDelUser', null, c));
 		}
 
 		if (userRow.status === userConst.status.BAN) {
-			throw new BizError(t('isBanUser'));
+			await recordFailure();
+			throw new BizError(t('isBanUser', null, c));
 		}
 
 		if (!noVerifyPwd && !await cryptoUtils.verifyPassword(password, userRow.salt, userRow.password)) {
-			throw new BizError(t('IncorrectPwd'));
+			await recordFailure();
+			throw new BizError(t('IncorrectPwd', null, c));
+		}
+
+		if (rateKey) {
+			await c.env.kv.delete(rateKey);
 		}
 
 		const uuid = uuidv4();
@@ -167,11 +214,15 @@ const loginService = {
 	async logout(c, userId) {
 		const token = await userContext.getToken(c);
 		const authInfo = await c.env.kv.get(KvConst.AUTH_INFO + userId, { type: 'json' });
-		if (!authInfo?.tokens) return;
-		const index = authInfo.tokens.findIndex(item => item === token);
-		if (index > -1) {
-			authInfo.tokens.splice(index, 1);
-			await c.env.kv.put(KvConst.AUTH_INFO + userId, JSON.stringify(authInfo), { expirationTtl: constant.TOKEN_EXPIRE });
+		if (authInfo?.tokens) {
+			const index = authInfo.tokens.findIndex(item => item === token);
+			if (index > -1) {
+				authInfo.tokens.splice(index, 1);
+				await c.env.kv.put(KvConst.AUTH_INFO + userId, JSON.stringify(authInfo), { expirationTtl: constant.TOKEN_EXPIRE });
+			}
+		}
+		if (token) {
+			await revokeUserWs(c, userId, { sessionToken: token });
 		}
 	}
 

@@ -36,6 +36,21 @@ export function permsToRouter(permKeys) {
     return routerList;
 }
 
+export function clearDynamicRoutes(router) {
+    Object.values(routers).flat().forEach(route => {
+        if (route?.name && router.hasRoute(route.name)) {
+            router.removeRoute(route.name);
+        }
+    });
+}
+
+export function syncDynamicRoutes(router, permKeys) {
+    clearDynamicRoutes(router);
+    permsToRouter(permKeys).forEach(routerData => {
+        router.addRoute('layout', routerData);
+    });
+}
+
 const routers = {
     'email:send': [
         {

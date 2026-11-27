@@ -64,7 +64,7 @@ const saltHashUtils = {
 	},
 
 	async verifyPassword(inputPassword, salt, storedHash) {
-		if (!inputPassword || !salt || !storedHash) return false;
+		if (typeof inputPassword !== 'string' || !inputPassword || inputPassword.length > 128 || !salt || !storedHash) return false;
 		if (storedHash.startsWith(PBKDF2_PREFIX)) {
 			const parts = storedHash.split('$');
 			if (parts.length !== 3) return false;

@@ -5,42 +5,36 @@ export function cvtR2Url(key) {
         return ''
     }
 
-    if (key.startsWith('https://') || key.startsWith('http://')) {
+    if (key.startsWith('https://') || key.startsWith('http://') || key.startsWith('/')) {
         return key
     }
 
     const { settings } = useSettingStore();
 
-    let domain = settings.r2Domain
+    let domain = toOssDomain(settings.r2Domain)
 
     // No public CDN domain: serve via this site's /attachments|/static|/oss proxy
     if (!domain) {
         return '/' + String(key).replace(/^\//, '')
     }
 
-    if (!domain.startsWith('http')) {
-        return 'https://' + domain + '/' + key
-    }
-
-    if (domain.endsWith("/")) {
-        domain = domain.slice(0, -1);
-    }
-    return domain + '/' + key
+    return domain + '/' + String(key).replace(/^\//, '')
 }
 
 export function toOssDomain(domain) {
 
-    if (!domain) {
+    if (!domain || typeof domain !== 'string') {
         return ''
     }
 
-    if (!domain.startsWith('http')) {
-        return 'https://' + domain
+    let normalized = domain.trim()
+    if (!normalized) {
+        return ''
     }
 
-    if (domain.endsWith("/")) {
-        domain = domain.slice(0, -1);
+    if (!/^https?:\/\//i.test(normalized)) {
+        normalized = 'https://' + normalized
     }
 
-    return domain
+    return normalized.replace(/\/+$/, '')
 }

@@ -38,6 +38,7 @@ const showLoading = ref(false);
 const uiStore = useUiStore();
 const settingStore = useSettingStore();
 let unmounted = false;
+let preservedContent = null;
 
 onMounted(() => {
   initTinyMCE();
@@ -45,10 +46,12 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   unmounted = true;
+  preservedContent = null;
   destroyEditor();
 });
 
 watch(() => props.defValue, (newValue) => {
+  preservedContent = null;
   if (editor.value && editor.value.getContent() !== newValue) {
     editor.value.setContent(newValue);
   }
@@ -56,6 +59,7 @@ watch(() => props.defValue, (newValue) => {
 
 watch(() => [uiStore.dark, settingStore.lang], () => {
   if (!window.tinymce || unmounted) return;
+  preservedContent = editor.value ? editor.value.getContent() : preservedContent;
   destroyEditor();
   initEditor();
 });
@@ -135,7 +139,8 @@ function initEditor() {
     setup: (ed) => {
       editor.value = ed;
       ed.on('init', () => {
-        ed.setContent(props.defValue);
+        ed.setContent(preservedContent ?? props.defValue);
+        preservedContent = null;
         isInitialized.value = true;
       });
       ed.on('input change', () => {

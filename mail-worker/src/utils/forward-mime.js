@@ -47,8 +47,9 @@ function toBase64Body(content) {
 }
 
 function mimePart(contentType, body, extraHeaders = []) {
+	const safeType = sanitizeHeaderValue(contentType) || 'application/octet-stream';
 	return [
-		`Content-Type: ${contentType}`,
+		`Content-Type: ${safeType}`,
 		'Content-Transfer-Encoding: base64',
 		...extraHeaders,
 		'',
@@ -112,9 +113,13 @@ const forwardMime = {
 			alternative.replace(/\r\n$/, '')
 		];
 		for (const attachment of attachments) {
-			const extra = [`Content-Disposition: ${attachment.disposition || 'attachment'}; ${filenameParam(attachment.filename)}`];
+			const disposition = attachment.disposition === 'inline' ? 'inline' : 'attachment';
+			const extra = [`Content-Disposition: ${disposition}; ${filenameParam(attachment.filename)}`];
 			if (attachment.contentId) {
-				extra.push(`Content-ID: <${attachment.contentId}>`);
+				const cleanCid = sanitizeHeaderValue(attachment.contentId).replace(/[<>]/g, '');
+				if (cleanCid) {
+					extra.push(`Content-ID: <${cleanCid}>`);
+				}
 			}
 			parts.push(`--${mixed}`, mimePart(attachment.type || 'application/octet-stream', attachment.content, extra));
 		}

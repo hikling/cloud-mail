@@ -1,7 +1,12 @@
 import DOMPurify from 'dompurify'
 
 DOMPurify.addHook('afterSanitizeAttributes', (node) => {
-    if (node.tagName !== 'A' || node.getAttribute('target')?.toLowerCase() !== '_blank') return
+    if (node.tagName !== 'A' && node.tagName !== 'AREA') return
+    const target = (node.getAttribute('target') || '').trim().toLowerCase()
+    if (!target || target === '_self') return
+    if (target === '_top' || target === '_parent') {
+        node.setAttribute('target', '_blank')
+    }
     const rel = new Set((node.getAttribute('rel') || '').split(/\s+/).filter(Boolean))
     rel.add('noopener')
     rel.add('noreferrer')

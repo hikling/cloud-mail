@@ -37,10 +37,14 @@ const settingStore = useSettingStore()
 const writerRef = ref({})
 const tabHidden = ref(typeof document !== 'undefined' && document.visibilityState === 'hidden')
 
+function resolveOpacity(val) {
+  if (val === null || val === undefined || val === '') return 0.88
+  const n = Number(val)
+  return Number.isFinite(n) ? Math.min(1, Math.max(0.3, n)) : 0.88
+}
+
 const isSolidBackdrop = computed(() => {
-  const rawVal = Number(settingStore.settings.loginOpacity)
-  const alpha = Number.isFinite(rawVal) ? Math.min(1, Math.max(0.3, rawVal)) : 0.88
-  return alpha >= 0.995
+  return resolveOpacity(settingStore.settings.loginOpacity) >= 0.995
 })
 
 function onVisibilityChange() {
@@ -58,8 +62,7 @@ const customBgStyle = computed(() => {
 })
 
 const workspaceThemeVars = computed(() => {
-  const rawVal = Number(settingStore.settings.loginOpacity)
-  const alpha = Number.isFinite(rawVal) ? Math.min(1, Math.max(0.3, rawVal)) : 0.88
+  const alpha = resolveOpacity(settingStore.settings.loginOpacity)
 
   const isSolid = alpha >= 0.995
   const blurPx = Math.round(14 + (1 - alpha) * 32)

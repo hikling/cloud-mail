@@ -329,7 +329,7 @@ function deleteContact() {
     const key = targetAddressKey()
     form[key] = form[key].filter(item => !contactList.includes(item));
     writerStore.sendRecipientRecord = writerStore.sendRecipientRecord.filter(item => !contactList.includes(item));
-  })
+  }).catch(() => {})
 }
 
 function chooseContact() {
@@ -445,7 +445,7 @@ function clearContent() {
     type: 'warning'
   }).then(() => {
     resetForm()
-  })
+  }).catch(() => {})
 }
 
 function delAtt(index) {
@@ -463,9 +463,9 @@ function chooseFile() {
     for (const file of fileList) {
       const size = file.size
       const filename = file.name
-      const contentType = file.type
+      const type = file.type || 'application/octet-stream'
       const content = await fileToBase64(file)
-      form.attachments.push({content, filename, size, contentType})
+      form.attachments.push({content, filename, size, type, contentType: type})
     }
   }
 }
@@ -557,6 +557,9 @@ async function sendEmail() {
       form.subject = ''
       form.content = ''
       form.receiveEmail = []
+      form.ccEmail = []
+      form.bccEmail = []
+      form.attachments = []
       draftStore.setDraft = {...toRaw(form)}
     }
 
@@ -570,8 +573,8 @@ async function sendEmail() {
       position: 'bottom-right'
     })
     if (e.code === 401) {
-      localStorage.removeItem('token');
-      router.replace('/login');
+      show.value = false
+      return
     }
     show.value = true
     addRecipientRecord();
@@ -755,7 +758,7 @@ onUnmounted(() => {
 function close() {
   closeOpenSuggest();
 
-  if (!form.content && editor.value?.getContent) {
+  if (editor.value?.getContent) {
     form.content = editor.value.getContent() || '';
   }
 

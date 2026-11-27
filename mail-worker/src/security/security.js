@@ -75,7 +75,7 @@ app.use('*', async (c, next) => {
 		const userPublicToken = await c.env.kv.get(KvConst.PUBLIC_KEY);
 		const publicToken = c.req.header(constant.TOKEN_HEADER);
 		if (!userPublicToken || !publicToken || !cryptoUtils.timingSafeEqualStr(publicToken, userPublicToken)) {
-			throw new BizError(t('publicTokenFail'), 401);
+			throw new BizError(t('publicTokenFail', null, c), 401);
 		}
 		return await next();
 	}
@@ -86,14 +86,14 @@ app.use('*', async (c, next) => {
 	const result = await jwtUtils.verifyToken(c, jwt);
 
 	if (!result || result.gen !== constant.AUTH_GEN) {
-		throw new BizError(t('authExpired'), 401);
+		throw new BizError(t('authExpired', null, c), 401);
 	}
 
 	const { userId, token } = result;
 	const authInfo = await c.env.kv.get(KvConst.AUTH_INFO + userId, { type: 'json' });
 
 	if (!authInfo || !Array.isArray(authInfo.tokens) || !authInfo.tokens.includes(token)) {
-		throw new BizError(t('authExpired'), 401);
+		throw new BizError(t('authExpired', null, c), 401);
 	}
 
 	const permIndex = requirePerms.findIndex(item => matchesPathPrefix(path, item));
@@ -107,7 +107,7 @@ app.use('*', async (c, next) => {
 		const userPermIndex = userPaths.findIndex(item => matchesPathPrefix(path, item));
 
 		if (userPermIndex === -1 && !emailUtils.isAdminEmail(c.env, authInfo.user.email)) {
-			throw new BizError(t('unauthorized'), 403);
+			throw new BizError(t('unauthorized', null, c), 403);
 		}
 
 	}
@@ -116,9 +116,12 @@ app.use('*', async (c, next) => {
 	const nowTime = dayjs().startOf('day')
 
 	if (!nowTime.isSame(refreshTime)) {
-		authInfo.refreshTime = dayjs().toISOString();
 		await userService.updateUserInfo(c, authInfo.user.userId);
-		await c.env.kv.put(KvConst.AUTH_INFO + userId, JSON.stringify(authInfo), { expirationTtl: constant.TOKEN_EXPIRE });
+		const freshAuth = await c.env.kv.get(KvConst.AUTH_INFO + userId, { type: 'json' });
+		if (freshAuth && Array.isArray(freshAuth.tokens) && freshAuth.tokens.includes(token)) {
+			freshAuth.refreshTime = dayjs().toISOString();
+			await c.env.kv.put(KvConst.AUTH_INFO + userId, JSON.stringify(freshAuth), { expirationTtl: constant.TOKEN_EXPIRE });
+		}
 	}
 
 	c.set('user', authInfo.user)

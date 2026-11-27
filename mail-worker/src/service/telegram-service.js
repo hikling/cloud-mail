@@ -8,6 +8,7 @@ import emailTextTemplate from '../template/email-text';
 import emailHtmlTemplate from '../template/email-html';
 import domainUtils from "../utils/domain-uitls";
 import proxyService from './proxy-service';
+import { signContentAssets } from '../utils/asset-sign';
 
 const TG_PREVIEW_TTL = 60 * 60 * 24 * 7;
 
@@ -28,8 +29,10 @@ const telegramService = {
 		if (emailRow) {
 
 			if (emailRow.content) {
-				// Telegram 网页预览：外链图改成 /proxy?url=，避免暴露打开者 IP。
-				const html = await proxyService.rewriteHtml(c, emailRow.content);
+				// Telegram 网页预览：外链图改成 /proxy?url=，私有内嵌图签名并保留 7 天有效期。
+				const { r2Domain } = await settingService.query(c);
+				let html = await proxyService.rewriteHtml(c, emailRow.content);
+				html = await signContentAssets(c.env, html, r2Domain, TG_PREVIEW_TTL);
 				return { html: emailHtmlTemplate(html || '', nonce), nonce };
 			} else {
 				return { html: emailTextTemplate(emailRow.text || ''), nonce };

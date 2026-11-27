@@ -2,9 +2,12 @@ import axios from "axios";
 import router from "@/router";
 import i18n from "@/i18n/index.js";
 import { useSettingStore } from "@/store/setting.js";
+import { clearClientSession } from "@/utils/session.js";
+import { clearDynamicRoutes } from "@/perm/perm.js";
 
 let http = axios.create({
-    baseURL: import.meta.env.VITE_BASE_URL
+    baseURL: import.meta.env.VITE_BASE_URL,
+    timeout: 20000
 });
 
 http.interceptors.request.use(config => {
@@ -42,8 +45,11 @@ http.interceptors.response.use(
                     grouping: true,
                     repeatNum: -4,
                 });
-                localStorage.removeItem('token');
-                router.replace('/login');
+                clearClientSession();
+                clearDynamicRoutes(router);
+                if (router.currentRoute.value.name !== 'login') {
+                    router.replace('/login');
+                }
                 reject(data);
                 return;
             }

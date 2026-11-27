@@ -12,47 +12,83 @@ import { t } from '../i18n/i18n';
 
 const OAUTH_FETCH_TIMEOUT_MS = 10_000;
 const OAUTH_BIND_TTL_SEC = 900;
+const OAUTH_STATE_TTL_SEC = 600;
+const OAUTH_PROVIDERS = new Set(['linuxdo', 'github', 'google']);
 
 const oauthService = {
+
+	async createState(c, provider) {
+		if (!OAUTH_PROVIDERS.has(provider)) {
+			throw new BizError(t('oauthDisabled', null, c), 400);
+		}
+		const state = await jwtUtils.generateToken(c, {
+			purpose: 'oauth_state',
+			provider,
+			nonce: crypto.randomUUID()
+		}, OAUTH_STATE_TTL_SEC);
+		return { state };
+	},
+
+	async verifyStateAndInput(c, params, expectedProvider) {
+		const { code, redirectUri, state } = params || {};
+		if (typeof code !== 'string' || !code.trim() || typeof redirectUri !== 'string' || !redirectUri.trim()) {
+			throw new BizError(t('authExpired', null, c), 400);
+		}
+		const verified = await jwtUtils.verifyToken(c, state);
+		if (!verified || verified.purpose !== 'oauth_state' || verified.provider !== expectedProvider) {
+			throw new BizError(t('authExpired', null, c), 401);
+		}
+		return { code: code.trim(), redirectUri: redirectUri.trim() };
+	},
 
 	async bindUser(c, params) {
 
 		const { email, oauthUserId, bindToken } = params || {};
 
+		if (typeof email !== 'string' || !email.trim()) {
+			throw new BizError(t('emptyEmail', null, c));
+		}
+
 		const verified = await jwtUtils.verifyToken(c, bindToken);
 		if (!verified || verified.purpose !== 'oauth_bind' || !verified.platform || String(verified.oauthUserId) !== String(oauthUserId)) {
-			throw new BizError(t('authExpired'), 401);
+			throw new BizError(t('authExpired', null, c), 401);
 		}
 
 		const oauthRow = await this.getByPlatformAndId(c, verified.platform, verified.oauthUserId);
 		if (!oauthRow) {
-			throw new BizError(t('notExistUser'));
+			throw new BizError(t('notExistUser', null, c));
 		}
 
 		let userRow = oauthRow.userId ? await userService.selectByIdIncludeDel(c, oauthRow.userId) : null;
 
-		if (userRow) {
+		if (userRow || oauthRow.userId) {
 			throw new BizError('用户已绑定有邮箱');
 		}
 
-		await loginService.register(c, { email, password: cryptoUtils.genRandomPwd() }, true);
+		const cleanEmail = email.trim();
+		await loginService.register(c, { email: cleanEmail, password: cryptoUtils.genRandomPwd() });
 
-		userRow = await userService.selectByEmail(c, email);
+		userRow = await userService.selectByEmail(c, cleanEmail);
 
-		await orm(c).update(oauth).set({ userId: userRow.userId }).where(
-			and(eq(oauth.platform, verified.platform), eq(oauth.oauthUserId, verified.oauthUserId))
-		).run();
-		const jwtToken = await loginService.login(c, { email, password: null }, true);
+		const updatedOauth = await orm(c).update(oauth).set({ userId: userRow.userId }).where(
+			and(eq(oauth.platform, verified.platform), eq(oauth.oauthUserId, verified.oauthUserId), eq(oauth.userId, 0))
+		).returning().get();
 
-		return { userInfo: oauthRow, token: jwtToken };
+		if (!updatedOauth) {
+			throw new BizError('用户已绑定有邮箱');
+		}
+
+		const jwtToken = await loginService.login(c, { email: cleanEmail, password: null }, true);
+
+		return { userInfo: updatedOauth, token: jwtToken };
 	},
 
 	async linuxDoLogin(c, params) {
 
-		const { code, redirectUri } = params;
+		const { code, redirectUri } = await this.verifyStateAndInput(c, params, 'linuxdo');
 
 		const setting = await settingService.query(c);
-		this.assertEnabled(setting, 'linuxdoSwitch');
+		this.assertEnabled(setting, 'linuxdoSwitch', c);
 
 		const reqParams = new URLSearchParams();
 		reqParams.append('client_id', setting.linuxdoClientId);
@@ -73,6 +109,9 @@ const oauthService = {
 		}
 
 		const token = await tokenRes.json();
+		if (!token?.access_token) {
+			throw new BizError(token?.error_description || token?.error || 'OAuth token missing');
+		}
 
 		const userRes = await fetch('https://connect.linux.do/api/user', {
 			signal: AbortSignal.timeout(OAUTH_FETCH_TIMEOUT_MS),
@@ -86,6 +125,9 @@ const oauthService = {
 		}
 
 		const userInfo = await userRes.json();
+		if (userInfo?.id == null || String(userInfo.id).trim() === '') {
+			throw new BizError('OAuth user id missing');
+		}
 
 		userInfo.oauthUserId = String(userInfo.id);
 		userInfo.active = userInfo.active ? 0 : 1;
@@ -99,10 +141,10 @@ const oauthService = {
 
 	async githubLogin(c, params) {
 
-		const { code, redirectUri } = params;
+		const { code, redirectUri } = await this.verifyStateAndInput(c, params, 'github');
 
 		const setting = await settingService.query(c);
-		this.assertEnabled(setting, 'githubSwitch');
+		this.assertEnabled(setting, 'githubSwitch', c);
 
 		const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
 			method: "POST",
@@ -129,6 +171,10 @@ const oauthService = {
 			throw new BizError(token.error_description || token.error);
 		}
 
+		if (!token?.access_token) {
+			throw new BizError('OAuth token missing');
+		}
+
 		const userRes = await fetch('https://api.github.com/user', {
 			signal: AbortSignal.timeout(OAUTH_FETCH_TIMEOUT_MS),
 			headers: {
@@ -142,6 +188,9 @@ const oauthService = {
 		}
 
 		const userInfo = await userRes.json();
+		if (userInfo?.id == null || String(userInfo.id).trim() === '') {
+			throw new BizError('OAuth user id missing');
+		}
 
 		userInfo.oauthUserId = String(userInfo.id);
 		userInfo.username = userInfo.login;
@@ -153,10 +202,10 @@ const oauthService = {
 
 	async googleLogin(c, params) {
 
-		const { code, redirectUri } = params;
+		const { code, redirectUri } = await this.verifyStateAndInput(c, params, 'google');
 
 		const setting = await settingService.query(c);
-		this.assertEnabled(setting, 'googleSwitch');
+		this.assertEnabled(setting, 'googleSwitch', c);
 
 		const reqParams = new URLSearchParams();
 		reqParams.append('client_id', setting.googleClientId);
@@ -177,6 +226,9 @@ const oauthService = {
 		}
 
 		const token = await tokenRes.json();
+		if (!token?.access_token) {
+			throw new BizError(token?.error_description || token?.error || 'OAuth token missing');
+		}
 
 		const userRes = await fetch('https://openidconnect.googleapis.com/v1/userinfo', {
 			signal: AbortSignal.timeout(OAUTH_FETCH_TIMEOUT_MS),
@@ -190,6 +242,9 @@ const oauthService = {
 		}
 
 		const userInfo = await userRes.json();
+		if (userInfo?.sub == null || String(userInfo.sub).trim() === '') {
+			throw new BizError('OAuth user sub missing');
+		}
 
 		userInfo.oauthUserId = String(userInfo.sub);
 		userInfo.username = userInfo.email;
@@ -241,9 +296,9 @@ const oauthService = {
 
 	},
 
-	assertEnabled(setting, switchKey) {
+	assertEnabled(setting, switchKey, c) {
 		if (setting[switchKey] !== 0) {
-			throw new BizError(t('oauthDisabled'));
+			throw new BizError(t('oauthDisabled', null, c));
 		}
 	},
 

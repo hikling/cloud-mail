@@ -13,11 +13,11 @@ const permService = {
 		const cList = await orm(c).select().from(perm).where(ne(perm.pid, 0)).orderBy(asc(perm.sort)).all();
 
 		cList.forEach(cItem => {
-			cItem.name = t('perms.' + cItem.name)
+			cItem.name = t('perms.' + cItem.name, null, c)
 		})
 
 		pList.forEach(pItem => {
-			pItem.name = t('perms.' + pItem.name)
+			pItem.name = t('perms.' + pItem.name, null, c)
 			pItem.children = cList.filter(cItem => cItem.pid === pItem.permId)
 		})
 		return pList;

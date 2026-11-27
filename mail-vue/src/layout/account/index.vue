@@ -318,6 +318,8 @@ let account = null
 let addFocusTimer = null
 let copiedResetTimer = null
 let first = true
+let cursorAccountId = 0
+let cursorSort = null
 const addForm = reactive({
   email: '',
   suffix: settingStore.domainList[0]
@@ -333,9 +335,10 @@ if (hasPerm('account:query')) {
   getAccountList()
 }
 
-watch(() => accountStore.changeUserAccountName, () => {
-  if (accounts[0]) {
-    accounts[0].name = accountStore.changeUserAccountName
+watch(() => accountStore.changeUserAccountName, (newName) => {
+  const target = accounts.find(item => item.accountId === userStore.user.account?.accountId) || accounts[0]
+  if (target) {
+    target.name = newName
   }
 })
 
@@ -427,8 +430,15 @@ function remove(account) {
   }).then(() => {
     accountDelete(account.accountId).then(() => {
       const index = accounts.findIndex(item => item.accountId === account.accountId);
-      accounts.splice(index, 1);
-      if (accounts.length < queryParams.size) {
+      if (index > -1) {
+        accounts.splice(index, 1);
+      }
+      if (accountStore.currentAccountId === account.accountId) {
+        const nextAcc = accounts[0] || userStore.user.account || {};
+        accountStore.currentAccountId = nextAcc.accountId || 0;
+        accountStore.currentAccount = nextAcc;
+      }
+      if (accounts.length < queryParams.size && !noLoading.value) {
         getAccountList()
       }
       ElMessage({
@@ -436,8 +446,8 @@ function remove(account) {
         type: 'success',
         plain: true,
       })
-    })
-  });
+    }).catch(() => {})
+  }).catch(() => {})
 }
 
 function refresh() {
@@ -447,6 +457,8 @@ function refresh() {
   loading.value = false
   followLoading.value = false
   noLoading.value = false
+  cursorAccountId = 0
+  cursorSort = null
   queryParams.accountId = 0
   queryParams.lastSort = null
   getSkeletonRows();
@@ -486,7 +498,7 @@ function add() {
   }, 100)
 }
 
-function setAsTop(account, index) {
+function setAsTop(account) {
   accountSetAsTop(account.accountId).then(() => {
     ElMessage({
       message: t('setSuccess'),
@@ -494,9 +506,12 @@ function setAsTop(account, index) {
       plain: true,
     })
 
-    const [item] = accounts.splice(index, 1);
-    accounts.splice(1, 0, item);
-  });
+    const curIdx = accounts.findIndex(item => item.accountId === account.accountId);
+    if (curIdx > 0) {
+      const [item] = accounts.splice(curIdx, 1);
+      accounts.splice(1, 0, item);
+    }
+  }).catch(() => {});
 }
 
 async function copyAccount(account, accountId) {
@@ -532,8 +547,8 @@ function getAccountList() {
   }
 
   let start = Date.now();
-  const accountId = accounts.length > 0 ? accounts.at(-1).accountId : 0;
-  const lastSort = accounts.length > 0 ? accounts.at(-1).sort : null;
+  const accountId = accounts.length > 0 ? cursorAccountId : 0;
+  const lastSort = accounts.length > 0 ? cursorSort : null;
 
   accountList(accountId, queryParams.size, lastSort).then(async list => {
     let end = Date.now();
@@ -545,11 +560,17 @@ function getAccountList() {
     if (list.length < queryParams.size) {
       noLoading.value = true
     }
+    if (list.length > 0) {
+      const last = list.at(-1);
+      cursorAccountId = last.accountId;
+      cursorSort = last.sort;
+    }
     if (accounts.length === 0) {
       accountStore.currentAccount = list[0] || {}
     }
 
-    accounts.push(...list)
+    const existingIds = new Set(accounts.map(item => item.accountId));
+    accounts.push(...list.filter(item => !existingIds.has(item.accountId)))
     loading.value = false
     followLoading.value = false
     first = false

@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import NProgress from 'nprogress';
 import { useUiStore } from "@/store/ui.js";
 import { clearClientSession } from "@/utils/session.js";
+import { clearDynamicRoutes } from "@/perm/perm.js";
 
 const routes = [
     {
@@ -87,6 +88,7 @@ let first = true
 window.addEventListener('storage', (event) => {
     if (event.key === 'token' && !event.newValue && localStorage.getItem('token') === null) {
         clearClientSession()
+        clearDynamicRoutes(router)
         if (router.currentRoute.value.name !== 'login') {
             router.replace({ name: 'login' })
         }
@@ -106,17 +108,23 @@ router.beforeEach((to, from, next) => {
     }
 
     const token = localStorage.getItem('token')
+    const isLoginRoute = to.name === 'login' || to.path === '/login'
 
-    if (!token && !to.path.startsWith('/login')) {
+    if (!token) {
+        clearDynamicRoutes(router)
+    }
+
+    if (!token && !isLoginRoute) {
         return next({ name: 'login' })
     }
 
-    if (!token && to.path.startsWith('/login')) {
+    if (!token && isLoginRoute) {
         return next()
     }
 
-    if (token && to.path.startsWith('/login')) {
-        return next(from.path && !from.path.startsWith('/login') ? from.path : '/')
+    if (token && isLoginRoute) {
+        const fromIsLogin = from.name === 'login' || from.path === '/login'
+        return next(from.path && !fromIsLogin ? from.path : '/')
     }
 
     next()

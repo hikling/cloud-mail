@@ -11,13 +11,25 @@ import domainUtils from '../utils/domain-uitls';
 import settingService from "./setting-service";
 import proxyService from './proxy-service';
 import { IMMUTABLE_CACHE_CONTROL, isDangerousAttType, isSafeInlineAtt, sanitizeDispositionFilename } from '../utils/att-headers';
+import { isPublicAssetKey } from '../utils/edge-cache';
 
 const CHUNK_SIZE = 90;
+// D1 enforces 100 bound params per statement; attachments table inserts up to 15 columns per row.
+const ATT_INSERT_CHUNK = 5;
 const ALLOWED_ATT_FIELDS = new Set(['user_id', 'email_id', 'account_id']);
 
 const attService = {
 
+	async insertRows(c, rows) {
+		if (!Array.isArray(rows) || rows.length === 0) return;
+		for (let i = 0; i < rows.length; i += ATT_INSERT_CHUNK) {
+			const chunk = rows.slice(i, i + ATT_INSERT_CHUNK);
+			await orm(c).insert(att).values(chunk).run();
+		}
+	},
+
 	async addAtt(c, attachments) {
+		if (!Array.isArray(attachments) || attachments.length === 0) return;
 
 		for (const attachment of attachments) {
 
@@ -41,7 +53,7 @@ const attService = {
 
 		}
 
-		await orm(c).insert(att).values(attachments).run();
+		await this.insertRows(c, attachments);
 	},
 
 	async toImageUrlHtml(c, content, userId) {
@@ -145,13 +157,20 @@ const attService = {
 	},
 
 	async saveSendAtt(c, attList, userId, accountId, emailId) {
+		if (!Array.isArray(attList) || attList.length === 0) return;
 
 		const attDataList = [];
 
 		for (const item of attList) {
 			const safeFilename = sanitizeDispositionFilename(item.filename);
+			const rawMime = item.type || item.contentType || 'application/octet-stream';
 			item.buff = fileUtils.base64ToUint8Array(item.content);
 			item.key = constant.ATTACHMENT_PREFIX + await fileUtils.getBuffHash(item.buff) + fileUtils.getExtFileName(safeFilename);
+			await r2Service.putObj(c, item.key, item.buff, {
+				contentType: isDangerousAttType(rawMime) ? 'application/octet-stream' : rawMime,
+				cacheControl: IMMUTABLE_CACHE_CONTROL,
+				contentDisposition: `attachment; filename="${safeFilename}"`
+			});
 			attDataList.push({
 				userId,
 				accountId,
@@ -159,26 +178,17 @@ const attService = {
 				key: item.key,
 				size: item.buff.length,
 				filename: safeFilename,
-				mimeType: item.type,
+				mimeType: rawMime,
 				type: attConst.type.ATT
-			});
-		}
-
-		await orm(c).insert(att).values(attDataList).run();
-
-		for (const item of attList) {
-			const safeFilename = sanitizeDispositionFilename(item.filename);
-			await r2Service.putObj(c, item.key, item.buff, {
-				contentType: isDangerousAttType(item.type) ? 'application/octet-stream' : item.type,
-				cacheControl: IMMUTABLE_CACHE_CONTROL,
-				contentDisposition: `attachment; filename="${safeFilename}"`
 			});
 			delete item.buff;
 		}
 
+		await this.insertRows(c, attDataList);
 	},
 
 	async saveArticleAtt(c, attDataList, userId, accountId, emailId) {
+		if (!Array.isArray(attDataList) || attDataList.length === 0) return;
 
 		for (const attData of attDataList) {
 			attData.userId = userId;
@@ -201,7 +211,7 @@ const attService = {
 			delete attData.buff;
 		}
 
-		await orm(c).insert(att).values(attDataList).run();
+		await this.insertRows(c, attDataList);
 
 	},
 
@@ -307,7 +317,7 @@ const attService = {
 		return orm(c).select().from(att).where(and(...conds)).orderBy(desc(att.attId)).groupBy(att.key).all();
 	},
 
-	// attachments/、/attachments/、../attachments/ 都收成存储 key。
+	// attachments/、/attachments/、../attachments/ 及带签名 query 的路径都收成合法存储 key。
 	fromAttSrc(src) {
 		if (!src) {
 			return null;
@@ -317,7 +327,8 @@ const attService = {
 		if (idx === -1) {
 			return null;
 		}
-		return String(src).slice(idx);
+		const clean = String(src).slice(idx).split(/[?#]/)[0];
+		return isPublicAssetKey(clean) ? clean : null;
 	}
 };
 

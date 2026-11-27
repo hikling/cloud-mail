@@ -51,10 +51,23 @@ const analysisService = {
 			return;
 		}
 
-		const { keys } = await c.env.kv.list({ prefix: kvConst.ANALYSIS_ECHARTS, limit: 20 });
+		let cursor;
+		const MAX_PAGES = 10;
+		for (let page = 0; page < MAX_PAGES; page++) {
+			const listed = await c.env.kv.list({
+				prefix: kvConst.ANALYSIS_ECHARTS,
+				limit: 50,
+				...(cursor ? { cursor } : {})
+			});
 
-		for (const key of keys) {
-			await this.refreshEchartsCacheByKey(c, key.name);
+			for (const key of (listed.keys || [])) {
+				await this.refreshEchartsCacheByKey(c, key.name);
+			}
+
+			if (listed.list_complete || !listed.cursor) {
+				break;
+			}
+			cursor = listed.cursor;
 		}
 	},
 

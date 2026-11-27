@@ -210,11 +210,15 @@ const accountService = {
 	},
 
 	async setName(c, params, userId) {
-		const { name, accountId } = params
-		if (name.length > 30) {
-			throw new BizError(t('usernameLengthLimit'));
+		const { name, accountId } = params || {};
+		if (typeof name !== 'string') {
+			throw new BizError(t('usernameLengthLimit', null, c));
 		}
-		await orm(c).update(account).set({name}).where(and(eq(account.userId, userId),eq(account.accountId, accountId))).run();
+		const trimmedName = name.trim();
+		if (trimmedName.length > 30) {
+			throw new BizError(t('usernameLengthLimit', null, c));
+		}
+		await orm(c).update(account).set({name: trimmedName}).where(and(eq(account.userId, userId),eq(account.accountId, accountId))).run();
 	},
 
 	async allAccount(c, params) {
